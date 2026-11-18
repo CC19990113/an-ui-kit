@@ -1,0 +1,21 @@
+{
+  "name": "@x/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "x-elements design tokens — OKLCH palette with a zero-dependency build pipeline",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/tokens.ts",
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.json": "./dist/tokens.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "contrast": "node scripts/contrast.mjs",
+    "test": "node scripts/build.mjs && node scripts/contrast.mjs"
+  },
+  "dependencies": {}
+}

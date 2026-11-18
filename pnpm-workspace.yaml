@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+  - apps/*
+
+# pnpm 10 默认拦截依赖的构建脚本（postinstall）。
+# 这里只放行构建期工具，组件与运行时依赖不受影响。
+onlyBuiltDependencies:
+  - esbuild
+  - rolldown
+  - playwright

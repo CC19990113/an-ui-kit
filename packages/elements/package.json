@@ -1,0 +1,34 @@
+{
+  "name": "@x/elements",
+  "version": "0.1.0",
+  "description": "Framework-agnostic web components with zero runtime dependencies.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": "./react.d.ts",
+    "./vue": "./vue.d.ts",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "react.d.ts",
+    "vue.d.ts"
+  ],
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=esm --minify --loader:.css=text --outfile=dist/index.js && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --config test/vitest.config.ts",
+    "test:watch": "vitest --config test/vitest.config.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.1"
+  }
+}

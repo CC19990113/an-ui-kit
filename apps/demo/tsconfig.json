@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    // vue.d.ts 是 `declare module 'vue'` 的 augmentation，TS 会从「声明文件所在目录」
+    // 解析 `vue`。工作区根没有 node_modules/vue，所以把 `vue` 指到 demo 自己的副本，
+    // 否则 augmentation 静默不生效（详见 packages/elements/vue.d.ts 的注释）。
+    "paths": {
+      "vue": ["./node_modules/vue"]
+    }
+  },
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "e2e/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../scripts/a11y/**/*.ts"
+  ]
+}

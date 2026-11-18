@@ -1,0 +1,7 @@
+/* Guards against page-level preflight (e.g. Tailwind v4) leaking into the host. */
+:host {
+  box-sizing: border-box;
+  border: 0 solid;
+  margin: 0;
+  line-height: 1.5;
+}

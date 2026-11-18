@@ -1,0 +1,4 @@
+/* Tailwind v4 的完整 preflight。
+   这一页就是为了证明：文档级 preflight 不会穿透 Shadow DOM 打穿 <x-button>。
+   （不引入 utilities，避免无关样式干扰对比。） */
+@import 'tailwindcss/preflight';

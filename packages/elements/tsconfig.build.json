@@ -1,0 +1,14 @@
+{
+  // T3 (agent-5) owns packages/elements/tsconfig.json; until it lands, type emit
+  // rides on the shared base config. Switch `extends` to "./tsconfig.json" once
+  // that file exists (keep rootDir/outDir/noEmit here).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"]
+}

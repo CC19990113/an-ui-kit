@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>x-button · Vue 3</title>
+    <link rel="stylesheet" href="./styles/demo.css" />
+  </head>
+  <body>
+    <main>
+      <h1>&lt;x-button&gt; · Vue 3</h1>
+      <p class="hint">
+        用 <code>app.config.compilerOptions.isCustomElement = (tag) =&gt; tag.startsWith('x-')</code>
+        告诉编译器 <code>x-*</code> 是原生自定义元素；模板里写
+        <code>&lt;x-button @x-button-click="..."&gt;</code>。
+      </p>
+      <div id="app"></div>
+    </main>
+    <script type="module" src="./vue.ts"></script>
+  </body>
+</html>

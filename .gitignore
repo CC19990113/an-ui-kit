@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+
+# lockfile 只认仓库根目录那一份
+packages/*/pnpm-lock.yaml
+apps/*/pnpm-lock.yaml
+
+# 构建产物
+dist/
+target/
+*.tsbuildinfo
+
+# 测试
+coverage/
+playwright-report/
+test-results/
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 本地环境变量
+.env
+.env.*
+!.env.example
+
+# 编辑器
+.idea/

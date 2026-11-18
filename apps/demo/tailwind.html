@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>x-button · Tailwind v4 preflight</title>
+    <!-- 完整 preflight（Tailwind v4）先加载，demo.css 后加载只负责页面排版。 -->
+    <link rel="stylesheet" href="./styles/tailwind.css" />
+    <link rel="stylesheet" href="./styles/demo.css" />
+  </head>
+  <body>
+    <main>
+      <h1>&lt;x-button&gt; · Tailwind v4 preflight</h1>
+      <p class="hint">
+        这一页加载了 Tailwind v4 的<strong>完整 preflight</strong>（含
+        <code>*, ::before, ::after { box-sizing: border-box; border: 0 }</code>、
+        <code>body { margin: 0 }</code>、<code>button { background-color: transparent }</code>）。
+        组件在 Shadow DOM 里，preflight 只能作用于文档，不应改变按钮内部的计算样式。
+      </p>
+
+      <!-- 与 native.html 的 fixture 保持逐字一致：e2e 会逐属性对比两页的计算样式。 -->
+      <div class="row" data-testid="button-row">
+        <x-button data-testid="btn-default" variant="default">Default</x-button>
+        <x-button data-testid="btn-primary" variant="primary">Primary</x-button>
+        <x-button data-testid="btn-danger" variant="danger">Danger</x-button>
+        <x-button data-testid="btn-ghost" variant="ghost">Ghost</x-button>
+        <x-button data-testid="btn-disabled" disabled>Disabled</x-button>
+        <x-button data-testid="btn-loading" loading>Loading</x-button>
+      </div>
+
+      <ul class="log" id="event-log" data-testid="event-log" aria-live="polite"></ul>
+    </main>
+
+    <script type="module">
+      import '@x/tokens/tokens.css';
+      import '@x/elements';
+
+      const log = (window.__xButtonClickLog = []);
+      const list = document.getElementById('event-log');
+
+      document.addEventListener('x-button-click', (event) => {
+        const target = event.target;
+        const record = {
+          id: target instanceof Element ? target.getAttribute('data-testid') : null,
+          tag: target instanceof Element ? target.tagName.toLowerCase() : 'unknown',
+          bubbles: event.bubbles,
+          composed: event.composed,
+          hasOriginalEvent: event.detail?.originalEvent instanceof MouseEvent,
+        };
+        log.push(record);
+        console.log('[tailwind] x-button-click', record, event.detail?.originalEvent);
+
+        const item = document.createElement('li');
+        item.textContent =
+          `#${log.length} ${record.id} · bubbles=${record.bubbles}` +
+          ` · composed=${record.composed} · originalEvent=${record.hasOriginalEvent}`;
+        list.append(item);
+      });
+    </script>
+  </body>
+</html>
