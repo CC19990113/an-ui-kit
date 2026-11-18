@@ -125,16 +125,91 @@ export class AppModule {}
 $('x-button').on('x-button-click', (event) => console.log(event.detail));
 ```
 
+## AI 集成
+
+**CEM（[`custom-elements-manifest.json`](custom-elements-manifest.json)）是唯一真相源**：
+组件契约只写在这一份机器可读文件里（`pnpm cem` 生成，已入库），registry、MCP server 与 agent skill
+都是它的投影，不另写规格。改组件后必须整条链路重生成：
+
+```bash
+pnpm cem && pnpm registry && pnpm --filter @x/mcp build
+```
+
+三件套各自面向不同的消费方：
+
+| 产物 | 消费方 | 说明 |
+|------|--------|------|
+| [`registry/`](registry) | shadcn CLI / 直接读 JSON 的 agent | 每组件一份**自包含、零 npm 依赖**的 registry item（`x-button` 当前 5 个文件，含相对 import 的完整文件树）；`meta` 段原样带上 CEM 的 attributes / events / slots / cssProperties / cssParts，[`registry/index.json`](registry/index.json) 列出全部组件 |
+| [`packages/mcp/`](packages/mcp) | 支持 MCP 的 agent / IDE | `@x/mcp` MCP server，3 个工具：`list_components`、`get_component`（按 tagName 取完整契约，大小写不敏感）、`search_components`（按名称/属性/文字检索）；数据来自构建期从根 CEM 逐字节拷贝的 [`manifest.json`](packages/mcp/manifest.json)，不重复解析源码 |
+| [`skills/x-elements/`](skills/x-elements) | agent skill 宿主（Claude Code 等） | agent skill：何时用、先查契约不凭记忆、安装与注册、**10 条硬规则**（含 `type="submit"` 不提交外层表单）、反例 → 正例、生成后自查；组件细节见 [`references/x-button.md`](skills/x-elements/references/x-button.md) |
+
+> 下面两节是 `registry/` 的具体安装方式；MCP 与 skill 分别见各自的 README / SKILL.md。
+
+### 方式一：直接装 URL
+
+```bash
+npx shadcn@latest add https://raw.githubusercontent.com/CC19990113/x-elements/main/registry/x-button.json
+```
+
+### 方式二：配成命名 registry
+
+先在 `components.json` 里声明 registry：
+
+```json
+{
+  "registries": {
+    "@x": "https://raw.githubusercontent.com/CC19990113/x-elements/main/registry/{name}.json"
+  }
+}
+```
+
+```bash
+npx shadcn@latest add @x/x-button
+```
+
+两种方式都会安装一个零依赖、自包含的文件树（`~/` 前缀固定解析到项目根，与项目有没有 `src/` 无关）：
+
+```text
+src/x-elements/
+├─ css.d.ts              # *.css / *.css?inline 模块声明（最先落地）
+├─ internal/base.ts      # XElement 基类（x-button 依赖它）
+├─ internal/reset.css    # :host reset（base.ts 引入）
+└─ button/
+   ├─ x-button.ts
+   └─ x-button.css
+```
+
+registry item 不声明任何 npm 依赖，装完不需要 `@x/elements`；相对 import 原样保留、可以解析，
+装完直接 `tsc --noEmit --strict` 能过。
+已在 shadcn 4.23.0 实测通过。
+
+### 重新生成
+
+```bash
+pnpm cem                   # CEM → custom-elements-manifest.json
+pnpm registry              # CEM → registry/*.json + registry/files/*（内部先跑 pnpm cem）
+pnpm --filter @x/mcp build # 根 CEM → packages/mcp/manifest.json 并打包 dist/server.js
+pnpm registry:check        # 校验 schema、meta 与 CEM 一致、content 与源码逐字节一致
+```
+
+`registry/` 下的 JSON 与 `registry/files/` 由 `scripts/gen-registry.mjs` 生成，不要手改；
+`packages/mcp/manifest.json` 是根 CEM 的逐字节拷贝，同样由构建生成、不要手改。
+三者（CEM / registry / MCP manifest）必须同一次重生成，否则 AI 读到的是不同版本的契约。
+
 ## 目录结构
 
 ```text
 x-elements/
 ├─ packages/
 │  ├─ tokens/            # OKLCH design tokens：构建期生成 CSS 变量（--x-color-*、--x-font-size-* 等）
-│  └─ elements/          # Custom Elements 源码、框架类型、CEM（custom-elements.json）
+│  ├─ elements/          # Custom Elements 源码、框架类型（CEM 在仓库根）
+│  └─ mcp/               # @x/mcp MCP server（3 工具；manifest.json 由根 CEM 拷贝）
 ├─ apps/
 │  └─ demo/              # 原生 / React / Vue / Tailwind v4 验证页
-├─ scripts/              # 零依赖校验脚本：a11y 断言（scripts/a11y）、CI 断言（scripts/ci）
+├─ skills/x-elements/    # agent skill：10 条硬规则 + references/x-button.md
+├─ scripts/              # 零依赖脚本：a11y/CI 断言（scripts/a11y、scripts/ci）、registry 生成（scripts/gen-registry.mjs）
+├─ registry/             # CEM 派生的 shadcn registry：每组件一份 item + index.json + files/
+├─ custom-elements-manifest.json  # CEM（pnpm cem 生成，AI 层唯一真相源，已入库）
 ├─ CONTRACT.md           # 组件契约（9 条硬规则 + 正反例）
 ├─ tsconfig.base.json    # 子包 extends 的 TypeScript 基线
 ├─ pnpm-workspace.yaml   # workspace 与 pnpm 构建放行配置

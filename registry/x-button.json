@@ -1,0 +1,114 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "x-button",
+  "type": "registry:ui",
+  "title": "XButton",
+  "description": "`<x-button>` — an action element backed by a real native `<button>` inside the shadow root, so focus, keyboard activation and accessibility come from the platform. Note: `type=\"submit\"` does not submit an outer form (Shadow DOM limitation).",
+  "files": [
+    {
+      "path": "registry/files/css.d.ts",
+      "content": "/**\n * Stylesheet imports resolve to the raw CSS text, not to a side effect:\n * esbuild inlines them with `--loader:.css=text`, Vite resolves `?inline` to the\n * stylesheet text, and Vitest returns the content through `test.css: true`.\n */\n\ndeclare module '*.css?inline' {\n  const css: string;\n  export default css;\n}\n\ndeclare module '*.css' {\n  const css: string;\n  export default css;\n}\n",
+      "type": "registry:file",
+      "target": "~/src/x-elements/css.d.ts"
+    },
+    {
+      "path": "registry/files/button/x-button.css",
+      "content": "/* Hooks: --x-button-height | --x-button-radius | --x-button-font-size.\n   Colours come only from @x/tokens, each with a fallback. */\n\n:host {\n  display: inline-block;\n  vertical-align: middle;\n  color-scheme: light dark;\n}\n\n:host([data-theme='dark']) {\n  color-scheme: dark;\n}\n\n:host([data-theme='light']) {\n  color-scheme: light;\n}\n\n.base {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 0.375rem;\n  box-sizing: border-box;\n  height: var(--x-button-height, 2.25rem);\n  padding: 0 1rem;\n  border: 1px solid var(--x-color-border-1, #d4d4d8);\n  border-radius: var(--x-button-radius, 0.5rem);\n  background: var(--x-color-bg-1, #ffffff);\n  color: var(--x-color-fg-1, #18181b);\n  font-family: inherit;\n  font-size: var(--x-button-font-size, 0.875rem);\n  font-weight: 500;\n  line-height: 1;\n  white-space: nowrap;\n  cursor: pointer;\n  user-select: none;\n  appearance: none;\n  -webkit-appearance: none;\n}\n\n.base:hover:not(:disabled) {\n  filter: brightness(0.96);\n}\n\n.base:focus-visible {\n  outline: 2px solid var(--x-color-accent-9, #2563eb);\n  outline-offset: 2px;\n}\n\n.base:disabled {\n  cursor: not-allowed;\n  opacity: 0.55;\n}\n\n.base[aria-busy='true'] {\n  cursor: progress;\n}\n\n:host([size='sm']) .base {\n  height: var(--x-button-height, 2rem);\n  padding: 0 0.75rem;\n  border-radius: var(--x-button-radius, 0.375rem);\n  font-size: var(--x-button-font-size, 0.8125rem);\n}\n\n:host([size='lg']) .base {\n  height: var(--x-button-height, 2.75rem);\n  padding: 0 1.25rem;\n  border-radius: var(--x-button-radius, 0.625rem);\n  font-size: var(--x-button-font-size, 1rem);\n}\n\n:host([variant='primary']) .base {\n  border-color: var(--x-color-accent-9, #2563eb);\n  background: var(--x-color-accent-9, #2563eb);\n  color: var(--x-color-bg-1, #ffffff);\n}\n\n:host([variant='danger']) .base {\n  border-color: var(--x-color-danger-9, #dc2626);\n  background: var(--x-color-danger-9, #dc2626);\n  color: var(--x-color-bg-1, #ffffff);\n}\n\n:host([variant='ghost']) .base {\n  border-color: transparent;\n  background: transparent;\n  color: var(--x-color-fg-1, #18181b);\n}\n",
+      "type": "registry:file",
+      "target": "~/src/x-elements/button/x-button.css"
+    },
+    {
+      "path": "registry/files/internal/reset.css",
+      "content": "/* Guards against page-level preflight (e.g. Tailwind v4) leaking into the host. */\n:host {\n  box-sizing: border-box;\n  border: 0 solid;\n  margin: 0;\n  line-height: 1.5;\n}\n",
+      "type": "registry:file",
+      "target": "~/src/x-elements/internal/reset.css"
+    },
+    {
+      "path": "registry/files/internal/base.ts",
+      "content": "import resetStyles from './reset.css?inline';\n\n/** Values allowed for attribute-backed properties. */\nexport type Primitive = string | number | boolean;\n\n/** Defaults for attribute-backed properties; keys define the public API. */\nexport type Defaults = Record<string, Primitive>;\n\n/** `my-attr` -> `myAttr`, so an attribute can drive the camelCase property. */\nfunction toCamelCase(name: string): string {\n  return name.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());\n}\n\n/** `myAttr` -> `my-attr`, so a property can reflect to the attribute. */\nfunction toKebabCase(name: string): string {\n  return name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);\n}\n\n/**\n * Dependency-free base class for every `x-*` custom element.\n *\n * Contract:\n * - Constructor only touches `this` (`attachShadow`, local fields, accessors):\n *   it never reads `document`, `window`, storage or the network, so importing a\n *   component stays safe under SSR and inside workers.\n * - `static defaults` declares the attribute-backed API. Property accessors are\n *   generated from it and reflect back to attributes, so `el.variant` and\n *   `variant=\"primary\"` can never disagree; attributes stay the source of truth.\n * - Markup comes from `render()` as an HTML string and is written straight into\n *   the shadow root, including `static styles` plus the shared reset.\n * - Listeners belong on the shadow root (event delegation), because re-rendering\n *   replaces the inner markup.\n */\nexport abstract class XElement extends HTMLElement {\n  /** Shadow-DOM stylesheet source for this element. */\n  static styles: string = '';\n\n  /** Attribute-backed properties and their defaults. */\n  static defaults: Defaults = {};\n\n  /** Attributes the browser reports to `attributeChangedCallback`. */\n  static get observedAttributes(): string[] {\n    return Object.keys(this.defaults).map(toKebabCase);\n  }\n\n  #defaults: Defaults = {};\n  #values: Record<string, Primitive> = {};\n  #rendered = false;\n  #reflecting = false;\n  #fallbackStyle: HTMLStyleElement | null = null;\n\n  constructor() {\n    super();\n    const ctor = this.constructor as typeof XElement;\n    const root = this.attachShadow({ mode: 'open' });\n\n    this.#defaults = ctor.defaults;\n    this.#values = { ...ctor.defaults };\n    this.#adoptStyles(root, `${resetStyles}\\n${ctor.styles}`);\n\n    for (const [key, fallback] of Object.entries(ctor.defaults)) {\n      const type = typeof fallback;\n      Object.defineProperty(this, key, {\n        configurable: true,\n        enumerable: true,\n        get: () => this.#values[key],\n        set: (next: Primitive) => this.#assign(key, next, type),\n      });\n    }\n  }\n\n  connectedCallback(): void {\n    if (this.#rendered) return;\n    this.#rendered = true;\n    this.requestUpdate();\n  }\n\n  /** Re-renders the shadow root from `render()`. */\n  requestUpdate(): void {\n    const root = this.shadowRoot;\n    if (!root || !this.#rendered) return;\n    root.innerHTML = this.render();\n    if (this.#fallbackStyle && !this.#fallbackStyle.isConnected) root.prepend(this.#fallbackStyle);\n    this.afterRender();\n  }\n\n  /** Returns the shadow-DOM markup; called on connect and after every change. */\n  protected abstract render(): string;\n\n  /** Hook for state markup cannot express (e.g. `.disabled` on a child node). */\n  protected afterRender(): void {}\n\n  /** Dispatches a bubbling, composed `CustomEvent`. */\n  emit<T>(name: string, detail?: T): boolean {\n    return this.dispatchEvent(new CustomEvent<T>(name, { bubbles: true, composed: true, detail }));\n  }\n\n  attributeChangedCallback(name: string, oldValue: string | null, value: string | null): void {\n    if (oldValue === value) return;\n    const key = toCamelCase(name);\n    if (!(key in this.#defaults)) return;\n    this.#values[key] = this.#coerce(key, value); // attribute -> camelCase property\n    if (this.#rendered && !this.#reflecting) this.requestUpdate();\n  }\n\n  #assign(key: string, next: Primitive, type: string): void {\n    const value = type === 'boolean' ? Boolean(next) : type === 'number' ? Number(next) : String(next);\n    if (Object.is(this.#values[key], value)) return;\n    this.#values[key] = value;\n    this.#reflect(key, value);\n  }\n\n  #reflect(key: string, value: Primitive): void {\n    const attribute = toKebabCase(key);\n    this.#reflecting = true;\n    try {\n      if (typeof value === 'boolean') this.toggleAttribute(attribute, value);\n      else if (value === this.#defaults[key]) this.removeAttribute(attribute);\n      else this.setAttribute(attribute, String(value));\n    } finally {\n      this.#reflecting = false;\n    }\n    if (this.#rendered) this.requestUpdate();\n  }\n\n  #coerce(key: string, value: string | null): Primitive {\n    const fallback = this.#defaults[key];\n    if (typeof fallback === 'boolean') return value !== null;\n    if (value === null) return fallback;\n    if (typeof fallback === 'number') return Number.isNaN(Number(value)) ? fallback : Number(value);\n    return value;\n  }\n\n  #adoptStyles(root: ShadowRoot, text: string): void {\n    if (!text.trim()) return;\n    try {\n      const sheet = new CSSStyleSheet();\n      sheet.replaceSync(text);\n      root.adoptedStyleSheets = [sheet];\n    } catch {\n      if (typeof document === 'undefined') return;\n      const style = document.createElement('style');\n      style.textContent = text;\n      root.prepend(style);\n      this.#fallbackStyle = style;\n    }\n  }\n}\n",
+      "type": "registry:file",
+      "target": "~/src/x-elements/internal/base.ts"
+    },
+    {
+      "path": "registry/files/button/x-button.ts",
+      "content": "import buttonStyles from './x-button.css?inline';\nimport { XElement } from '../internal/base';\n\n/** Visual intents of `<x-button>`. */\nexport type XButtonVariant = 'default' | 'primary' | 'danger' | 'ghost';\n/** Control sizes of `<x-button>`. */\nexport type XButtonSize = 'sm' | 'md' | 'lg';\n/** Native button types forwarded by `<x-button>`. */\nexport type XButtonType = 'button' | 'submit' | 'reset';\n\nconst VARIANTS: readonly XButtonVariant[] = ['default', 'primary', 'danger', 'ghost'];\nconst SIZES: readonly XButtonSize[] = ['sm', 'md', 'lg'];\nconst TYPES: readonly XButtonType[] = ['button', 'submit', 'reset'];\n\nfunction oneOf<T extends string>(allowed: readonly T[], value: string, fallback: T): T {\n  return (allowed as readonly string[]).includes(value) ? (value as T) : fallback;\n}\n\n/**\n * `<x-button>` — an action element backed by a real native `<button>` inside\n * the shadow root, so focus, keyboard activation and accessibility come from\n * the platform. Note: `type=\"submit\"` does not submit an outer form (Shadow\n * DOM limitation).\n *\n * The default slot holds the label. `disabled` and `loading` both block the\n * native button and swallow clicks; while loading the internal button also\n * carries `aria-busy=\"true\"`.\n *\n * @attr {('default'|'primary'|'danger'|'ghost')} variant - Visual intent. Default: \"default\".\n * @attr {('sm'|'md'|'lg')} size - Control size. Default: \"md\".\n * @attr {boolean} disabled - Disables the native button and blocks `x-button-click`.\n * @attr {boolean} loading - Marks the button busy with `aria-busy=\"true\"` and blocks clicks.\n * @attr {('button'|'submit'|'reset')} type - Native button type. Default: \"button\".\n * @slot - Default slot: the button label (text, icon, or both).\n * @cssprop --x-button-height - Control height; defaults to 2.25rem (2rem sm, 2.75rem lg).\n * @cssprop --x-button-radius - Corner radius; defaults to 0.5rem (0.375rem sm, 0.625rem lg).\n * @cssprop --x-button-font-size - Label font size; defaults to 0.875rem (0.8125rem sm, 1rem lg).\n * @csspart base - The internal native `<button>` element.\n * @fires x-button-click - Fired when the user activates the button; `detail.originalEvent` is the native MouseEvent.\n */\nexport class XButton extends XElement {\n  static override styles: string = buttonStyles;\n\n  static override defaults = {\n    variant: 'default',\n    size: 'md',\n    disabled: false,\n    loading: false,\n    type: 'button',\n  };\n\n  declare variant: XButtonVariant;\n  declare size: XButtonSize;\n  declare disabled: boolean;\n  declare loading: boolean;\n  declare type: XButtonType;\n\n  constructor() {\n    super();\n    // Delegation on the shadow root survives the innerHTML re-render.\n    this.shadowRoot!.addEventListener('click', this.#onClick);\n  }\n\n  protected render(): string {\n    const type = oneOf(TYPES, this.type, 'button');\n    const blocked = this.disabled || this.loading ? ' disabled' : '';\n    const busy = this.loading ? ' aria-busy=\"true\"' : '';\n    return `<button class=\"base\" part=\"base\" type=\"${type}\"${blocked}${busy}><slot></slot></button>`;\n  }\n\n  protected override afterRender(): void {\n    const button = this.#button;\n    if (!button) return;\n    button.disabled = this.disabled || this.loading;\n    if (this.loading) button.setAttribute('aria-busy', 'true');\n    else button.removeAttribute('aria-busy');\n  }\n\n  #onClick = (event: Event): void => {\n    if (this.disabled || this.loading) {\n      event.preventDefault();\n      event.stopPropagation();\n      return;\n    }\n    this.emit('x-button-click', { originalEvent: event as MouseEvent });\n  };\n\n  get #button(): HTMLButtonElement | null {\n    return this.shadowRoot?.querySelector('button') ?? null;\n  }\n}\n\nexport { VARIANTS, SIZES, TYPES };\n",
+      "type": "registry:file",
+      "target": "~/src/x-elements/button/x-button.ts"
+    }
+  ],
+  "meta": {
+    "tagName": "x-button",
+    "attributes": [
+      {
+        "name": "variant",
+        "type": {
+          "text": "('default'|'primary'|'danger'|'ghost')"
+        },
+        "description": "Visual intent. Default: \"default\".",
+        "default": "default"
+      },
+      {
+        "name": "size",
+        "type": {
+          "text": "('sm'|'md'|'lg')"
+        },
+        "description": "Control size. Default: \"md\".",
+        "default": "md"
+      },
+      {
+        "name": "disabled",
+        "type": {
+          "text": "boolean"
+        },
+        "description": "Disables the native button and blocks `x-button-click`."
+      },
+      {
+        "name": "loading",
+        "type": {
+          "text": "boolean"
+        },
+        "description": "Marks the button busy with `aria-busy=\"true\"` and blocks clicks."
+      },
+      {
+        "name": "type",
+        "type": {
+          "text": "('button'|'submit'|'reset')"
+        },
+        "description": "Native button type. Default: \"button\".",
+        "default": "button"
+      }
+    ],
+    "events": [
+      {
+        "name": "x-button-click",
+        "description": "Fired when the user activates the button; `detail.originalEvent` is the native MouseEvent."
+      }
+    ],
+    "slots": [
+      {
+        "name": "",
+        "description": "Default slot: the button label (text, icon, or both)."
+      }
+    ],
+    "cssProperties": [
+      {
+        "name": "--x-button-height",
+        "description": "Control height; defaults to 2.25rem (2rem sm, 2.75rem lg)."
+      },
+      {
+        "name": "--x-button-radius",
+        "description": "Corner radius; defaults to 0.5rem (0.375rem sm, 0.625rem lg)."
+      },
+      {
+        "name": "--x-button-font-size",
+        "description": "Label font size; defaults to 0.875rem (0.8125rem sm, 1rem lg)."
+      }
+    ],
+    "cssParts": [
+      {
+        "name": "base",
+        "description": "The internal native `<button>` element."
+      }
+    ]
+  }
+}

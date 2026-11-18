@@ -7,6 +7,12 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "cem": "x-cem scan --src packages/elements/src --out custom-elements-manifest.json",
+    "registry": "pnpm cem && node scripts/gen-registry.mjs",
+    "registry:check": "node scripts/check-registry.mjs"
+  },
+  "devDependencies": {
+    "x-cem": "^0.1.2"
   }
 }

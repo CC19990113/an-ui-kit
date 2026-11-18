@@ -244,15 +244,23 @@ this.dispatchEvent(new CustomEvent('x-button-click', { detail: { event } })); //
 /* 完全不做 @media 的组件：跟随系统失效；完全不做 [data-theme] 的组件：局部主题失效 */
 ```
 
+**库级主题入口：`data-theme` 是约定，不是组件 attribute**
+
+`data-theme` 是**库级、宿主侧**的主题开关：设在 `<html>`、任意祖先，或组件自身，由 token 层
+（`[data-theme='dark']`）与组件层（`:host([data-theme='dark'])`）共同消费。
+它不注册进组件的 `observedAttributes`，也**不出现在 CEM 的 `attributes` 里**——CEM 只描述组件自身声明的
+attribute，因此 registry / MCP / skill 都查不到它，这不是遗漏。判断依据：组件的 `static observedAttributes`
+与 CEM `declaration.attributes` 均不含 `data-theme`；若某组件真的把主题做成组件属性，那才是违规。
+
 ---
 
 ## 7. CEM 是唯一真相源
 
-- 组件的属性、事件、slot、CSS 变量、CSS part 全部写在源码 JSDoc 里（`@attr`、`@fires`、`@slot`、`@cssprop`、`@csspart`），由 `x-cem` 扫描生成 `custom-elements.json`（Custom Elements Manifest，CEM）并提交进仓库。
+- 组件的属性、事件、slot、CSS 变量、CSS part 全部写在源码 JSDoc 里（`@attr`、`@fires`、`@slot`、`@cssprop`、`@csspart`），由 `x-cem` 扫描生成仓库根的 `custom-elements-manifest.json`（Custom Elements Manifest，CEM）并提交进仓库。
 - 框架类型（React JSX、Vue `GlobalComponents`、Angular 模板类型）、文档、AI 元数据、registry 条目**全部从 CEM 派生或校验**。
 - 禁止另写一份规格：不维护手写的属性/事件文档当权威，不手改生成的 `.d.ts` 添加 CEM 里没有的东西。
 - 源码 JSDoc 是唯一需要手改的注释处；改属性 = 改 JSDoc → 重新 scan → 派生类型/文档。
-- CI 必须做同步断言：`x-cem scan` 后 `git diff --exit-code custom-elements.json`（CEM 落后于源码即失败）。
+- CI 必须做同步断言：`x-cem scan` 后 `git diff --exit-code custom-elements-manifest.json`（CEM 落后于源码即失败）。
 
 **✅ 正确**
 
@@ -377,6 +385,23 @@ interface XButtonProps {
 ```
 
 运行时并不需要 workspace 包；它应该放 `devDependencies`，CSS 变量通过构建产物注入。
+
+---
+
+## 已知缺口（Known gaps）
+
+### `type="submit"` 不提交外层表单
+
+`<x-button type="submit">` 内部是 Shadow DOM 里的原生 `<button>`，它不是外层 `<form>` 的表单关联元素：
+`button.form === null`，点击**不会**触发表单提交（`submit` / `requestSubmit` 都不会发生）。
+本库组件目前也没有声明 `static formAssociated = true`、没有通过 `ElementInternals` 做表单关联。
+
+- 影响：从原生 `<button>` 迁到 `<x-button>` 时，提交按钮的既有行为会静默失效。
+- 临时方案：监听 `x-button-click`，手动调用外层表单的 `requestSubmit()`。
+- 待办：下一阶段在 `XElement` 基类统一支持 `static formAssociated` + `ElementInternals`（含 `setFormValue`），
+  组件继承后 `type="submit"` / `type="reset"` 才能真实作用于外层表单。
+- 在此之前：文档、JSDoc、skill 与 AI 元数据**不得**声称 `<x-button>` 具备 "form semantics"；
+  已修正为「`type="submit"` 不提交外层表单（Shadow DOM 限制）」。
 
 ---
 

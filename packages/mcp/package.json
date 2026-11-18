@@ -1,0 +1,32 @@
+{
+  "name": "@x/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server exposing the x-elements Custom Elements Manifest so AI agents can query component contracts.",
+  "type": "module",
+  "bin": {
+    "x-elements-mcp": "./dist/server.js"
+  },
+  "files": [
+    "dist",
+    "manifest.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/server.js",
+    "dev": "node src/server.js",
+    "test": "node --test test/server.test.js",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "esbuild": "^0.28.2",
+    "zod": "^4.6.7"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

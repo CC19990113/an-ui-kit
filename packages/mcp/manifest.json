@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "2.1.0",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/button/x-button.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "XButton",
+          "tagName": "x-button",
+          "customElement": true,
+          "description": "`<x-button>` — an action element backed by a real native `<button>` inside the shadow root, so focus, keyboard activation and accessibility come from the platform. Note: `type=\"submit\"` does not submit an outer form (Shadow DOM limitation).",
+          "attributes": [
+            {
+              "name": "variant",
+              "type": {
+                "text": "('default'|'primary'|'danger'|'ghost')"
+              },
+              "description": "Visual intent. Default: \"default\".",
+              "default": "default"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "('sm'|'md'|'lg')"
+              },
+              "description": "Control size. Default: \"md\".",
+              "default": "md"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Disables the native button and blocks `x-button-click`."
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Marks the button busy with `aria-busy=\"true\"` and blocks clicks."
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "('button'|'submit'|'reset')"
+              },
+              "description": "Native button type. Default: \"button\".",
+              "default": "button"
+            }
+          ],
+          "events": [
+            {
+              "name": "x-button-click",
+              "description": "Fired when the user activates the button; `detail.originalEvent` is the native MouseEvent."
+            }
+          ],
+          "slots": [
+            {
+              "name": "",
+              "description": "Default slot: the button label (text, icon, or both)."
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--x-button-height",
+              "description": "Control height; defaults to 2.25rem (2rem sm, 2.75rem lg)."
+            },
+            {
+              "name": "--x-button-radius",
+              "description": "Corner radius; defaults to 0.5rem (0.375rem sm, 0.625rem lg)."
+            },
+            {
+              "name": "--x-button-font-size",
+              "description": "Label font size; defaults to 0.875rem (0.8125rem sm, 1rem lg)."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "The internal native `<button>` element."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/internal/base.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "XElement",
+          "description": "Dependency-free base class for every `x-*` custom element.",
+          "customElement": false,
+          "attributes": [],
+          "events": [],
+          "slots": [],
+          "cssProperties": [],
+          "cssParts": []
+        }
+      ]
+    }
+  ]
+}

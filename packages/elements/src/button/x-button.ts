@@ -18,8 +18,9 @@ function oneOf<T extends string>(allowed: readonly T[], value: string, fallback:
 
 /**
  * `<x-button>` — an action element backed by a real native `<button>` inside
- * the shadow root, so focus, keyboard activation, form semantics and
- * accessibility come from the platform instead of hand-written JS.
+ * the shadow root, so focus, keyboard activation and accessibility come from
+ * the platform. Note: `type="submit"` does not submit an outer form (Shadow
+ * DOM limitation).
  *
  * The default slot holds the label. `disabled` and `loading` both block the
  * native button and swallow clicks; while loading the internal button also
