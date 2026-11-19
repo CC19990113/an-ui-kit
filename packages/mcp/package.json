@@ -1,7 +1,6 @@
 {
   "name": "@an-ui-kit/mcp",
   "version": "0.1.0",
-  "private": true,
   "description": "MCP server exposing the AN UI Kit Custom Elements Manifest so AI agents can query component contracts.",
   "type": "module",
   "bin": {
@@ -12,6 +11,26 @@
     "manifest.json",
     "README.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CC19990113/an-ui-kit.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/CC19990113/an-ui-kit#readme",
+  "bugs": {
+    "url": "https://github.com/CC19990113/an-ui-kit/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "custom-elements",
+    "web-components",
+    "an-ui-kit"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node dist/server.js",

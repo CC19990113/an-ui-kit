@@ -18,6 +18,28 @@
     "react.d.ts",
     "vue.d.ts"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CC19990113/an-ui-kit.git",
+    "directory": "packages/elements"
+  },
+  "homepage": "https://github.com/CC19990113/an-ui-kit#readme",
+  "bugs": {
+    "url": "https://github.com/CC19990113/an-ui-kit/issues"
+  },
+  "keywords": [
+    "web-components",
+    "custom-elements",
+    "design-system",
+    "ui-kit",
+    "react",
+    "vue"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "scripts": {
     "build": "esbuild src/index.ts --bundle --format=esm --minify --loader:.css=text --outfile=dist/index.js && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -1,7 +1,6 @@
 {
   "name": "@an-ui-kit/tokens",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "AN UI Kit design tokens — OKLCH palette with a zero-dependency build pipeline",
   "files": [
@@ -10,7 +9,22 @@
   "exports": {
     ".": "./dist/tokens.ts",
     "./tokens.css": "./dist/tokens.css",
-    "./tokens.json": "./dist/tokens.json"
+    "./tokens.json": "./dist/tokens.json",
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CC19990113/an-ui-kit.git",
+    "directory": "packages/tokens"
+  },
+  "homepage": "https://github.com/CC19990113/an-ui-kit#readme",
+  "bugs": {
+    "url": "https://github.com/CC19990113/an-ui-kit/issues"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
