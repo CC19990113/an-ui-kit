@@ -61,8 +61,8 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色需要；不加载时�
 9. **用前必须注册，Vue 必须声明自定义元素**：入口执行 `import '@an-ui-kit/elements'`；Vue 3 配 `isCustomElement: (tag) => tag.startsWith('an-')`（运行时模板用 `app.config.compilerOptions.isCustomElement`）。
    判错：模板用了 `<an-button>` 但入口没有 import；Vue 未配 `isCustomElement`（会报 “Failed to resolve component: an-button”）。
 
-10. **`type="submit"` 不会自动提交外层表单**：内部 button 在 Shadow DOM 里，`button.form === null`。
-    判错：依赖 `<an-button type="submit">` 自动触发表单提交。正确做法：监听 `an-button-click`，在 handler 里调用 `form.requestSubmit()`。
+10. **`type="submit"` 会提交外层表单（form-associated）**：`<an-button>` 是 form-associated 自定义元素，`type="submit"` 点击时通过外层 `form.requestSubmit()` 提交（保留约束校验），`type="reset"` 调 `form.reset()`。表单里直接写 `<an-button type="submit">提交</an-button>` 即可。
+    判错：在 `an-button-click` handler 里再手动 `form.requestSubmit()` —— 按钮已经提交过，会重复提交。
 
 ## 反例 → 正例
 
@@ -86,4 +86,4 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色需要；不加载时�
 4. 布尔属性没有写成 `="false"`？
 5. 样式只用了 CSS 变量 / `::part()` / token，没有选 Shadow DOM 内部？
 6. 没有在 `<an-button>` 里再放 `<button>`？
-7. 依赖 `type="submit"` 的地方已经改成手动 `requestSubmit()`？
+7. 表单没有多余的手动接线（`type="submit"` 已经提交，别在 `an-button-click` 里再调 `requestSubmit()`）？

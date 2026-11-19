@@ -388,20 +388,22 @@ interface AnButtonProps {
 
 ---
 
-## 已知缺口（Known gaps）
+## 表单关联（Form association）
 
-### `type="submit"` 不提交外层表单
+表单关联是 opt-in：`AnElement` 声明 `static formAssociated: boolean = false`，子类覆盖为 `true` 后，
+构造函数在平台支持时 `attachInternals()` 并暴露 `this.internals`（不支持的环境退化为普通元素，`internals` 为 `null`），
+同时获得平台生命周期回调 `formAssociatedCallback` / `formResetCallback` / `formDisabledCallback`
+与受保护的 `onFormReset` / `onFormDisabled` 钩子。未开启的组件行为不变。
 
-`<an-button type="submit">` 内部是 Shadow DOM 里的原生 `<button>`，它不是外层 `<form>` 的表单关联元素：
-`button.form === null`，点击**不会**触发表单提交（`submit` / `requestSubmit` 都不会发生）。
-本库组件目前也没有声明 `static formAssociated = true`、没有通过 `ElementInternals` 做表单关联。
+`<an-button>` 已开启（`static override formAssociated = true`）：
 
-- 影响：从原生 `<button>` 迁到 `<an-button>` 时，提交按钮的既有行为会静默失效。
-- 临时方案：监听 `an-button-click`，手动调用外层表单的 `requestSubmit()`。
-- 待办：下一阶段在 `AnElement` 基类统一支持 `static formAssociated` + `ElementInternals`（含 `setFormValue`），
-  组件继承后 `type="submit"` / `type="reset"` 才能真实作用于外层表单。
-- 在此之前：文档、JSDoc、skill 与 AI 元数据**不得**声称 `<an-button>` 具备 "form semantics"；
-  已修正为「`type="submit"` 不提交外层表单（Shadow DOM 限制）」。
+- `type="submit"`：点击时调用外层表单的 `requestSubmit()`，**保留 HTML 约束校验**；
+  刻意不用 `form.submit()`（会绕过校验）。单测断言 `requestSubmit()` 恰好 1 次、`submit` 事件 1 次、
+  `form.submit()` 从不调用。
+- `type="reset"`：调用外层表单的 `reset()`。
+- 祖先 `<fieldset disabled>`：`formDisabledCallback` 把禁用态透传给内部 `<button>`，并镜像到 `internals.ariaDisabled`。
+
+不要在 `an-button-click` 监听里再手动 `requestSubmit()`：按钮在派发该事件后已经提交，会重复提交。
 
 ---
 

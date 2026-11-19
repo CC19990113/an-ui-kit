@@ -22,7 +22,7 @@ React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要�
 | `size` | `('sm'\|'md'\|'lg')` | `"md"` | 尺寸 |
 | `disabled` | `boolean` | 不设置 = `false` | 禁用内部按钮，不触发 `an-button-click` |
 | `loading` | `boolean` | 不设置 = `false` | 忙碌态：带上 `aria-busy="true"`，拦截点击 |
-| `type` | `('button'\|'submit'\|'reset')` | `"button"` | 只传给内部原生 button，具备原生 `button/submit/reset` 语义；**不提交外层表单**（Shadow DOM 限制，见下） |
+| `type` | `('button'\|'submit'\|'reset')` | `"button"` | 只传给内部原生 button，具备原生 `button/submit/reset` 语义；`submit` 通过外层 form 的 `requestSubmit()` 提交（保留约束校验），`reset` 调 `form.reset()`（见下） |
 
 布尔 attribute 只认“存在/不存在”：`disabled` 与 `disabled="false"` 都是禁用。
 
@@ -121,21 +121,23 @@ function onClick(event: CustomEvent<{ originalEvent: MouseEvent }>) {
 </template>
 ```
 
-### 表单提交（需要手动）
+### 表单提交
 
-`<an-button type="submit">` 的 button 在 Shadow DOM 内，不属于外层 `<form>`，不会自动提交。
-当前实现没有 `ElementInternals` / `static formAssociated = true`，这是已知缺口（下一阶段基类统一支持），所以 `type` 只有原生语义，不构成 form 关联：
+`<an-button>` 是 form-associated 自定义元素（基类 `AnElement` 的 opt-in `static formAssociated` + `ElementInternals`），`type` 直接作用于外层 `<form>`，无需手动接线：
 
-```js
-const form = document.querySelector('#my-form');
-document.querySelector('#my-submit')
-  .addEventListener('an-button-click', () => form.requestSubmit());
-```
+- `type="submit"`：点击时调用表单的 `requestSubmit()` —— 保留 HTML 约束校验（必填、`pattern`、`min` 等不通过就不提交）。刻意不用 `form.submit()`（会绕过校验）；单测断言 `form.submit()` 从不被调用。
+- `type="reset"`：调用表单的 `reset()`。
+- 祖先 `<fieldset disabled>`：平台禁用态经 `formDisabledCallback` 透传给内部 button，同时拦截 `an-button-click`。
 
 ```html
-<form id="my-form">…</form>
-<an-button id="my-submit" type="submit">提交</an-button>
+<form id="my-form" action="/save" method="post">
+  <input name="email" type="email" required />
+  <an-button type="submit">提交</an-button>
+  <an-button type="reset">重置</an-button>
+</form>
 ```
+
+不要在 `an-button-click` 里再手动 `form.requestSubmit()`：按钮在派发事件后已经提交，会重复提交。
 
 ## 反例
 

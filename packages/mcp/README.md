@@ -82,14 +82,26 @@ packages/mcp/
 └─ dist/server.js      # 生成物：自包含 CLI（gitignored）
 ```
 
+## 表单提交
+
+`<an-button>` 是 form-associated 自定义元素（`static formAssociated = true`，基类 `attachInternals()` 提供 `this.internals` 与 form 生命周期钩子）。`type="submit"` 点击时调用外层表单的 `requestSubmit()`，保留约束校验；`type="reset"` 调用 `form.reset()`。不要再监听 `an-button-click` 手动 `requestSubmit()`，按钮已提交过，会重复提交。
+
+表单里直接写 `<an-button type="submit">提交</an-button>` 即可。
+
 ## 已知缺口
 
-1. **`type="submit"` 不提交外层表单**：`<an-button>` 内部的原生 button 在 Shadow DOM 里，拿不到外层 `<form>`（`button.form === null`），这是 Shadow DOM 结构限制，不是按钮实现写错。当前文档只承诺 `type` 的原生语义（`button` / `submit` / `reset`），表单提交必须监听 `an-button-click` 后手动 `form.requestSubmit()`。后续给组件基类引入 `ElementInternals` + `static formAssociated = true` 后统一支持（下一阶段）。
-2. **`data-theme` 不在 CEM attributes 里**：`:host([data-theme='dark'])` 是库级主题入口（CONTRACT §6），不是组件 `@attr`，所以 MCP 的 `get_component` 查不到它。主题用法见 `skills/an-ui-kit`。
-3. **manifest 来源是根 CEM 拷贝**：`packages/mcp/manifest.json` 由构建步骤从仓库根 `custom-elements-manifest.json` 复制，本包不 `x-cem scan`。根 CEM 更新后必须重新 `pnpm --filter @an-ui-kit/mcp build`，否则本包仍是旧副本。
-4. **类级 description 缺失（待 x-cem 0.1.2）**：x-cem 0.1.1 不输出 class `description`；`list_components` 的 `description` 会退化为按 manifest 现场拼的事实摘要（属性名、事件名），不复制手写文档。scanner 支持后自动改用真 description。
-5. **默认值位置（待 x-cem 0.1.2）**：0.1.1 把 `Default: "md"` 写在属性 description 里。服务端优先读结构化 `attribute.default`（0.1.2 起），读不到时用正则从 description 还原；无默认值的布尔属性为 `null`。
+1. **`data-theme` 不在 CEM attributes 里**：`:host([data-theme='dark'])` 是库级主题入口（CONTRACT §6），不是组件 `@attr`，所以 MCP 的 `get_component` 查不到它。主题用法见 `skills/an-ui-kit`。
+2. **manifest 来源是根 CEM 拷贝**：`packages/mcp/manifest.json` 由构建步骤从仓库根 `custom-elements-manifest.json` 复制，本包不 `x-cem scan`。根 CEM 更新后必须重新 `pnpm --filter @an-ui-kit/mcp build`，否则本包仍是旧副本。
+3. **类级 description 缺失（待 x-cem 0.1.2）**：x-cem 0.1.1 不输出 class `description`；`list_components` 的 `description` 会退化为按 manifest 现场拼的事实摘要（属性名、事件名），不复制手写文档。scanner 支持后自动改用真 description。
+4. **默认值位置（待 x-cem 0.1.2）**：0.1.1 把 `Default: "md"` 写在属性 description 里。服务端优先读结构化 `attribute.default`（0.1.2 起），读不到时用正则从 description 还原；无默认值的布尔属性为 `null`。
 
 ## 发布
 
-按阶段 1 的裁决，暂不发 npm：包保持 `"private": true`。`bin` 已指向打包后的 `dist/server.js`；将来发布只需删除 `private`、确认 `files` 覆盖 `dist` 与 `manifest.json`、并接受打包产物包含 MIT 的 MCP SDK / zod（`prepublishOnly` 会先 build）。
+已作为 `@an-ui-kit/mcp@0.1.0` 发布到 npm（`publishConfig.access: "public"`，registry 为 npmjs）。`bin` 指向打包后的 `dist/server.js`，命令名 `an-ui-kit-mcp`：
+
+```bash
+npx -y @an-ui-kit/mcp          # 直接跑 bin（an-ui-kit-mcp）
+npm i -g @an-ui-kit/mcp        # 或全局安装后用 an-ui-kit-mcp
+```
+
+后续发版：改 `package.json` 的 `version` 后 `pnpm --filter @an-ui-kit/mcp publish`。`prepublishOnly` 会先 build —— 拷贝根 CEM 到 `manifest.json`，再用 esbuild 打包出自包含的 `dist/server.js`；`files` 覆盖 `dist`、`manifest.json`、`README.md`，产物内含 MIT 的 MCP SDK / zod。
