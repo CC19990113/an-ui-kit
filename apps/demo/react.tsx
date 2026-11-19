@@ -23,6 +23,8 @@ function App(): React.JSX.Element {
   const [inputEcho, setInputEcho] = useState('');
   const [formResult, setFormResult] = useState('未提交');
   const [requiredResult, setRequiredResult] = useState('未提交');
+  // 完整表单：提交时把 FormData 转成 JSON 回显（React 侧只读值，不接管表单语义）。
+  const [demoFormOutput, setDemoFormOutput] = useState('');
 
   // 注意：React 19 对自定义元素的事件 prop 走 `on` + 事件名 **原样**，
   // `an-button-click` 本身全小写，所以 prop 是 `onan-button-click`。
@@ -51,6 +53,21 @@ function App(): React.JSX.Element {
   const handleRequiredSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     setRequiredResult('required 表单被提交了（应当先被拦下）');
+  };
+
+  /**
+   * 完整表单：约束校验通过后浏览器才触发 submit，这里把 `FormData` 转成 JSON 回显。
+   * 控件是 form-associated 的，所以 `name` / `bio` / `city` / `hobby` / `terms` / `notify`
+   * 全部由平台写入 FormData，React 侧不接任何隐藏 input。
+   */
+  const handleDemoSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+    setDemoFormOutput(JSON.stringify(data, null, 2));
+  };
+
+  const handleDemoReset = (): void => {
+    setDemoFormOutput('');
   };
 
   return (
@@ -154,6 +171,68 @@ function App(): React.JSX.Element {
         <p className="hint" data-testid="input-required-result">
           {requiredResult}
         </p>
+      </form>
+
+      <h2>完整表单 · React 19 绑定 + 原生 &lt;form&gt;</h2>
+      <p className="hint">
+        React 只绑 <code>onSubmit</code> / <code>onReset</code> 读值回显；校验、<code>FormData</code>、
+        <code>reset()</code> 全交给 form-associated 控件与原生 <code>&lt;form&gt;</code>。
+      </p>
+
+      <form
+        className="stack"
+        id="demo-form"
+        data-testid="form-root"
+        onSubmit={handleDemoSubmit}
+        onReset={handleDemoReset}
+      >
+        <an-field data-testid="field-name" label="姓名" required>
+          <an-input data-testid="form-name" name="name" required placeholder="请输入" />
+        </an-field>
+
+        <an-field data-testid="field-bio" label="简介" hint="最多 200 字">
+          <an-textarea data-testid="form-bio" name="bio" rows={3} maxlength={200} />
+        </an-field>
+
+        <an-field data-testid="field-city" label="城市">
+          <an-select data-testid="form-city" name="city" placeholder="请选择">
+            <option value="bj">北京</option>
+            <option value="sh">上海</option>
+          </an-select>
+        </an-field>
+
+        <an-field data-testid="field-hobby" label="兴趣">
+          <an-radio-group data-testid="form-hobby" name="hobby" value="code">
+            <an-radio value="code">写代码</an-radio>
+            <an-radio value="bike">骑车</an-radio>
+          </an-radio-group>
+        </an-field>
+
+        <an-field data-testid="field-terms" label="选项">
+          <an-checkbox data-testid="form-terms" name="terms" required>
+            同意条款
+          </an-checkbox>
+          <an-switch data-testid="form-notify" name="notify">
+            接收通知
+          </an-switch>
+        </an-field>
+
+        <fieldset className="stack" disabled data-testid="form-fieldset">
+          <legend>禁用的 &lt;fieldset&gt;</legend>
+          <an-field label="锁定字段">
+            <an-input data-testid="form-locked" name="locked" value="locked" />
+          </an-field>
+        </fieldset>
+
+        <div className="row">
+          <an-button data-testid="form-submit" type="submit" variant="primary">
+            提交
+          </an-button>
+          <an-button data-testid="form-reset" type="reset">
+            重置
+          </an-button>
+        </div>
+        <pre data-testid="form-output">{demoFormOutput}</pre>
       </form>
 
     </>

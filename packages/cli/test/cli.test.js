@@ -11,7 +11,7 @@
  */
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -47,6 +47,33 @@ async function project() {
   return dir;
 }
 
+/**
+ * 组件清单以 elements 源码目录为准（约定 `src/<dir>/an-<tag>.ts`），
+ * 这样增删组件时测试不需要跟着改数字或标签列表。
+ * @returns {Promise<string[]>} 排序后的标签清单，如 ['an-button', ...]
+ */
+async function readElementTags() {
+  const srcDir = join(elementsRoot, 'src');
+  const dirents = await readdir(srcDir, { withFileTypes: true });
+  const tags = [];
+  for (const dirent of dirents) {
+    if (!dirent.isDirectory()) continue;
+    for (const file of await readdir(join(srcDir, dirent.name))) {
+      const matched = file.match(/^(an-.+)\.ts$/);
+      if (matched) tags.push(matched[1]);
+    }
+  }
+  return tags.sort();
+}
+
+/** 从 CLI 的「组件（N）：a, b」行解析出数量与标签清单。 */
+function parseComponentLine(stdout) {
+  const matched = stdout.match(/组件（(\d+)）：(.+)/);
+  assert.ok(matched, `stdout 应含「组件（N）：…」行：\n${stdout}`);
+  const tags = matched[2].split(',').map((tag) => tag.trim()).filter(Boolean);
+  return { count: Number(matched[1]), tags };
+}
+
 /** @returns {Promise<{ code: number, stdout: string, stderr: string }>} */
 function runCli(args, { cwd } = {}) {
   return new Promise((resolve) => {
@@ -62,12 +89,14 @@ function runCli(args, { cwd } = {}) {
   });
 }
 
-test('list 输出两个组件标签、包版本与绝对路径', async () => {
+test('list 输出全部组件标签、包版本与绝对路径', async () => {
+  const elementTags = await readElementTags();
   const { code, stdout, stderr } = await runCli(['list'], { cwd: packageRoot });
 
   assert.equal(code, 0, stderr);
-  assert.match(stdout, /an-button/);
-  assert.match(stdout, /an-input/);
+  const { count, tags } = parseComponentLine(stdout);
+  assert.equal(count, elementTags.length);
+  assert.deepEqual(tags.slice().sort(), elementTags);
   assert.match(stdout, /@an-ui-kit\/elements@\d+\.\d+\.\d+/);
   assert.ok(stdout.includes(elementsRoot), `stdout 应含 elements 包绝对路径 ${elementsRoot}：\n${stdout}`);
 });
@@ -102,8 +131,11 @@ test('init 写配置；已存在被拒；--force 才能覆盖', async () => {
   assert.equal(JSON.parse(await readFile(join(dir, 'nested', 'custom.json'), 'utf8')).components, 'all');
 });
 
-test('generate 默认读配置 "all"，产物含两个组件', async () => {
+test('generate 默认读配置 "all"，产物含全部组件', async () => {
   const dir = await project();
+  // 组件清单从 elements 源码推导，不写死数量与标签。
+  const elementTags = await readElementTags();
+  assert.ok(elementTags.length > 0, 'elements/src 下应至少有一个组件');
   await writeFile(join(dir, 'an-ui-kit.config.json'), JSON.stringify({ components: 'all' }, null, 2), 'utf8');
 
   const { code, stdout, stderr } = await runCli(['generate'], { cwd: dir });
@@ -111,11 +143,14 @@ test('generate 默认读配置 "all"，产物含两个组件', async () => {
 
   const outPath = join(dir, 'an-ui-kit.bundle.js');
   const bundled = await readFile(outPath, 'utf8');
-  assert.match(bundled, /an-button/);
-  assert.match(bundled, /an-input/);
+  for (const tag of elementTags) {
+    assert.ok(bundled.includes(tag), `产物应包含组件 ${tag}`);
+  }
 
   assert.match(stdout, /模式：all/);
-  assert.match(stdout, /组件（2）：an-button, an-input/);
+  const { count, tags } = parseComponentLine(stdout);
+  assert.equal(count, elementTags.length, `组件数量应与 elements 源码一致：\n${stdout}`);
+  assert.deepEqual(tags.slice().sort(), elementTags, `组件清单应与 elements 源码一致：\n${stdout}`);
   assert.ok(stdout.includes(outPath), `stdout 应含产物绝对路径 ${outPath}：\n${stdout}`);
   assert.match(stdout, /raw：\d+ B/);
   assert.match(stdout, /gzip（level 9）：\d+ B/);

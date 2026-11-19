@@ -83,6 +83,60 @@ const template = /* html */ `
     <an-button type="submit" variant="primary">提交必填</an-button>
     <p class="hint" data-testid="input-required-result">{{ requiredResult }}</p>
   </form>
+
+  <h2>完整表单 · Vue 3 绑定 + 原生 &lt;form&gt;</h2>
+  <p class="hint">
+    Vue 只绑 <code>@submit.prevent</code> / <code>@reset</code> 读值回显；校验、<code>FormData</code>、
+    <code>reset()</code> 全交给 form-associated 控件与原生 <code>&lt;form&gt;</code>。
+  </p>
+
+  <form
+    class="stack"
+    id="demo-form"
+    data-testid="form-root"
+    @submit.prevent="onDemoSubmit"
+    @reset="onDemoReset"
+  >
+    <an-field data-testid="field-name" label="姓名" required>
+      <an-input data-testid="form-name" name="name" required placeholder="请输入"></an-input>
+    </an-field>
+
+    <an-field data-testid="field-bio" label="简介" hint="最多 200 字">
+      <an-textarea data-testid="form-bio" name="bio" rows="3" maxlength="200"></an-textarea>
+    </an-field>
+
+    <an-field data-testid="field-city" label="城市">
+      <an-select data-testid="form-city" name="city" placeholder="请选择">
+        <option value="bj">北京</option>
+        <option value="sh">上海</option>
+      </an-select>
+    </an-field>
+
+    <an-field data-testid="field-hobby" label="兴趣">
+      <an-radio-group data-testid="form-hobby" name="hobby" value="code">
+        <an-radio value="code">写代码</an-radio>
+        <an-radio value="bike">骑车</an-radio>
+      </an-radio-group>
+    </an-field>
+
+    <an-field data-testid="field-terms" label="选项">
+      <an-checkbox data-testid="form-terms" name="terms" required>同意条款</an-checkbox>
+      <an-switch data-testid="form-notify" name="notify">接收通知</an-switch>
+    </an-field>
+
+    <fieldset class="stack" disabled data-testid="form-fieldset">
+      <legend>禁用的 &lt;fieldset&gt;</legend>
+      <an-field label="锁定字段">
+        <an-input data-testid="form-locked" name="locked" value="locked"></an-input>
+      </an-field>
+    </fieldset>
+
+    <div class="row">
+      <an-button data-testid="form-submit" type="submit" variant="primary">提交</an-button>
+      <an-button data-testid="form-reset" type="reset">重置</an-button>
+    </div>
+    <pre data-testid="form-output">{{ demoFormOutput }}</pre>
+  </form>
 `;
 
 const app = createApp({
@@ -92,6 +146,8 @@ const app = createApp({
     const inputEcho = ref('');
     const formResult = ref('未提交');
     const requiredResult = ref('未提交');
+    // 完整表单：只做「提交时读 FormData 回显」，不接管表单语义。
+    const demoFormOutput = ref('');
 
     const onInput = (
       event: CustomEvent<{ value: string; originalEvent: InputEvent | Event }>,
@@ -110,7 +166,32 @@ const app = createApp({
       requiredResult.value = 'required 表单被提交了（应当先被拦下）';
     };
 
-    return { inputEcho, formResult, requiredResult, onInput, onSubmit, onRequiredSubmit };
+    /**
+     * 完整表单：约束校验通过后浏览器才触发 submit，这里把 `FormData` 转成 JSON 回显。
+     * 控件 form-associated，`name` / `bio` / `city` / `hobby` / `terms` / `notify` 都进 FormData。
+     */
+    const onDemoSubmit = (event: Event): void => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const data = Object.fromEntries(new FormData(form).entries());
+      demoFormOutput.value = JSON.stringify(data, null, 2);
+    };
+
+    const onDemoReset = (): void => {
+      demoFormOutput.value = '';
+    };
+
+    return {
+      inputEcho,
+      formResult,
+      requiredResult,
+      demoFormOutput,
+      onInput,
+      onSubmit,
+      onRequiredSubmit,
+      onDemoSubmit,
+      onDemoReset,
+    };
   },
   methods: {
     onButtonClick(event: Event): void {

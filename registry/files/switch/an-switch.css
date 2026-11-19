@@ -1,0 +1,100 @@
+/* Hooks: --an-switch-width | --an-switch-height | --an-switch-thumb-size
+   | --an-switch-accent.
+   Colours come only from @an-ui-kit/tokens; the shared reset owns the :host box
+   reset. The thumb uses `--an-color-bg-1` so it follows the theme surface. */
+
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+  color-scheme: light dark;
+  font-family: inherit;
+  font-size: var(--an-font-size-sm, 0.875rem);
+  color: var(--an-color-fg-1, #18181b);
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--an-space-2, 0.5rem);
+  cursor: pointer;
+  line-height: 1.5;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:host([disabled]) .base,
+:host([data-form-disabled]) .base {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Focusable but invisible: `role="switch"` on a native checkbox keeps Space,
+   focus and the checked state coming from the platform. */
+.native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.track {
+  position: relative;
+  box-sizing: border-box;
+  flex: none;
+  width: var(--an-switch-width, 2.25rem);
+  height: var(--an-switch-height, 1.25rem);
+  border-radius: var(--an-radius-full, 9999px);
+  background-color: var(--an-color-border-1, #d4d4d8);
+  transition: background-color 120ms ease;
+}
+
+.native:focus-visible + .track {
+  outline: 2px solid var(--an-switch-accent, var(--an-color-accent-9, #2563eb));
+  outline-offset: 2px;
+}
+
+:host([checked]) .track {
+  background-color: var(--an-switch-accent, var(--an-color-accent-9, #2563eb));
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  left: calc((var(--an-switch-height, 1.25rem) - var(--an-switch-thumb-size, 1rem)) / 2);
+  box-sizing: border-box;
+  width: var(--an-switch-thumb-size, 1rem);
+  height: var(--an-switch-thumb-size, 1rem);
+  border-radius: 50%;
+  background-color: var(--an-color-bg-1, #ffffff);
+  transform: translateY(-50%);
+  transition: transform 120ms ease;
+}
+
+/* Travel distance is exactly (width - height): each side keeps an inset of
+   (height - thumb) / 2. */
+:host([checked]) .thumb {
+  transform: translateX(calc(var(--an-switch-width, 2.25rem) - var(--an-switch-height, 1.25rem)))
+    translateY(-50%);
+}
+
+.label {
+  color: var(--an-color-fg-1, #18181b);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .thumb {
+    transition: none;
+  }
+}

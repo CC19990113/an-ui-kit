@@ -1,0 +1,92 @@
+/* Hooks: --an-radio-size | --an-radio-accent | --an-radio-border-color.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */
+
+:host {
+  display: inline-block;
+  vertical-align: middle;
+  color-scheme: light dark;
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--an-space-2, 0.5rem);
+  color: var(--an-color-fg-1, #18181b);
+  font-family: inherit;
+  font-size: var(--an-font-size-sm, 0.875rem);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+/* Visually hidden, but still focusable and operable by the platform. */
+.input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.control {
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--an-radio-size, var(--an-space-4, 1rem));
+  block-size: var(--an-radio-size, var(--an-space-4, 1rem));
+  border: 1px solid var(--an-radio-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-radius-full, 9999px);
+  background: var(--an-color-bg-1, #ffffff);
+}
+
+.control::after {
+  content: '';
+  inline-size: 50%;
+  block-size: 50%;
+  border-radius: inherit;
+  background: var(--an-color-bg-1, #ffffff);
+  transform: scale(0);
+  transition: transform 120ms ease-out;
+}
+
+.input:checked + .control {
+  border-color: var(--an-radio-accent, var(--an-color-accent-9, #2563eb));
+  background: var(--an-radio-accent, var(--an-color-accent-9, #2563eb));
+}
+
+.input:checked + .control::after {
+  transform: scale(1);
+}
+
+.input:focus-visible + .control {
+  outline: 2px solid var(--an-color-accent-9, #2563eb);
+  outline-offset: 2px;
+}
+
+.input:disabled + .control {
+  opacity: 0.5;
+}
+
+:host([disabled]) .base {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control::after {
+    transition: none;
+  }
+}

@@ -112,6 +112,240 @@
       }
     },
     {
+      "name": "an-checkbox",
+      "type": "registry:ui",
+      "title": "AnCheckbox",
+      "description": "`<an-checkbox>` — a boolean form control drawn in the shadow root around a native `<input type=\"checkbox\">`, so focus, Space toggling and the accessible checked state all come from the platform.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/checkbox/an-checkbox.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/checkbox/an-checkbox.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/checkbox/an-checkbox.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/checkbox/an-checkbox.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-checkbox",
+        "attributes": [
+          {
+            "name": "checked",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Checked state; a user toggle writes the attribute back and `form.reset()` restores the mounted initial value. Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "disabled",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Bars interaction, constraint validation and form submission; also mirrored from a disabled ancestor `<fieldset>`. Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "required",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Participates in constraint validation (`valueMissing` when unchecked). Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "indeterminate",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Visual-only mixed state (`aria-checked=\"mixed\"`); the next user click clears it and it is never submitted. Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "name",
+            "type": {
+              "text": "string"
+            },
+            "description": "Field name used when the value is submitted with the owning form."
+          },
+          {
+            "name": "value",
+            "type": {
+              "text": "string"
+            },
+            "description": "Value submitted while the box is checked. Default: \"on\".",
+            "default": "on"
+          }
+        ],
+        "events": [
+          {
+            "name": "an-checkbox-change",
+            "description": "Fired after a user toggle; `detail` carries `checked`, `value` and `originalEvent`."
+          }
+        ],
+        "slots": [
+          {
+            "name": "",
+            "description": "Label text of the control."
+          }
+        ],
+        "cssProperties": [
+          {
+            "name": "--an-checkbox-size",
+            "description": "Box edge length; defaults to `1rem`."
+          },
+          {
+            "name": "--an-checkbox-radius",
+            "description": "Box corner radius; defaults to `--an-radius-sm`."
+          },
+          {
+            "name": "--an-checkbox-accent",
+            "description": "Checked border and tick colour; defaults to `--an-color-accent-9`."
+          },
+          {
+            "name": "--an-checkbox-border-color",
+            "description": "Unchecked border colour; defaults to `--an-color-border-1`."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "The `<label>` wrapper."
+          },
+          {
+            "name": "control",
+            "description": "The painted box (a decorative sibling of the native input)."
+          },
+          {
+            "name": "label",
+            "description": "The slot wrapper."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an-field",
+      "type": "registry:ui",
+      "title": "AnField",
+      "description": "`<an-field>` — layout and error display for one form control.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/field/an-field.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/field/an-field.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/field/an-field.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/field/an-field.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-field",
+        "attributes": [
+          {
+            "name": "label",
+            "description": "Visible label text; the star follows it when `required` is set."
+          },
+          {
+            "name": "hint",
+            "description": "Secondary help text shown under the control."
+          },
+          {
+            "name": "error",
+            "description": "Forces the error message and wins over the captured one."
+          },
+          {
+            "name": "required",
+            "description": "Marks the field as required for presentation (`aria-required`)."
+          }
+        ],
+        "events": [],
+        "slots": [
+          {
+            "name": "",
+            "description": "The control the field wraps; every direct element child is treated as one."
+          }
+        ],
+        "cssProperties": [
+          {
+            "name": "--an-field-gap",
+            "description": "Space between label, control, hint and error; defaults to `--an-space-2` (0.5rem)."
+          },
+          {
+            "name": "--an-field-label-font-size",
+            "description": "Label text size; defaults to `--an-font-size-sm` (0.875rem)."
+          },
+          {
+            "name": "--an-field-hint-color",
+            "description": "Hint colour; defaults to `--an-color-fg-1` weakened to 62%."
+          },
+          {
+            "name": "--an-field-error-color",
+            "description": "Error colour; defaults to `--an-color-danger-9`."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "Column wrapper around the label, control, hint and error."
+          },
+          {
+            "name": "label",
+            "description": "The `<label>`; rendered empty and hidden when `label` is unset."
+          },
+          {
+            "name": "required",
+            "description": "The `*` after the label text; rendered only when `required` is set."
+          },
+          {
+            "name": "control",
+            "description": "Wrapper around the `<slot>`; carries `data-invalid` while an error shows."
+          },
+          {
+            "name": "hint",
+            "description": "The `<p>` hint; hidden while `hint` is empty."
+          },
+          {
+            "name": "error",
+            "description": "The `<p role=\"alert\">` error; hidden while no error shows."
+          }
+        ]
+      }
+    },
+    {
       "name": "an-input",
       "type": "registry:ui",
       "title": "AnInput",
@@ -276,6 +510,639 @@
           {
             "name": "input",
             "description": "The internal native `<input>` element."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an-radio",
+      "type": "registry:ui",
+      "title": "AnRadio",
+      "description": "`<an-radio>` — one option of a radio group.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/radio/an-radio.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/radio/an-radio.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/radio/an-radio.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/radio/an-radio.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-radio",
+        "attributes": [
+          {
+            "name": "value",
+            "type": {
+              "text": "string"
+            },
+            "description": "Submitted value of the option."
+          },
+          {
+            "name": "checked",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Checked state, driven by the owning `<an-radio-group>`."
+          },
+          {
+            "name": "disabled",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Disables the option and blocks selection."
+          }
+        ],
+        "events": [
+          {
+            "name": "an-radio-connect",
+            "description": "Fired when the option connects, so a group can re-sync after a late upgrade."
+          },
+          {
+            "name": "an-radio-select",
+            "description": "Fired when this option becomes checked; `detail = { value, originalEvent }`."
+          }
+        ],
+        "slots": [
+          {
+            "name": "",
+            "description": "Label text of the option."
+          }
+        ],
+        "cssProperties": [
+          {
+            "name": "--an-radio-size",
+            "description": "Edge length of the painted control; defaults to `--an-space-4` (1rem)."
+          },
+          {
+            "name": "--an-radio-accent",
+            "description": "Checked fill and border colour; defaults to `--an-color-accent-9`."
+          },
+          {
+            "name": "--an-radio-border-color",
+            "description": "Unchecked border colour; defaults to `--an-color-border-1`."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "The `<label>` wrapper around the control and the label text."
+          },
+          {
+            "name": "control",
+            "description": "The painted radio control (a decorative sibling of the native input)."
+          },
+          {
+            "name": "label",
+            "description": "The slot wrapper for the visible label text."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an-radio-group",
+      "type": "registry:ui",
+      "title": "AnRadioGroup",
+      "description": "`<an-radio-group>` — the form-associated half of the radio pair.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/radio-group/an-radio-group.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/radio-group/an-radio-group.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/radio/an-radio.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/radio/an-radio.css"
+        },
+        {
+          "path": "registry/files/radio/an-radio.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/radio/an-radio.ts"
+        },
+        {
+          "path": "registry/files/radio-group/an-radio-group.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/radio-group/an-radio-group.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-radio-group",
+        "attributes": [
+          {
+            "name": "name",
+            "type": {
+              "text": "string"
+            },
+            "description": "Field name used when the value is submitted with the owning form."
+          },
+          {
+            "name": "value",
+            "type": {
+              "text": "string"
+            },
+            "description": "Selected value, seeded by the attribute but never written back by the property."
+          },
+          {
+            "name": "label",
+            "type": {
+              "text": "string"
+            },
+            "description": "Visible label, also used to name the `radiogroup` for assistive technology."
+          },
+          {
+            "name": "disabled",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Disables every option and clears the form entry and validity."
+          },
+          {
+            "name": "required",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Participates in constraint validation (`valueMissing` when nothing is selected)."
+          }
+        ],
+        "events": [
+          {
+            "name": "an-radio-change",
+            "description": "Fired when the selection changes; `detail = { value, originalEvent }`."
+          }
+        ],
+        "slots": [],
+        "cssProperties": [
+          {
+            "name": "--an-radio-group-gap",
+            "description": "Gap between options; defaults to `--an-space-3` (0.75rem)."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "Outer wrapper around the label and the options."
+          },
+          {
+            "name": "label",
+            "description": "The visible group label; rendered only when `label` is non-empty."
+          },
+          {
+            "name": "group",
+            "description": "The `role=\"radiogroup\"` container holding the options."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an-select",
+      "type": "registry:ui",
+      "title": "AnSelect",
+      "description": "`<an-select>` — a select control backed by a real native `<select>` inside the shadow root. Markup stays native: the author writes `<option>` children in the light DOM and the element mirrors them into the shadow select, so option semantics, keyboard interaction, mobile pickers and screen-reader behaviour all come from the platform.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/select/an-select.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/select/an-select.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/select/an-select.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/select/an-select.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-select",
+        "attributes": [
+          {
+            "name": "value",
+            "type": {
+              "text": "string"
+            },
+            "description": "Initial selection. Never reflected back onto the attribute."
+          },
+          {
+            "name": "label",
+            "type": {
+              "text": "string"
+            },
+            "description": "Visible label text; also names the control."
+          },
+          {
+            "name": "placeholder",
+            "type": {
+              "text": "string"
+            },
+            "description": "When non-empty, prepends a disabled `value=\"\"` option."
+          },
+          {
+            "name": "size",
+            "type": {
+              "text": "('sm'|'md'|'lg')"
+            },
+            "description": "Control size. Default: \"md\".",
+            "default": "md"
+          },
+          {
+            "name": "disabled",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Disables the inner select and bars validation."
+          },
+          {
+            "name": "required",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Raises `valueMissing` while the value is empty."
+          },
+          {
+            "name": "invalid",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Marks the control invalid with `aria-invalid=\"true\"`."
+          },
+          {
+            "name": "name",
+            "type": {
+              "text": "string"
+            },
+            "description": "Form field name used by `FormData`."
+          }
+        ],
+        "events": [
+          {
+            "name": "an-select-change",
+            "description": "The user picked another option; `detail = { value, originalEvent }`."
+          }
+        ],
+        "slots": [],
+        "cssProperties": [
+          {
+            "name": "--an-select-height",
+            "description": "Control height; defaults to 2.25rem (2rem sm, 2.75rem lg)."
+          },
+          {
+            "name": "--an-select-bg",
+            "description": "Control background; defaults to the `bg-1` token."
+          },
+          {
+            "name": "--an-select-fg",
+            "description": "Text and arrow colour; defaults to the `fg-1` token."
+          },
+          {
+            "name": "--an-select-border-color",
+            "description": "Border colour; defaults to the `border-1` token."
+          },
+          {
+            "name": "--an-select-radius",
+            "description": "Border radius; defaults to the `radius-md` token."
+          },
+          {
+            "name": "--an-select-font-size",
+            "description": "Text size; defaults to the `font-size-sm` token."
+          },
+          {
+            "name": "--an-select-padding-x",
+            "description": "Horizontal padding; defaults to the `space-3` token."
+          },
+          {
+            "name": "--an-select-focus-ring",
+            "description": "Focus outline colour; defaults to the `accent-9` token."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "The wrapper around the control."
+          },
+          {
+            "name": "label",
+            "description": "The visible `<label>`; rendered only when `label` is non-empty."
+          },
+          {
+            "name": "select",
+            "description": "The internal native `<select>` element."
+          },
+          {
+            "name": "chevron",
+            "description": "The decorative arrow drawn over the select."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an-switch",
+      "type": "registry:ui",
+      "title": "AnSwitch",
+      "description": "`<an-switch>` — an on/off control built on a native `<input type=\"checkbox\">` with `role=\"switch\"` inside the shadow root, so focus, Space toggling and the accessible checked state all come from the platform.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/switch/an-switch.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/switch/an-switch.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/switch/an-switch.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/switch/an-switch.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-switch",
+        "attributes": [
+          {
+            "name": "checked",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "On/off state; a user toggle writes the attribute back and `form.reset()` restores the mounted initial value. Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "disabled",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Bars interaction, constraint validation and form submission; also mirrored from a disabled ancestor `<fieldset>`. Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "required",
+            "type": {
+              "text": "boolean"
+            },
+            "description": "Participates in constraint validation (`valueMissing` when off). Default: false.",
+            "default": "false"
+          },
+          {
+            "name": "name",
+            "type": {
+              "text": "string"
+            },
+            "description": "Field name used when the value is submitted with the owning form."
+          },
+          {
+            "name": "value",
+            "type": {
+              "text": "string"
+            },
+            "description": "Value submitted while the switch is on. Default: \"on\".",
+            "default": "on"
+          }
+        ],
+        "events": [
+          {
+            "name": "an-switch-change",
+            "description": "Fired after a user toggle; `detail` carries `checked`, `value` and `originalEvent`."
+          }
+        ],
+        "slots": [
+          {
+            "name": "",
+            "description": "Label text of the control."
+          }
+        ],
+        "cssProperties": [
+          {
+            "name": "--an-switch-width",
+            "description": "Track width; defaults to `2.25rem`."
+          },
+          {
+            "name": "--an-switch-height",
+            "description": "Track height; defaults to `1.25rem`."
+          },
+          {
+            "name": "--an-switch-thumb-size",
+            "description": "Thumb diameter; defaults to `1rem`."
+          },
+          {
+            "name": "--an-switch-accent",
+            "description": "On-state track colour; defaults to `--an-color-accent-9`."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "The `<label>` wrapper."
+          },
+          {
+            "name": "track",
+            "description": "The groove behind the thumb."
+          },
+          {
+            "name": "thumb",
+            "description": "The moving knob."
+          },
+          {
+            "name": "label",
+            "description": "The slot wrapper."
+          }
+        ]
+      }
+    },
+    {
+      "name": "an-textarea",
+      "type": "registry:ui",
+      "title": "AnTextarea",
+      "description": "`<an-textarea>` — a multi-line field backed by a real native `<textarea>` inside the shadow root, so focus, selection, wrapping, IME, autofill, the `maxlength` counter and the on-screen keyboard all come from the platform.",
+      "files": [
+        {
+          "path": "registry/files/css.d.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/css.d.ts"
+        },
+        {
+          "path": "registry/files/textarea/an-textarea.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/textarea/an-textarea.css"
+        },
+        {
+          "path": "registry/files/internal/reset.css",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/reset.css"
+        },
+        {
+          "path": "registry/files/internal/base.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/internal/base.ts"
+        },
+        {
+          "path": "registry/files/textarea/an-textarea.ts",
+          "type": "registry:file",
+          "target": "~/src/an-ui-kit/textarea/an-textarea.ts"
+        }
+      ],
+      "meta": {
+        "tagName": "an-textarea",
+        "attributes": [
+          {
+            "name": "value",
+            "description": "Initial text; typed input does not write it back."
+          },
+          {
+            "name": "placeholder",
+            "description": "Hint shown while empty."
+          },
+          {
+            "name": "label",
+            "description": "Visible `<label>` text; omitted when empty."
+          },
+          {
+            "name": "rows",
+            "description": "Visible row count of the inner textarea. Default `3`."
+          },
+          {
+            "name": "maxlength",
+            "description": "Maximum character count, forwarded to the inner textarea. `-1` means unlimited."
+          },
+          {
+            "name": "resize",
+            "description": "Resize handles: `none`, `vertical` (default) or `both`."
+          },
+          {
+            "name": "disabled",
+            "description": "Bars interaction, constraint validation and form submission."
+          },
+          {
+            "name": "readonly",
+            "description": "Keeps the value submittable but exempts it from validation."
+          },
+          {
+            "name": "required",
+            "description": "Marks the field as mandatory; blank (trimmed) values fail."
+          },
+          {
+            "name": "invalid",
+            "description": "Renders the invalid state (`aria-invalid`)."
+          },
+          {
+            "name": "name",
+            "description": "Entry name used by the owning form's `FormData`."
+          }
+        ],
+        "events": [
+          {
+            "name": "an-textarea-input",
+            "description": "On every input; `detail = { value, originalEvent }`."
+          },
+          {
+            "name": "an-textarea-change",
+            "description": "On the native `change`; `detail = { value, originalEvent }`."
+          }
+        ],
+        "slots": [],
+        "cssProperties": [
+          {
+            "name": "--an-textarea-min-height",
+            "description": "Lowest height of the control."
+          },
+          {
+            "name": "--an-textarea-bg",
+            "description": "Background colour."
+          },
+          {
+            "name": "--an-textarea-fg",
+            "description": "Text colour."
+          },
+          {
+            "name": "--an-textarea-border-color",
+            "description": "Border colour."
+          },
+          {
+            "name": "--an-textarea-radius",
+            "description": "Corner radius."
+          },
+          {
+            "name": "--an-textarea-font-size",
+            "description": "Text size."
+          },
+          {
+            "name": "--an-textarea-padding",
+            "description": "Inner padding shorthand."
+          },
+          {
+            "name": "--an-textarea-focus-ring",
+            "description": "Focus outline and border colour."
+          }
+        ],
+        "cssParts": [
+          {
+            "name": "base",
+            "description": "The wrapper around label and control."
+          },
+          {
+            "name": "label",
+            "description": "The visible `<label>`; rendered only when `label` is non-empty."
+          },
+          {
+            "name": "textarea",
+            "description": "The internal native `<textarea>` element."
           }
         ]
       }

@@ -1,0 +1,38 @@
+/* Hooks: --an-radio-group-gap.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */
+
+:host {
+  display: block;
+  color-scheme: light dark;
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: flex;
+  flex-direction: column;
+  gap: var(--an-space-2, 0.5rem);
+  font-family: inherit;
+}
+
+.label {
+  color: var(--an-color-fg-1, #18181b);
+  font-size: var(--an-font-size-sm, 0.875rem);
+  line-height: 1.4;
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--an-radio-group-gap, var(--an-space-3, 0.75rem));
+}
+
+:host([disabled]) .base {
+  opacity: 0.6;
+}

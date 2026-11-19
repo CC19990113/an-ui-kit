@@ -1,0 +1,74 @@
+/* Hooks: --an-textarea-min-height | --an-textarea-bg | --an-textarea-fg
+   | --an-textarea-border-color | --an-textarea-radius | --an-textarea-font-size
+   | --an-textarea-padding | --an-textarea-focus-ring.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */
+
+:host {
+  display: inline-block;
+  vertical-align: middle;
+  color-scheme: light dark;
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-family: inherit;
+}
+
+.label {
+  color: var(--an-color-fg-1, #18181b);
+  font-size: var(--an-font-size-sm, 0.875rem);
+  line-height: 1.4;
+}
+
+.textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--an-textarea-min-height, calc(var(--an-space-9, 2.25rem) * 2));
+  padding: var(--an-textarea-padding, var(--an-space-2, 0.5rem) var(--an-space-3, 0.75rem));
+  border: 1px solid var(--an-textarea-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-textarea-radius, var(--an-radius-md, 0.5rem));
+  background: var(--an-textarea-bg, var(--an-color-bg-1, #ffffff));
+  color: var(--an-textarea-fg, var(--an-color-fg-1, #18181b));
+  font-family: inherit;
+  font-size: var(--an-textarea-font-size, var(--an-font-size-sm, 0.875rem));
+  line-height: 1.5;
+  resize: vertical;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* `resize` attribute; an unknown value keeps the default (`vertical`) above. */
+:host([resize='none']) .textarea {
+  resize: none;
+}
+
+:host([resize='both']) .textarea {
+  resize: both;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--an-textarea-focus-ring, var(--an-color-accent-9, #2563eb));
+  outline-offset: 1px;
+  border-color: var(--an-textarea-focus-ring, var(--an-color-accent-9, #2563eb));
+}
+
+.textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.textarea[aria-invalid='true'] {
+  border-color: var(--an-color-danger-9, #dc2626);
+}

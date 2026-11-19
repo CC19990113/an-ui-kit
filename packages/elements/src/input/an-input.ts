@@ -237,7 +237,9 @@ export class AnInput extends AnElement {
       return;
     }
     internals.setFormValue(this.#value);
-    if (!this.readonly && this.required && this.#value === '') {
+    // Blank means "nothing typed": whitespace-only input is not a value, matching
+    // `<an-textarea>` and the way a native required text field treats `"   "`.
+    if (!this.readonly && this.required && this.#value.trim() === '') {
       const input = this.#input;
       internals.setValidity({ valueMissing: true }, REQUIRED_MESSAGE, input ?? undefined);
     } else {
@@ -270,6 +272,20 @@ export class AnInput extends AnElement {
   #onChange = (event: Event): void => {
     this.#handle(event, 'an-change');
   };
+
+  /**
+   * Platform parity for form-associated custom elements: the host carries no
+   * `validationMessage` of its own, so the message the platform computed is read
+   * off the internals here — this is what `<an-field>` displays.
+   */
+  get validationMessage(): string {
+    return this.internals?.validationMessage ?? '';
+  }
+
+  /** Platform constraint state; `undefined` when the element has no internals. */
+  get validity(): ValidityState | undefined {
+    return this.internals?.validity;
+  }
 
   get #input(): HTMLInputElement | null {
     return this.shadowRoot?.querySelector('input') ?? null;

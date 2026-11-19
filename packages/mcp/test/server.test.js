@@ -43,20 +43,49 @@ test('tools/list exposes the three contract tools', async () => {
   assert.equal(byName.get('list_components').inputSchema.type, 'object');
 });
 
-test('list_components returns both components', async () => {
+test('list_components returns all nine components', async () => {
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
 
   assert.deepEqual(
     components.map((component) => component.tagName),
-    ['an-button', 'an-input'],
+    [
+      'an-button',
+      'an-checkbox',
+      'an-field',
+      'an-input',
+      'an-radio',
+      'an-radio-group',
+      'an-select',
+      'an-switch',
+      'an-textarea',
+    ],
   );
+  for (const component of components) {
+    assert.equal(typeof component.name, 'string');
+    assert.ok(component.name.length > 0, `${component.tagName}: declaration name should not be empty`);
+    assert.ok(component.description.length > 0, `${component.tagName}: description should not be empty`);
+  }
+
   const button = components.find((component) => component.tagName === 'an-button');
   assert.equal(button.name, 'AnButton');
-  assert.ok(button.description.length > 0, 'description should not be empty');
 
   const input = components.find((component) => component.tagName === 'an-input');
   assert.equal(input.name, 'AnInput');
-  assert.ok(input.description.length > 0, 'description should not be empty');
+
+  const field = components.find((component) => component.tagName === 'an-field');
+  assert.equal(field.name, 'AnField');
+
+  const fieldContract = textPayload(
+    await client.callTool({ name: 'get_component', arguments: { tagName: 'an-field' } }),
+  );
+  assert.deepEqual(
+    fieldContract.attributes.map((attribute) => attribute.name),
+    ['label', 'hint', 'error', 'required'],
+  );
+  assert.deepEqual(
+    fieldContract.cssParts.map((part) => part.name),
+    ['base', 'label', 'required', 'control', 'hint', 'error'],
+  );
 });
 
 test('get_component returns the full an-button contract', async () => {
@@ -133,11 +162,14 @@ test('unknown tagName returns a clear tool error, not a crash', async () => {
   assert.equal(result.isError, true);
   const text = result.content[0].text;
   assert.match(text, /Unknown component "an-nope"/);
-  assert.match(text, /Available components: an-button, an-input/);
+  assert.match(
+    text,
+    /Available components: an-button, an-checkbox, an-field, an-input, an-radio, an-radio-group, an-select, an-switch, an-textarea/,
+  );
 
   // The server must still answer after the error.
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
-  assert.equal(components.length, 2);
+  assert.equal(components.length, 9);
 });
 
 test('search_components matches name, attribute, and miss', async () => {

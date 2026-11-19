@@ -298,6 +298,39 @@ describe('an-input', () => {
     expect(submits).toHaveLength(1);
   });
 
+  it('blocks requestSubmit while required and the value is only whitespace', () => {
+    document.body.innerHTML = '<form><an-input name="q" required></an-input></form>';
+    const form = document.querySelector('form')!;
+    const element = document.querySelector('an-input') as AnInput;
+    const submits: Event[] = [];
+    const invalids: Event[] = [];
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submits.push(event);
+    });
+    element.addEventListener('invalid', (event) => {
+      invalids.push(event);
+    });
+
+    // Blank means "nothing typed": spaces alone do not satisfy `required`.
+    type(element, '   ');
+    const state = internalsState(element)!;
+    expect(state.flags).toMatchObject({ valueMissing: true });
+    expect(state.message).toBe('此字段为必填项。');
+    // The host now surfaces the platform state `<an-field>` reads.
+    expect(element.validationMessage).toBe('此字段为必填项。');
+    expect(element.validity?.valueMissing).toBe(true);
+
+    form.requestSubmit();
+    expect(submits).toHaveLength(0);
+    expect(invalids).toHaveLength(1);
+
+    type(element, ' filled ');
+    expect(internalsState(element)!.flags).toEqual({});
+    form.requestSubmit();
+    expect(submits).toHaveLength(1);
+  });
+
   it('leaves a disabled control out of FormData, like a native disabled input', () => {
     document.body.innerHTML =
       '<form><an-input name="email" value="seed@example.com"></an-input></form>';

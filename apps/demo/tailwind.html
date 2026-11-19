@@ -88,6 +88,35 @@
         <p class="hint" data-testid="input-required-result">未提交</p>
       </form>
 
+      <h2>精简表单 · preflight 下的 &lt;an-field&gt; 组合</h2>
+      <p class="hint">
+        只放 3 个控件（input / select / checkbox）：preflight 的全局
+        <code>* { border: 0 solid }</code> 等文档级规则进不了 Shadow DOM，字段、校验、提交都照常。
+      </p>
+
+      <form class="stack" id="demo-form" data-testid="form-root">
+        <an-field data-testid="field-name" label="姓名" required>
+          <an-input data-testid="form-name" name="name" required placeholder="请输入"></an-input>
+        </an-field>
+
+        <an-field data-testid="field-city" label="城市">
+          <an-select data-testid="form-city" name="city" placeholder="请选择">
+            <option value="bj">北京</option>
+            <option value="sh">上海</option>
+          </an-select>
+        </an-field>
+
+        <an-field data-testid="field-terms" label="选项">
+          <an-checkbox data-testid="form-terms" name="terms" required>同意条款</an-checkbox>
+        </an-field>
+
+        <div class="row">
+          <an-button data-testid="form-submit" type="submit" variant="primary">提交</an-button>
+          <an-button data-testid="form-reset" type="reset">重置</an-button>
+        </div>
+        <pre data-testid="form-output"></pre>
+      </form>
+
     </main>
 
     <script type="module">
@@ -147,6 +176,20 @@
         event.preventDefault();
         document.querySelector('[data-testid="input-required-result"]').textContent =
           'required 表单被提交了（应当先被拦下）';
+      });
+
+      // 精简表单：提交读 FormData 回显；reset 清空。
+      const demoForm = document.getElementById('demo-form');
+      const demoOutput = document.querySelector('[data-testid="form-output"]');
+
+      demoForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(demoForm).entries());
+        demoOutput.textContent = JSON.stringify(data, null, 2);
+      });
+
+      demoForm.addEventListener('reset', () => {
+        demoOutput.textContent = '';
       });
     </script>
   </body>

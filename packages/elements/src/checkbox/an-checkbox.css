@@ -1,0 +1,115 @@
+/* Hooks: --an-checkbox-size | --an-checkbox-radius | --an-checkbox-accent
+   | --an-checkbox-border-color.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback;
+   the shared reset owns the :host box reset. The checked box is drawn outlined
+   (accent border + accent check) so the mark never sits on an accent fill: the
+   token set has no "on accent" colour, and `--an-color-bg-1` flips with the
+   theme. */
+
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+  color-scheme: light dark;
+  font-family: inherit;
+  font-size: var(--an-font-size-sm, 0.875rem);
+  color: var(--an-color-fg-1, #18181b);
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--an-space-2, 0.5rem);
+  cursor: pointer;
+  line-height: 1.5;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:host([disabled]) .base,
+:host([data-form-disabled]) .base {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Focusable but invisible: the box below is the painted control, and clicks are
+   routed to this input, so keyboard, IME and AT keep native checkbox semantics. */
+.native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.control {
+  position: relative;
+  box-sizing: border-box;
+  flex: none;
+  width: var(--an-checkbox-size, 1rem);
+  height: var(--an-checkbox-size, 1rem);
+  border: 1px solid var(--an-checkbox-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-checkbox-radius, var(--an-radius-sm, 0.25rem));
+  background-color: var(--an-color-bg-1, #ffffff);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.native:focus-visible + .control {
+  outline: 2px solid var(--an-checkbox-accent, var(--an-color-accent-9, #2563eb));
+  outline-offset: 2px;
+}
+
+:host([checked]) .control {
+  border-color: var(--an-checkbox-accent, var(--an-color-accent-9, #2563eb));
+}
+
+/* The tick: a rotated L-shaped border, so it scales with --an-checkbox-size. */
+:host([checked]) .control::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: calc(var(--an-checkbox-size, 1rem) * 0.3);
+  height: calc(var(--an-checkbox-size, 1rem) * 0.54);
+  border: solid var(--an-checkbox-accent, var(--an-color-accent-9, #2563eb));
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+/* Indeterminate wins over checked, exactly like the native control: a dash, not a tick. */
+:host([indeterminate]) .control {
+  border-color: var(--an-checkbox-accent, var(--an-color-accent-9, #2563eb));
+}
+
+:host([indeterminate]) .control::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 2px;
+  border: 0;
+  border-radius: 1px;
+  background-color: var(--an-checkbox-accent, var(--an-color-accent-9, #2563eb));
+  transform: translate(-50%, -50%);
+}
+
+.label {
+  color: var(--an-color-fg-1, #18181b);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control {
+    transition: none;
+  }
+}

@@ -17,12 +17,19 @@ description: 用 AN UI Kit（Custom Elements 组件库）构建 UI 时使用。�
 
 - 配了 AN UI Kit MCP server（`@an-ui-kit/mcp`）：`list_components` → `get_component({ tagName })` → `search_components({ query })`。
 - 没配：读 `references/<tagName>.md`。
-- attribute 名、事件名、CSS 变量名只能来自契约。契约里没有就是没有，不要写“看起来应该有”的 `color`、`label`、`icon`。
+- attribute 名、事件名、CSS 变量名只能来自契约。契约里没有就是没有，不要写“看起来应该有”的 `color`、`icon`、`loading-text`（`label` 只属于 `an-input` / `an-textarea` / `an-select` / `an-field` 等，`an-button` 没有）。
 
-当前组件：
+当前组件（9 个）：
 
-- `an-button`（见 [references/an-button.md](references/an-button.md)）—— 动作元素，真原生 `<button>`。
+- `an-button`（见 [references/an-button.md](references/an-button.md)）—— 动作元素，真原生 `<button>`；`type="submit|reset"` 直接参与外层表单。
 - `an-input`（见 [references/an-input.md](references/an-input.md)）—— 单行输入框，真原生 `<input>` + form-associated。
+- `an-checkbox`（见 [references/an-checkbox.md](references/an-checkbox.md)）—— 布尔勾选框，真原生 `<input type="checkbox">`；标签文本走默认 slot。
+- `an-switch`（见 [references/an-switch.md](references/an-switch.md)）—— 开关，原生 checkbox + `role="switch"`；标签文本走默认 slot。
+- `an-radio`（见 [references/an-radio.md](references/an-radio.md)）—— 单选组里的一个选项；不参与表单，由 group 托管。
+- `an-radio-group`（见 [references/an-radio-group.md](references/an-radio-group.md)）—— 单选组的表单半边；管值、校验、disabled 下推与方向键。
+- `an-textarea`（见 [references/an-textarea.md](references/an-textarea.md)）—— 多行输入框，真原生 `<textarea>`；`value` 只作初始值、`required` 按 trim 判空。
+- `an-select`（见 [references/an-select.md](references/an-select.md)）—— 下拉选择，真原生 `<select>`；选项必须写成 light DOM 的 `<option>`。
+- `an-field`（见 [references/an-field.md](references/an-field.md)）—— label/hint/error 布局外壳；不参与表单值，自动显示内部控件的平台校验消息。
 
 ## an-input 用法要点
 
@@ -32,6 +39,38 @@ description: 用 AN UI Kit（Custom Elements 组件库）构建 UI 时使用。�
 - **`disabled` 是完整禁用**：自身 `disabled` 或祖先 `<fieldset disabled>` 时，内部 input 禁用、不派发事件、**不进 `FormData`、不参与约束校验**（`readonly` 不派发事件但值仍会提交）。
 - **必须有可访问名**：写 `label`，或（不给可见 label 时）写 `aria-label` / `aria-labelledby`。组件不会替你造名。
 - 不要往 `<an-input>` 里塞原生 `<input>`；要改内部样式用 `an-input::part(input)`。
+
+## 表单组合规范
+
+**没有 `an-form`。不要去找它，也不要自己造一个 `<an-form>`。** 表单控件（`an-input` / `an-checkbox` / `an-switch` / `an-radio-group` / `an-textarea` / `an-select` / `an-button`）都是 form-associated 自定义元素，直接放进原生 `<form>` 就具备提交、`FormData`、`requestSubmit()`、`reset()` 与约束校验（`an-radio` 与 `an-field` 是结构件，不参与表单值）：
+
+```html
+<form id="profile">
+  <an-field label="邮箱" hint="用于登录链接">
+    <an-input name="email" type="email" required></an-input>
+  </an-field>
+  <an-field label="城市">
+    <an-select name="city" placeholder="请选择城市" required>
+      <option value="bj">北京</option>
+      <option value="sh">上海</option>
+    </an-select>
+  </an-field>
+  <an-field label="套餐">
+    <an-radio-group name="plan" required>
+      <an-radio value="free">免费版</an-radio>
+      <an-radio value="pro">专业版</an-radio>
+    </an-radio-group>
+  </an-field>
+  <an-button type="submit" variant="primary">保存</an-button>
+</form>
+```
+
+- **`<an-field>` 是布局+错误展示外壳，不参与表单值**：没有 `name` / `value`，不进 `FormData`。它只包**一个**控件，负责 label/hint/error 版式，并捕获控件的 `invalid` 事件显示平台 `validationMessage`（`error` attribute 可强制覆盖）。
+- **`required` 由各控件自己的 `setValidity` 参与原生约束校验**：`an-input` / `an-textarea` / `an-select` / `an-radio-group` / `an-checkbox` / `an-switch` 都实现 `valueMissing`。`<an-field required>` 只是表现层（星号 + `aria-required`），不改变校验结果 —— 真正拦截提交的是控件上的 `required`；不要在 `submit` 处理器里再写一遍必填拦截。
+- **`value` 只作初始值/初始选中**（`an-input` / `an-textarea` / `an-select` / `an-radio-group`）：用户改动**不回写** attribute，别把 attribute 当受控状态回写。`an-checkbox` / `an-switch` 的 `checked` 是公开状态，用户点击会回写 attribute（attribute 与 property 始终一致）。
+- **`an-radio-group` 持有表单值**，子项 `<an-radio>` 不参与表单；`an-select` 的选项必须写成 light DOM 的 `<option>`；`an-textarea` 的 `required` 按 trim 后为空判定。
+- **`disabled` vs `readonly`**：`disabled`（含祖先 `<fieldset disabled>`）不进 `FormData`、不参与约束校验、不派发事件；`readonly` 只在 `an-input` / `an-textarea` 上存在 —— 值仍提交，但免除校验、不改值、不派发事件。`an-select` / `an-checkbox` / `an-switch` / `an-radio*` 没有 `readonly`。
+- 提交用 `<an-button type="submit">`（`type` 默认是 `button`，不写不会提交）；`an-button-click` 里不要重复调 `requestSubmit()`。
 
 ## 安装与注册
 
@@ -105,6 +144,9 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色需要；不加载时�
 | `<an-input value={state}>`（每次 render 重设） | `<an-input value="初始值" onan-input={…}>`（state 只做回显） |
 | `<an-input placeholder="请输入">` | `<an-input label="邮箱" placeholder="请输入">` |
 | `an-input input { … }` | `an-input::part(input) { … }` |
+| `<an-form>` / `an-form` | 不存在；用原生 `<form>` + `<an-field>` 包裹控件 |
+| `<an-field name="email">`（指望它提交值） | `<an-input name="email">`（字段名/值属于控件） |
+| 自己在 `submit` 里遍历控件判空 | 控件加 `required`，交给原生约束校验 + `<an-field>` 显示消息 |
 
 ## 生成代码后的自查
 
@@ -117,3 +159,4 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色需要；不加载时�
 7. 表单没有多余的手动接线（`type="submit"` 已经提交，别在 `an-button-click` 里再调 `requestSubmit()`；`required` 已经经 `setValidity` 参与校验，别自己再拦一遍）？
 8. `<an-input>` 的 `value` 只给初始值，没有当受控属性回写？
 9. 每个 `<an-input>` 都有 `label` 或 `aria-label` / `aria-labelledby`？
+10. 表单里没有 `an-form`（不存在），也没有在 `submit` 处理器里重写一遍必填拦截？

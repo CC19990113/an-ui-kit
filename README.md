@@ -183,6 +183,60 @@ app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 - **Vue 3**：`@an-input="onInput"`。
 - **表单**：`disabled`（自身或祖先 `<fieldset disabled>`）时既不进 `FormData` 也不参与约束校验；`required` 空值时 `form.requestSubmit()` 会被拦下。
 
+### 表单：原生 `<form>` + `<an-field>`（没有 `an-form`）
+
+**刻意不提供 `an-form`。** 值控件全部是 form-associated custom element：它们用 `ElementInternals.setFormValue()` / `setValidity()` 参与原生表单，所以 `form.requestSubmit()`、`new FormData(form)`、`form.reset()` 与约束校验（`required` / `invalid` 事件）**不需要任何包装层**。再包一层 `an-form` 只会重复实现平台已有的语义，还会和 `<form>` 的提交、重置、校验顺序打架（谁先 `preventDefault`、谁负责聚焦第一个错误控件、`reset` 是 cancelable 事件……全部得重新发明）。
+
+典型组合：`<an-field>` 负责标签/提示/错误，原生 `<form>` 负责提交/重置/校验。
+
+```html
+<form id="profile">
+  <an-field label="姓名" required>
+    <an-input name="name" required></an-input>
+  </an-field>
+  <an-field label="城市">
+    <an-select name="city" placeholder="请选择">
+      <option value="bj">北京</option>
+      <option value="sh">上海</option>
+    </an-select>
+  </an-field>
+  <an-button type="submit" variant="primary">提交</an-button>
+  <an-button type="reset">重置</an-button>
+</form>
+
+<script type="module">
+  import '@an-ui-kit/elements';
+
+  const form = document.getElementById('profile');
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    console.log(Object.fromEntries(new FormData(form).entries()));
+  });
+</script>
+```
+
+`<an-button type="submit">` 走 `form.requestSubmit()`（先跑约束校验，不合法时 `submit` 不触发）；`type="reset"` 走 `form.reset()`，各控件的 `formResetCallback` 恢复挂载时的初始值。
+
+**`required` / `disabled` / `readonly` 在各控件上的差异**
+
+| 控件 | `required` | `disabled`（自身或祖先 `<fieldset disabled>`） | `readonly` |
+|------|------------|-----------------------------------------------|------------|
+| `<an-input>` | trim 后为空 → `valueMissing`，阻止提交并派发 `invalid` | 禁用；不进 `FormData`、不参与校验 | 支持：值照常提交，但像原生一样**跳过约束校验** |
+| `<an-textarea>` | 同上（trim 后为空 → `valueMissing`） | 同上 | 支持：值照常提交，跳过约束校验 |
+| `<an-select>` | 未选择（`value=""`）→ `valueMissing` | 同上 | **不支持**（原生 `<select>` 也没有 `readonly`；需要只读语义用 `disabled`） |
+| `<an-checkbox>` | 未勾选 → `valueMissing` | 同上 | **不支持**（原生 checkbox 无 `readonly`，用 `disabled`） |
+| `<an-switch>` | 未开启 → `valueMissing` | 同上 | **不支持**（同上） |
+| `<an-radio-group>` | 没有选中项 → `valueMissing` | 整组禁用；不进 `FormData` | **不支持**（原生 radio 无 `readonly`） |
+| `<an-button>` | — | 禁用，阻断点击与表单提交 | — |
+
+**校验错误怎么显示**
+
+`<an-field>` 在**捕获阶段**监听 `invalid`（`invalid` 不冒泡，捕获是唯一能在祖先收听到的方式），读出错控件自己的 `validationMessage` 作为错误文本，渲染 `part="error"`（`role="alert"`），并给该控件写 `aria-invalid="true"`、`aria-describedby` / `aria-description`。控件再次派发 `input` / `change` / `an-*` 变化事件时，错误自动清除。
+
+- 错误文本按顺序取：`<an-field error="...">` 强制值 → 控件的 `validationMessage` → 兜底文案 `请输入有效值`。
+- 一个 `<an-field>` 里放多个控件时，`aria-invalid` 只落在最后派发 `invalid` 的那个控件上。
+- 控件自己的 `invalid` attribute 只是视觉状态，不参与约束校验；真正的拦截来自 `setValidity()`。
+
 ### 主题切换
 
 在根节点（如 `<html>`）或组件自身设置 `data-theme="dark"` / `data-theme="light"` 即可显式切换主题；未设置时自动跟随系统 `prefers-color-scheme`。
@@ -214,7 +268,21 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ## 当前组件
 
-仓库当前包含 2 个 Custom Element：**`<an-button>`**（`AnButton`，Shadow DOM 内部封装真实原生 `<button>`）与 **`<an-input>`**（`AnInput`，Shadow DOM 内部封装真实原生 `<input>`，form-associated；CEM 中同时包含内部基类 `AnElement`）。
+仓库当前包含 9 个 Custom Element（CEM 中同时包含内部基类 `AnElement`）：其中 8 个可交互控件 + 1 个表单字段包装器 `<an-field>`。除 `<an-radio>` 与 `<an-field>` 外全部 form-associated，直接参与原生 `<form>` 语义。
+
+### 组件一览
+
+| 元素 | 定位 | 主要 attributes / 事件 |
+|------|------|------------------------|
+| `<an-button>` | 按钮（Shadow DOM 内部是真实原生 `<button>`） | `variant`（`default` \| `primary` \| `danger` \| `ghost`）、`size`、`disabled`、`loading`、`type`（`button` \| `submit` \| `reset`）；事件 `an-button-click` |
+| `<an-input>` | 单行输入（form-associated，原生 `<input>`） | `type`、`placeholder`、`label`、`size`、`value`（仅初始值）、`disabled`、`readonly`、`required`、`invalid`、`name`；事件 `an-input` / `an-change` |
+| `<an-textarea>` | 多行文本（form-associated，原生 `<textarea>`） | `rows`、`maxlength`、`resize`（`none` \| `vertical` \| `both`）、`placeholder`、`label`、`disabled`、`readonly`、`required`、`invalid`、`name`；事件 `an-textarea-input` / `an-textarea-change` |
+| `<an-select>` | 下拉选择（form-associated；`<option>` 写在 light DOM） | `placeholder`、`size`、`label`、`disabled`、`required`、`invalid`、`name`；事件 `an-select-change` |
+| `<an-checkbox>` | 复选框（form-associated，原生 `<input type="checkbox">`） | `checked`、`indeterminate`、`disabled`、`required`、`name`、`value`；事件 `an-checkbox-change` |
+| `<an-radio>` | 单选项（不自带表单值，由 `<an-radio-group>` 统一提交） | `value`、`checked`（由 group 驱动）、`disabled`；事件 `an-radio-select` / `an-radio-connect` |
+| `<an-radio-group>` | 单选组（form-associated，键盘导航在组内） | `value`（初始值）、`label`、`disabled`、`required`、`name`；事件 `an-radio-change` |
+| `<an-switch>` | 开关（form-associated，开启时才进 `FormData`） | `checked`、`disabled`、`required`、`name`、`value`；事件 `an-switch-change` |
+| `<an-field>` | 标签 / 提示 / 错误的包装器（无值、不参与表单） | `label`、`hint`、`error`（强制错误文案）、`required`（展示星号与 `aria-required`） |
 
 ### `<an-button>`
 

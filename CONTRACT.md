@@ -172,6 +172,7 @@ this.dispatchEvent(new CustomEvent('an-button-click', { detail: { event } })); /
 - 全小写 kebab-case，不含组件名前缀（part 作用域本就在组件内部），不暴露内部布局包裹层（`wrapper`、`container-inner`、`div-1`）。
 - part 一旦发布就是公开 API：集合最小化，只暴露消费者确实需要改样式的节点；新增可以，重命名/删除属于破坏性变更。
 - 纯装饰节点不暴露 part；能通过 CSS 变量解决的，优先变量而不是 part。
+- 表单控件例外地允许暴露语义化的**结构性** part（`control` / `track` / `thumb` / `chevron` / `label` / `hint` / `error`）：它们是样式与可测试性所需的稳定钩子（如 `<an-checkbox>` 的 `control`、`<an-switch>` 的 `track`/`thumb`、`<an-select>` 的 `chevron`、`<an-field>` 的 `hint`/`error`），不属于「纯装饰节点」范畴。
 
 **✅ 正确**
 

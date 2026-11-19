@@ -184,6 +184,60 @@ app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 - **Vue 3**: `@an-input="onInput"`.
 - **Forms**: when `disabled` (on the element or via an ancestor `<fieldset disabled>`) it is excluded from `FormData` and from constraint validation; with an empty `required` value, `form.requestSubmit()` is blocked.
 
+### Forms: native `<form>` + `<an-field>` (there is no `an-form`)
+
+**There is deliberately no `an-form`.** Every value control is a form-associated custom element: it participates through `ElementInternals.setFormValue()` / `setValidity()`, so `form.requestSubmit()`, `new FormData(form)`, `form.reset()`, and constraint validation (`required`, the `invalid` event) **need no wrapper at all**. An `an-form` layer would only re-implement semantics the platform already owns, while fighting the `<form>` lifecycle (who calls `preventDefault`, who focuses the first invalid control, the fact that `reset` is a cancelable event, and so on).
+
+Typical composition: `<an-field>` owns label / hint / error, while a native `<form>` owns submit / reset / validation.
+
+```html
+<form id="profile">
+  <an-field label="Name" required>
+    <an-input name="name" required></an-input>
+  </an-field>
+  <an-field label="City">
+    <an-select name="city" placeholder="Pick one">
+      <option value="bj">Beijing</option>
+      <option value="sh">Shanghai</option>
+    </an-select>
+  </an-field>
+  <an-button type="submit" variant="primary">Submit</an-button>
+  <an-button type="reset">Reset</an-button>
+</form>
+
+<script type="module">
+  import '@an-ui-kit/elements';
+
+  const form = document.getElementById('profile');
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    console.log(Object.fromEntries(new FormData(form).entries()));
+  });
+</script>
+```
+
+`<an-button type="submit">` calls `form.requestSubmit()` (constraint validation runs first; `submit` never fires while the form is invalid). `type="reset"` calls `form.reset()`, and each control's `formResetCallback` restores the value it was mounted with.
+
+**`required` / `disabled` / `readonly` across controls**
+
+| Control | `required` | `disabled` (own attribute or an ancestor `<fieldset disabled>`) | `readonly` |
+|---------|------------|-----------------------------------------------------------------|------------|
+| `<an-input>` | Empty after trim → `valueMissing`, blocks submit and fires `invalid` | Disabled; excluded from `FormData` and constraint validation | Supported: still submits its value but, like the native element, **skips constraint validation** |
+| `<an-textarea>` | Same (empty after trim → `valueMissing`) | Same | Supported: value still submitted, validation skipped |
+| `<an-select>` | Nothing selected (`value=""`) → `valueMissing` | Same | **Not supported** (native `<select>` has no `readonly` either; use `disabled` for a read-only look) |
+| `<an-checkbox>` | Unchecked → `valueMissing` | Same | **Not supported** (native checkbox has no `readonly`; use `disabled`) |
+| `<an-switch>` | Off → `valueMissing` | Same | **Not supported** (same) |
+| `<an-radio-group>` | No option selected → `valueMissing` | Whole group disabled; excluded from `FormData` | **Not supported** (native radio has no `readonly`) |
+| `<an-button>` | — | Disabled; blocks clicks and form submission | — |
+
+**How validation errors are shown**
+
+`<an-field>` listens for `invalid` in the **capture phase** (`invalid` does not bubble, so capture is the only way an ancestor can hear it), reads the offending control's own `validationMessage`, renders it in `part="error"` (`role="alert"`), and writes `aria-invalid="true"` plus `aria-describedby` / `aria-description` onto that control. The error clears as soon as the control dispatches an `input` / `change` / `an-*` change event again.
+
+- The message is resolved in order: the `<an-field error="...">` override → the control's `validationMessage` → the fallback `请输入有效值` (the component's localized default).
+- With several controls inside one `<an-field>`, `aria-invalid` lands on whichever control fired `invalid` last.
+- A control's own `invalid` attribute is a visual state only; it never takes part in constraint validation. The real gate is `setValidity()`.
+
 ### Theming
 
 Set `data-theme="dark"` or `data-theme="light"` on `<html>` (or on an element itself) to override the theme explicitly; otherwise it follows `prefers-color-scheme`.
@@ -215,7 +269,21 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ## Current Components
 
-The repository currently ships two custom elements: **`<an-button>`** (`AnButton`, backed by a native `<button>` inside Shadow DOM) and **`<an-input>`** (`AnInput`, backed by a native `<input>` inside Shadow DOM, form-associated; CEM also exports the internal base class `AnElement`).
+The repository currently ships nine custom elements (CEM also exports the internal base class `AnElement`): eight interactive controls plus one form-field wrapper, `<an-field>`. Except for `<an-radio>` and `<an-field>`, all of them are form-associated and take part in native `<form>` semantics directly.
+
+### Component Overview
+
+| Element | Positioning | Main attributes / events |
+|---------|-------------|--------------------------|
+| `<an-button>` | Button (a real native `<button>` inside Shadow DOM) | `variant` (`default` \| `primary` \| `danger` \| `ghost`), `size`, `disabled`, `loading`, `type` (`button` \| `submit` \| `reset`); event `an-button-click` |
+| `<an-input>` | Single-line input (form-associated, native `<input>`) | `type`, `placeholder`, `label`, `size`, `value` (initial only), `disabled`, `readonly`, `required`, `invalid`, `name`; events `an-input` / `an-change` |
+| `<an-textarea>` | Multi-line text (form-associated, native `<textarea>`) | `rows`, `maxlength`, `resize` (`none` \| `vertical` \| `both`), `placeholder`, `label`, `disabled`, `readonly`, `required`, `invalid`, `name`; events `an-textarea-input` / `an-textarea-change` |
+| `<an-select>` | Dropdown (form-associated; `<option>` children live in light DOM) | `placeholder`, `size`, `label`, `disabled`, `required`, `invalid`, `name`; event `an-select-change` |
+| `<an-checkbox>` | Checkbox (form-associated, native `<input type="checkbox">`) | `checked`, `indeterminate`, `disabled`, `required`, `name`, `value`; event `an-checkbox-change` |
+| `<an-radio>` | One radio option (no form value of its own; the group submits it) | `value`, `checked` (driven by the group), `disabled`; events `an-radio-select` / `an-radio-connect` |
+| `<an-radio-group>` | Radio group (form-associated, roving keyboard navigation inside) | `value` (initial), `label`, `disabled`, `required`, `name`; event `an-radio-change` |
+| `<an-switch>` | Switch (form-associated; contributes to `FormData` only while on) | `checked`, `disabled`, `required`, `name`, `value`; event `an-switch-change` |
+| `<an-field>` | Label / hint / error wrapper (no value, not form-associated) | `label`, `hint`, `error` (forced message), `required` (star + `aria-required` only) |
 
 ### `<an-button>`
 

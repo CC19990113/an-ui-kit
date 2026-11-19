@@ -1,0 +1,67 @@
+/* Hooks: --an-field-gap | --an-field-label-font-size | --an-field-hint-color
+   | --an-field-error-color. Colours and scales come from @an-ui-kit/tokens, each
+   with a literal fallback. */
+
+:host {
+  display: block;
+  color-scheme: light dark;
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: flex;
+  flex-direction: column;
+  gap: var(--an-field-gap, var(--an-space-2, 0.5rem));
+  font-family: inherit;
+  color: var(--an-color-fg-1, #18181b);
+}
+
+.label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  color: var(--an-color-fg-1, #18181b);
+  font-size: var(--an-field-label-font-size, var(--an-font-size-sm, 0.875rem));
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.required {
+  color: var(--an-color-danger-9, #dc2626);
+  font-weight: 600;
+}
+
+.control {
+  display: block;
+  min-width: 0;
+}
+
+.hint,
+.error {
+  margin: 0;
+  font-size: var(--an-font-size-xs, 0.75rem);
+  line-height: 1.4;
+}
+
+/* Weakened `--an-color-fg-1`: mixing against `transparent` keeps the hint
+   legible in both colour schemes instead of pinning one palette step. */
+.hint {
+  color: var(--an-field-hint-color, color-mix(in oklab, var(--an-color-fg-1, #18181b) 62%, transparent));
+}
+
+.error {
+  color: var(--an-field-error-color, var(--an-color-danger-9, #dc2626));
+}
+
+/* Author-origin `display` above would beat the UA `[hidden]` rule, so the
+   empty label and the hidden hint/error need it spelled out here. */
+[hidden] {
+  display: none !important;
+}
