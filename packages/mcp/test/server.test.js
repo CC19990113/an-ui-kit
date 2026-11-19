@@ -43,13 +43,20 @@ test('tools/list exposes the three contract tools', async () => {
   assert.equal(byName.get('list_components').inputSchema.type, 'object');
 });
 
-test('list_components returns an-button', async () => {
+test('list_components returns both components', async () => {
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
-  const button = components.find((component) => component.tagName === 'an-button');
 
-  assert.ok(button, 'an-button should be listed');
+  assert.deepEqual(
+    components.map((component) => component.tagName),
+    ['an-button', 'an-input'],
+  );
+  const button = components.find((component) => component.tagName === 'an-button');
   assert.equal(button.name, 'AnButton');
   assert.ok(button.description.length > 0, 'description should not be empty');
+
+  const input = components.find((component) => component.tagName === 'an-input');
+  assert.equal(input.name, 'AnInput');
+  assert.ok(input.description.length > 0, 'description should not be empty');
 });
 
 test('get_component returns the full an-button contract', async () => {
@@ -72,6 +79,47 @@ test('get_component returns the full an-button contract', async () => {
   assert.equal(component.description.length > 0, true);
 });
 
+test('get_component returns the full an-input contract', async () => {
+  const component = textPayload(
+    await client.callTool({ name: 'get_component', arguments: { tagName: 'an-input' } }),
+  );
+
+  // 与 custom-elements-manifest.json 逐字一致：10 个 attribute、2 个事件、8 个 CSS 变量、3 个 part。
+  assert.deepEqual(
+    component.attributes.map((attribute) => attribute.name),
+    ['value', 'type', 'placeholder', 'label', 'size', 'disabled', 'readonly', 'required', 'invalid', 'name'],
+  );
+  const value = component.attributes.find((attribute) => attribute.name === 'value');
+  assert.equal(value.type, 'string');
+  assert.match(value.description, /read once/i);
+  assert.equal(component.attributes.find((attribute) => attribute.name === 'size').default, 'md');
+  assert.equal(component.attributes.find((attribute) => attribute.name === 'type').default, 'text');
+
+  assert.deepEqual(
+    component.events.map((event) => event.name),
+    ['an-input', 'an-change'],
+  );
+  assert.deepEqual(component.slots, []);
+  assert.deepEqual(
+    component.cssProperties.map((property) => property.name),
+    [
+      '--an-input-height',
+      '--an-input-bg',
+      '--an-input-fg',
+      '--an-input-border-color',
+      '--an-input-radius',
+      '--an-input-font-size',
+      '--an-input-padding-x',
+      '--an-input-focus-ring',
+    ],
+  );
+  assert.deepEqual(
+    component.cssParts.map((part) => part.name),
+    ['base', 'label', 'input'],
+  );
+  assert.equal(component.description.length > 0, true);
+});
+
 test('get_component tag lookup is case-insensitive', async () => {
   const component = textPayload(
     await client.callTool({ name: 'get_component', arguments: { tagName: '  AN-Button  ' } }),
@@ -85,11 +133,11 @@ test('unknown tagName returns a clear tool error, not a crash', async () => {
   assert.equal(result.isError, true);
   const text = result.content[0].text;
   assert.match(text, /Unknown component "an-nope"/);
-  assert.match(text, /Available components: an-button/);
+  assert.match(text, /Available components: an-button, an-input/);
 
   // The server must still answer after the error.
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
-  assert.equal(components.length, 1);
+  assert.equal(components.length, 2);
 });
 
 test('search_components matches name, attribute, and miss', async () => {

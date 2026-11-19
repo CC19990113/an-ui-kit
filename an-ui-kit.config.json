@@ -1,0 +1,4 @@
+{
+  "$schema": "./schema/an-ui-kit.config.schema.json",
+  "components": "all"
+}

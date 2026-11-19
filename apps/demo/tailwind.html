@@ -30,6 +30,64 @@
       </div>
 
       <ul class="log" id="event-log" data-testid="event-log" aria-live="polite"></ul>
+
+      <h2>&lt;an-input&gt;</h2>
+      <p class="hint">
+        这一页多加载了 Tailwind v4 preflight，同时用与 native.html <strong>逐字一致</strong>的
+        <code>&lt;an-input&gt;</code> fixture 验证：文档级 <code>input { border: 0 }</code> /
+        <code>box-sizing</code> 不会穿透 Shadow DOM，表单行为也不受影响。
+      </p>
+
+      <!-- 与 native.html / react / vue 页的 fixture 逐项一致：data-testid 是 e2e 契约。 -->
+      <form class="stack" id="input-form" data-testid="input-form">
+        <an-input
+          data-testid="inp-name"
+          name="name"
+          label="姓名"
+          placeholder="请输入姓名"
+          value="初始值"
+        ></an-input>
+        <an-input
+          data-testid="inp-email"
+          name="email"
+          type="email"
+          label="邮箱"
+          placeholder="you@example.com"
+          value="a@b.com"
+        ></an-input>
+        <an-input
+          data-testid="inp-search"
+          name="keyword"
+          size="lg"
+          aria-label="搜索"
+          placeholder="搜索…"
+        ></an-input>
+        <an-button data-testid="btn-submit" type="submit" variant="primary">提交</an-button>
+        <p class="hint" data-testid="input-form-result">未提交</p>
+
+        <!-- 与字段集同页：禁用的 fieldset 让 formDisabledCallback 生效，且不进 FormData。 -->
+        <fieldset class="stack" id="input-disabled-fieldset" data-testid="input-fieldset" disabled>
+          <legend>禁用的 &lt;fieldset&gt;：内部输入框跟着禁用</legend>
+          <an-input
+            data-testid="inp-fieldset"
+            name="locked"
+            label="字段集内输入框"
+            value="locked"
+          ></an-input>
+        </fieldset>
+      </form>
+
+      <p class="hint">
+        键入回显：<span data-testid="input-echo"></span>
+        （这一页用 <code>document.addEventListener('an-input')</code> 读 <code>detail.value</code>）
+      </p>
+
+      <form class="stack" id="input-required-form" data-testid="input-required-form">
+        <an-input data-testid="inp-required" name="nickname" label="昵称（必填）" required></an-input>
+        <an-button type="submit" variant="primary">提交必填</an-button>
+        <p class="hint" data-testid="input-required-result">未提交</p>
+      </form>
+
     </main>
 
     <script type="module">
@@ -56,6 +114,39 @@
           `#${log.length} ${record.id} · bubbles=${record.bubbles}` +
           ` · composed=${record.composed} · originalEvent=${record.hasOriginalEvent}`;
         list.append(item);
+      });
+
+      /** `<an-input>` 事件日志：与 React/Vue 页的 `src/input-log.ts` 同构。 */
+      const inputLog = (window.__anInputLog = []);
+      const echo = document.querySelector('[data-testid="input-echo"]');
+      const formResult = document.querySelector('[data-testid="input-form-result"]');
+
+      const recordInput = (kind) => (event) => {
+        const target = event.target;
+        const record = {
+          id: target instanceof Element ? target.getAttribute('data-testid') : null,
+          tag: target instanceof Element ? target.tagName.toLowerCase() : 'unknown',
+          kind,
+          value: event.detail?.value ?? '',
+          bubbles: event.bubbles,
+          composed: event.composed,
+        };
+        inputLog.push(record);
+        console.log(`[tailwind] ${kind}`, record, event.detail?.originalEvent);
+        if (kind === 'an-input') echo.textContent = record.value;
+      };
+      document.addEventListener('an-input', recordInput('an-input'));
+      document.addEventListener('an-change', recordInput('an-change'));
+
+      document.getElementById('input-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const entries = [...new FormData(event.currentTarget).entries()];
+        formResult.textContent = entries.map(([key, value]) => `${key}=${value}`).join(' · ');
+      });
+      document.getElementById('input-required-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        document.querySelector('[data-testid="input-required-result"]').textContent =
+          'required 表单被提交了（应当先被拦下）';
       });
     </script>
   </body>

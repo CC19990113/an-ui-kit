@@ -1,0 +1,175 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "an-input",
+  "type": "registry:ui",
+  "title": "AnInput",
+  "description": "`<an-input>` — a single-line field backed by a real native `<input>` inside the shadow root, so focus, selection, IME, autofill, `type` semantics and the on-screen keyboard all come from the platform.",
+  "files": [
+    {
+      "path": "registry/files/css.d.ts",
+      "content": "/**\n * Stylesheet imports resolve to the raw CSS text, not to a side effect:\n * esbuild inlines them with `--loader:.css=text`, Vite resolves `?inline` to the\n * stylesheet text, and Vitest returns the content through `test.css: true`.\n */\n\ndeclare module '*.css?inline' {\n  const css: string;\n  export default css;\n}\n\ndeclare module '*.css' {\n  const css: string;\n  export default css;\n}\n",
+      "type": "registry:file",
+      "target": "~/src/an-ui-kit/css.d.ts"
+    },
+    {
+      "path": "registry/files/input/an-input.css",
+      "content": "/* Hooks: --an-input-height | --an-input-bg | --an-input-fg | --an-input-border-color\n   | --an-input-radius | --an-input-font-size | --an-input-padding-x | --an-input-focus-ring.\n   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */\n\n:host {\n  display: inline-block;\n  vertical-align: middle;\n  color-scheme: light dark;\n}\n\n:host([data-theme='dark']) {\n  color-scheme: dark;\n}\n\n:host([data-theme='light']) {\n  color-scheme: light;\n}\n\n.base {\n  display: flex;\n  flex-direction: column;\n  gap: 0.375rem;\n  font-family: inherit;\n}\n\n.label {\n  color: var(--an-color-fg-1, #18181b);\n  font-size: var(--an-font-size-sm, 0.875rem);\n  line-height: 1.4;\n}\n\n.input {\n  box-sizing: border-box;\n  width: 100%;\n  min-width: 0;\n  height: var(--an-input-height, var(--an-space-9, 2.25rem));\n  padding: 0 var(--an-input-padding-x, var(--an-space-3, 0.75rem));\n  border: 1px solid var(--an-input-border-color, var(--an-color-border-1, #d4d4d8));\n  border-radius: var(--an-input-radius, var(--an-radius-md, 0.5rem));\n  background: var(--an-input-bg, var(--an-color-bg-1, #ffffff));\n  color: var(--an-input-fg, var(--an-color-fg-1, #18181b));\n  font-family: inherit;\n  font-size: var(--an-input-font-size, var(--an-font-size-sm, 0.875rem));\n  line-height: 1;\n  appearance: none;\n  -webkit-appearance: none;\n}\n\n.input:focus-visible {\n  outline: 2px solid var(--an-input-focus-ring, var(--an-color-accent-9, #2563eb));\n  outline-offset: 1px;\n  border-color: var(--an-input-focus-ring, var(--an-color-accent-9, #2563eb));\n}\n\n.input:disabled {\n  cursor: not-allowed;\n  opacity: 0.55;\n}\n\n.input[aria-invalid='true'] {\n  border-color: var(--an-color-danger-9, #dc2626);\n}\n\n:host([size='sm']) .input {\n  height: var(--an-input-height, var(--an-space-8, 2rem));\n  padding: 0 var(--an-input-padding-x, var(--an-space-2, 0.5rem));\n  border-radius: var(--an-input-radius, var(--an-radius-sm, 0.375rem));\n  font-size: var(--an-input-font-size, var(--an-font-size-xs, 0.8125rem));\n}\n\n:host([size='lg']) .input {\n  height: var(--an-input-height, var(--an-space-11, 2.75rem));\n  padding: 0 var(--an-input-padding-x, var(--an-space-4, 1rem));\n  border-radius: var(--an-input-radius, var(--an-radius-lg, 0.625rem));\n  font-size: var(--an-input-font-size, var(--an-font-size-md, 1rem));\n}\n",
+      "type": "registry:file",
+      "target": "~/src/an-ui-kit/input/an-input.css"
+    },
+    {
+      "path": "registry/files/internal/reset.css",
+      "content": "/* Guards against page-level preflight (e.g. Tailwind v4) leaking into the host. */\n:host {\n  box-sizing: border-box;\n  border: 0 solid;\n  margin: 0;\n  line-height: 1.5;\n}\n",
+      "type": "registry:file",
+      "target": "~/src/an-ui-kit/internal/reset.css"
+    },
+    {
+      "path": "registry/files/internal/base.ts",
+      "content": "import resetStyles from './reset.css?inline';\n\n/** Values allowed for attribute-backed properties. */\nexport type Primitive = string | number | boolean;\n\n/** Defaults for attribute-backed properties; keys define the public API. */\nexport type Defaults = Record<string, Primitive>;\n\n/** `my-attr` -> `myAttr`, so an attribute can drive the camelCase property. */\nfunction toCamelCase(name: string): string {\n  return name.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());\n}\n\n/** `myAttr` -> `my-attr`, so a property can reflect to the attribute. */\nfunction toKebabCase(name: string): string {\n  return name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);\n}\n\n/**\n * Dependency-free base class for every `an-*` custom element.\n *\n * Contract:\n * - Constructor only touches `this` (`attachShadow`, `attachInternals`, local\n *   fields, accessors): it never reads `document`, `window`, storage or the\n *   network, so importing a component stays safe under SSR and inside workers.\n * - `static defaults` declares the attribute-backed API. Property accessors are\n *   generated from it and reflect back to attributes, so `el.variant` and\n *   `variant=\"primary\"` can never disagree; attributes stay the source of truth.\n * - Markup comes from `render()` as an HTML string and is written straight into\n *   the shadow root, including `static styles` plus the shared reset.\n * - Listeners belong on the shadow root (event delegation), because re-rendering\n *   replaces the inner markup.\n * - Every write re-renders before it returns, so `el.disabled = true` followed by\n *   a synchronous `shadowRoot` read already sees the new markup.\n * - Form participation is opt-in: a subclass sets `static formAssociated = true`\n *   and then gets `this.internals`, the platform lifecycle callbacks\n *   (`formAssociatedCallback`, `formResetCallback`, `formDisabledCallback`) and\n *   the protected `onFormReset` / `onFormDisabled` hooks.\n */\nexport abstract class AnElement extends HTMLElement {\n  /** Shadow-DOM stylesheet source for this element. */\n  static styles: string = '';\n\n  /** Attribute-backed properties and their defaults. */\n  static defaults: Defaults = {};\n\n  /** Attributes the browser reports to `attributeChangedCallback`. */\n  static get observedAttributes(): string[] {\n    return Object.keys(this.defaults).map(toKebabCase);\n  }\n\n  /**\n   * Opts the element into `ElementInternals` form participation.\n   * Subclasses that submit/reset/validate through a form set this to `true`.\n   */\n  static formAssociated: boolean = false;\n\n  /**\n   * Platform form internals, attached only when `static formAssociated` is\n   * `true`. `null` on elements that did not opt in and on DOM implementations\n   * without `attachInternals()`.\n   */\n  protected internals: ElementInternals | null = null;\n\n  #defaults: Defaults = {};\n  #values: Record<string, Primitive> = {};\n  #rendered = false;\n  #reflecting = false;\n  #fallbackStyle: HTMLStyleElement | null = null;\n\n  constructor() {\n    super();\n    const ctor = this.constructor as typeof AnElement;\n    const root = this.attachShadow({ mode: 'open' });\n\n    if (ctor.formAssociated) {\n      try {\n        this.internals = this.attachInternals();\n      } catch {\n        // `attachInternals()` throws unless the element opted in, and some DOM\n        // implementations (e.g. happy-dom) do not expose it at all: degrade to a\n        // plain element instead of failing construction.\n        this.internals = null;\n      }\n    }\n\n    this.#defaults = ctor.defaults;\n    this.#values = { ...ctor.defaults };\n    this.#adoptStyles(root, `${resetStyles}\\n${ctor.styles}`);\n\n    for (const [key, fallback] of Object.entries(ctor.defaults)) {\n      const type = typeof fallback;\n      Object.defineProperty(this, key, {\n        configurable: true,\n        enumerable: true,\n        get: () => this.#values[key],\n        set: (next: Primitive) => this.#assign(key, next, type),\n      });\n    }\n  }\n\n  connectedCallback(): void {\n    if (!this.#rendered) {\n      this.#rendered = true;\n      this.requestUpdate();\n    }\n    this.onConnect();\n  }\n\n  /** Re-renders the shadow root from `render()`. */\n  requestUpdate(): void {\n    const root = this.shadowRoot;\n    if (!root || !this.#rendered) return;\n    root.innerHTML = this.render();\n    if (this.#fallbackStyle && !this.#fallbackStyle.isConnected) root.prepend(this.#fallbackStyle);\n    this.afterRender();\n  }\n\n  disconnectedCallback(): void {\n    this.onDisconnect();\n  }\n\n  /**\n   * Platform callback: the element was associated with, or disassociated from,\n   * a form. Association itself is opt-in, so the default implementation is a\n   * no-op; a subclass may read `this.internals?.form` here.\n   */\n  formAssociatedCallback(): void {}\n\n  /** Platform callback: the owning form was reset. */\n  formResetCallback(): void {\n    this.onFormReset();\n  }\n\n  /** Platform callback: the platform disabled or enabled the element. */\n  formDisabledCallback(disabled: boolean): void {\n    this.onFormDisabled(disabled);\n  }\n\n  /** Hook: connected and rendered; default no-op. */\n  protected onConnect(): void {}\n\n  /** Hook: disconnected from the document; default no-op. */\n  protected onDisconnect(): void {}\n\n  /** Hook: the owning form was reset; restore state here. Default no-op. */\n  protected onFormReset(): void {}\n\n  /** Hook: the platform-level disabled state changed; default no-op. */\n  protected onFormDisabled(disabled: boolean): void {}\n\n  /** Returns the shadow-DOM markup; called on connect and after every change. */\n  protected abstract render(): string;\n\n  /** Hook for state markup cannot express (e.g. `.disabled` on a child node). */\n  protected afterRender(): void {}\n\n  /** Dispatches a bubbling, composed `CustomEvent`. */\n  emit<T>(name: string, detail?: T): boolean {\n    return this.dispatchEvent(new CustomEvent<T>(name, { bubbles: true, composed: true, detail }));\n  }\n\n  attributeChangedCallback(name: string, oldValue: string | null, value: string | null): void {\n    if (oldValue === value) return;\n    const key = toCamelCase(name);\n    if (!(key in this.#defaults)) return;\n    this.#values[key] = this.#coerce(key, value); // attribute -> camelCase property\n    if (this.#rendered && !this.#reflecting) this.requestUpdate();\n  }\n\n  #assign(key: string, next: Primitive, type: string): void {\n    const value = type === 'boolean' ? Boolean(next) : type === 'number' ? Number(next) : String(next);\n    if (Object.is(this.#values[key], value)) return;\n    this.#values[key] = value;\n    this.#reflect(key, value);\n  }\n\n  #reflect(key: string, value: Primitive): void {\n    const attribute = toKebabCase(key);\n    this.#reflecting = true;\n    try {\n      if (typeof value === 'boolean') this.toggleAttribute(attribute, value);\n      else if (value === this.#defaults[key]) this.removeAttribute(attribute);\n      else this.setAttribute(attribute, String(value));\n    } finally {\n      this.#reflecting = false;\n    }\n    if (this.#rendered) this.requestUpdate();\n  }\n\n  #coerce(key: string, value: string | null): Primitive {\n    const fallback = this.#defaults[key];\n    if (typeof fallback === 'boolean') return value !== null;\n    if (value === null) return fallback;\n    if (typeof fallback === 'number') return Number.isNaN(Number(value)) ? fallback : Number(value);\n    return value;\n  }\n\n  #adoptStyles(root: ShadowRoot, text: string): void {\n    if (!text.trim()) return;\n    try {\n      const sheet = new CSSStyleSheet();\n      sheet.replaceSync(text);\n      root.adoptedStyleSheets = [sheet];\n    } catch {\n      if (typeof document === 'undefined') return;\n      const style = document.createElement('style');\n      style.textContent = text;\n      root.prepend(style);\n      this.#fallbackStyle = style;\n    }\n  }\n}\n",
+      "type": "registry:file",
+      "target": "~/src/an-ui-kit/internal/base.ts"
+    },
+    {
+      "path": "registry/files/input/an-input.ts",
+      "content": "import inputStyles from './an-input.css?inline';\nimport { AnElement } from '../internal/base';\n\n/** Input types forwarded to the inner native `<input>`. */\nexport type AnInputType = 'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'number';\n/** Control sizes of `<an-input>`. */\nexport type AnInputSize = 'sm' | 'md' | 'lg';\n\nconst TYPES: readonly AnInputType[] = ['text', 'email', 'password', 'search', 'tel', 'url', 'number'];\nconst SIZES: readonly AnInputSize[] = ['sm', 'md', 'lg'];\n\n/** Shown to the owning form when `required` is set and the value is empty. */\nconst REQUIRED_MESSAGE = '此字段为必填项。';\n\nfunction oneOf<T extends string>(allowed: readonly T[], value: string, fallback: T): T {\n  return (allowed as readonly string[]).includes(value) ? (value as T) : fallback;\n}\n\n/** Escapes text used inside an attribute value or element content. */\nfunction escapeHtml(value: string): string {\n  return value.replace(/[&<>\"']/g, (char) => `&#${char.charCodeAt(0)};`);\n}\n\n/**\n * `<an-input>` — a single-line field backed by a real native `<input>` inside\n * the shadow root, so focus, selection, IME, autofill, `type` semantics and the\n * on-screen keyboard all come from the platform.\n *\n * The host is a form-associated custom element. The inner input lives across a\n * shadow boundary and is therefore not part of the outer `<form>`; the host\n * registers its own entry instead: `ElementInternals.setFormValue()` keeps\n * `FormData` in step with every keystroke and `setValidity()` raises\n * `valueMissing` for `required` + empty, which is what lets the outer form's\n * constraint validation block submission.\n *\n * `value` is the one piece of state that is read from its attribute but never\n * written back to it. Markup may seed the initial value; after that only the\n * property and the inner input change, so typing cannot cause IME churn or DOM\n * noise. `formResetCallback()` restores the value captured at mount time, and\n * `formDisabledCallback()` mirrors a disabled ancestor `<fieldset>`.\n *\n * @attr {string} value - Initial value. The attribute is read once and never written back on input.\n * @attr {('text'|'email'|'password'|'search'|'tel'|'url'|'number')} type - Native type forwarded to the inner `<input>`; unknown values fall back to \"text\". Default: \"text\".\n * @attr {string} placeholder - Placeholder text forwarded to the inner `<input>`.\n * @attr {string} label - Visible label. When empty no `<label>` is rendered and `aria-label`/`aria-labelledby` are forwarded from the host instead.\n * @attr {('sm'|'md'|'lg')} size - Control size. Default: \"md\".\n * @attr {boolean} disabled - Disables the inner input and blocks `an-input`/`an-change`.\n * @attr {boolean} readonly - Makes the inner input read-only and blocks `an-input`/`an-change`.\n * @attr {boolean} required - Participates in constraint validation (`valueMissing` when empty).\n * @attr {boolean} invalid - External error state; maps to `aria-invalid=\"true\"` and the error border.\n * @attr {string} name - Field name used when the value is submitted with the owning form.\n * @fires an-input - Fired on every native input; `detail = { value, originalEvent }`.\n * @fires an-change - Fired on native change (blur or Enter); `detail = { value, originalEvent }`.\n * @cssprop --an-input-height - Control height; defaults to 2.25rem (2rem sm, 2.75rem lg).\n * @cssprop --an-input-bg - Control background; defaults to `--an-color-bg-1`.\n * @cssprop --an-input-fg - Text colour; defaults to `--an-color-fg-1`.\n * @cssprop --an-input-border-color - Border colour; defaults to `--an-color-border-1`.\n * @cssprop --an-input-radius - Corner radius; defaults to `--an-radius-md` (0.5rem).\n * @cssprop --an-input-font-size - Text size; defaults to `--an-font-size-sm` (0.875rem).\n * @cssprop --an-input-padding-x - Horizontal padding; defaults to `--an-space-3` (0.75rem).\n * @cssprop --an-input-focus-ring - Focus outline colour; defaults to `--an-color-accent-9`.\n * @csspart base - Outer wrapper around the label and the control.\n * @csspart label - The visible `<label>`; rendered only when `label` is non-empty.\n * @csspart input - The internal native `<input>` element.\n */\nexport class AnInput extends AnElement {\n  static override styles: string = inputStyles;\n\n  /** Opts the host into form participation so its value reaches the outer form. */\n  static override formAssociated = true;\n\n  /**\n   * `value` is deliberately not part of `defaults`: the base class reflects\n   * every default property back onto its attribute, while this component must\n   * never write `value` back. It is observed and exposed manually below.\n   */\n  static override defaults = {\n    type: 'text',\n    placeholder: '',\n    label: '',\n    size: 'md',\n    disabled: false,\n    readonly: false,\n    required: false,\n    invalid: false,\n    name: '',\n  };\n\n  declare type: AnInputType;\n  declare placeholder: string;\n  declare label: string;\n  declare size: AnInputSize;\n  declare disabled: boolean;\n  declare readonly: boolean;\n  declare required: boolean;\n  declare invalid: boolean;\n  declare name: string;\n\n  #value = '';\n  #initialValue = '';\n  #mounted = false;\n  /** Set by `formDisabledCallback` (e.g. a disabled ancestor `<fieldset>`). */\n  #formDisabled = false;\n\n  /** `value` and the forwarded ARIA names are observed outside `defaults`. */\n  static override get observedAttributes(): string[] {\n    return [...super.observedAttributes, 'value', 'aria-label', 'aria-labelledby'];\n  }\n\n  constructor() {\n    super();\n    // Delegation on the shadow root survives the innerHTML re-render.\n    this.shadowRoot!.addEventListener('input', this.#onInput);\n    this.shadowRoot!.addEventListener('change', this.#onChange);\n  }\n\n  /** Current value. Setting it updates the inner input without re-rendering. */\n  get value(): string {\n    return this.#value;\n  }\n\n  set value(next: string) {\n    this.#setValue(next);\n  }\n\n  /** The attribute seeds the value; it is never written back by the property. */\n  override attributeChangedCallback(name: string, oldValue: string | null, value: string | null): void {\n    if (name === 'value') {\n      if (oldValue !== value) this.#setValue(value ?? '');\n      return;\n    }\n    if (name === 'aria-label' || name === 'aria-labelledby') {\n      // Forwarded to the inner input only while no visible label exists.\n      if (oldValue !== value && !this.label) this.requestUpdate();\n      return;\n    }\n    super.attributeChangedCallback(name, oldValue, value);\n  }\n\n  protected render(): string {\n    const type = oneOf(TYPES, this.type, 'text');\n    const disabled = this.disabled || this.#formDisabled;\n    const attrs =\n      ` class=\"input\" part=\"input\" type=\"${type}\"` +\n      (this.placeholder ? ` placeholder=\"${escapeHtml(this.placeholder)}\"` : '') +\n      (disabled ? ' disabled aria-disabled=\"true\"' : '') +\n      (this.readonly ? ' readonly aria-readonly=\"true\"' : '') +\n      (this.required ? ' required aria-required=\"true\"' : '') +\n      (this.invalid ? ' aria-invalid=\"true\"' : '') +\n      (this.label ? '' : this.#forwardedName());\n    const input = `<input${attrs}>`;\n    return this.label\n      ? `<div class=\"base\" part=\"base\"><label class=\"label\" part=\"label\"><span class=\"label-text\">${escapeHtml(this.label)}</span>${input}</label></div>`\n      : `<div class=\"base\" part=\"base\">${input}</div>`;\n  }\n\n  protected override afterRender(): void {\n    this.#applyValue();\n    const internals = this.internals;\n    if (!internals) return;\n    const disabled = this.disabled || this.#formDisabled;\n    internals.ariaDisabled = disabled ? 'true' : null;\n    internals.ariaReadOnly = this.readonly ? 'true' : null;\n    internals.ariaRequired = this.required ? 'true' : null;\n    internals.ariaInvalid = this.invalid ? 'true' : null;\n    this.#syncForm();\n  }\n\n  /** Remembers the value the element was mounted with (the reset target). */\n  protected override onConnect(): void {\n    if (this.#mounted) return;\n    this.#mounted = true;\n    this.#initialValue = this.#value;\n  }\n\n  protected override onFormReset(): void {\n    this.#setValue(this.#initialValue);\n  }\n\n  /** Mirrors a platform-level disable (e.g. ancestor `<fieldset disabled>`). */\n  protected override onFormDisabled(disabled: boolean): void {\n    this.#formDisabled = disabled;\n    this.requestUpdate();\n  }\n\n  #setValue(next: string): void {\n    const value = next === null || next === undefined ? '' : String(next);\n    if (value === this.#value) return;\n    this.#value = value;\n    this.#applyValue();\n    this.#syncForm();\n  }\n\n  /** Writes the value into the live input, keeping the caret where it was. */\n  #applyValue(): void {\n    const input = this.#input;\n    if (!input || input.value === this.#value) return;\n    const focused = this.shadowRoot?.activeElement === input;\n    let caret = this.#value.length;\n    if (focused) {\n      try {\n        caret = input.selectionStart ?? caret;\n      } catch {\n        // `<input type=\"number\">` has no selection API.\n      }\n    }\n    input.value = this.#value;\n    if (!focused) return;\n    const position = Math.min(caret, this.#value.length);\n    try {\n      input.setSelectionRange(position, position);\n    } catch {\n      // `<input type=\"number\">` has no selection API.\n    }\n  }\n\n  /**\n   * Publishes the value and the constraint to the owning form.\n   *\n   * A disabled control is *barred from constraint validation* and contributes no\n   * entry, exactly like a native `<input disabled>`: `setFormValue(null)` keeps it\n   * out of `FormData` and `setValidity({})` keeps it from blocking the outer form.\n   * `#formDisabled` is the same state reached through an ancestor\n   * `<fieldset disabled>` (the platform reports it via `formDisabledCallback`).\n   *\n   * A read-only control is the opposite case, again like the native element: it\n   * still contributes its value (a native `<input readonly>` is never excluded\n   * from `FormData`), but it is barred from constraint validation, so `required`\n   * on an empty read-only field must not block the outer form.\n   */\n  #syncForm(): void {\n    const internals = this.internals;\n    if (!internals) return;\n    if (this.disabled || this.#formDisabled) {\n      internals.setFormValue(null);\n      internals.setValidity({});\n      return;\n    }\n    internals.setFormValue(this.#value);\n    if (!this.readonly && this.required && this.#value === '') {\n      const input = this.#input;\n      internals.setValidity({ valueMissing: true }, REQUIRED_MESSAGE, input ?? undefined);\n    } else {\n      internals.setValidity({});\n    }\n  }\n\n  /** `aria-label` / `aria-labelledby` only when no visible `<label>` exists. */\n  #forwardedName(): string {\n    const label = this.getAttribute('aria-label');\n    const labelledby = this.getAttribute('aria-labelledby');\n    return (\n      (label ? ` aria-label=\"${escapeHtml(label)}\"` : '') +\n      (labelledby ? ` aria-labelledby=\"${escapeHtml(labelledby)}\"` : '')\n    );\n  }\n\n  #handle(event: Event, name: 'an-input' | 'an-change'): void {\n    const input = this.#input;\n    if (!input || event.target !== input || this.disabled || this.readonly || this.#formDisabled) return;\n    this.#value = input.value;\n    this.#syncForm();\n    this.emit(name, { value: this.#value, originalEvent: event });\n  }\n\n  #onInput = (event: Event): void => {\n    this.#handle(event, 'an-input');\n  };\n\n  #onChange = (event: Event): void => {\n    this.#handle(event, 'an-change');\n  };\n\n  get #input(): HTMLInputElement | null {\n    return this.shadowRoot?.querySelector('input') ?? null;\n  }\n}\n\nexport { SIZES, TYPES };\n",
+      "type": "registry:file",
+      "target": "~/src/an-ui-kit/input/an-input.ts"
+    }
+  ],
+  "meta": {
+    "tagName": "an-input",
+    "attributes": [
+      {
+        "name": "value",
+        "type": {
+          "text": "string"
+        },
+        "description": "Initial value. The attribute is read once and never written back on input."
+      },
+      {
+        "name": "type",
+        "type": {
+          "text": "('text'|'email'|'password'|'search'|'tel'|'url'|'number')"
+        },
+        "description": "Native type forwarded to the inner `<input>`; unknown values fall back to \"text\". Default: \"text\".",
+        "default": "text"
+      },
+      {
+        "name": "placeholder",
+        "type": {
+          "text": "string"
+        },
+        "description": "Placeholder text forwarded to the inner `<input>`."
+      },
+      {
+        "name": "label",
+        "type": {
+          "text": "string"
+        },
+        "description": "Visible label. When empty no `<label>` is rendered and `aria-label`/`aria-labelledby` are forwarded from the host instead."
+      },
+      {
+        "name": "size",
+        "type": {
+          "text": "('sm'|'md'|'lg')"
+        },
+        "description": "Control size. Default: \"md\".",
+        "default": "md"
+      },
+      {
+        "name": "disabled",
+        "type": {
+          "text": "boolean"
+        },
+        "description": "Disables the inner input and blocks `an-input`/`an-change`."
+      },
+      {
+        "name": "readonly",
+        "type": {
+          "text": "boolean"
+        },
+        "description": "Makes the inner input read-only and blocks `an-input`/`an-change`."
+      },
+      {
+        "name": "required",
+        "type": {
+          "text": "boolean"
+        },
+        "description": "Participates in constraint validation (`valueMissing` when empty)."
+      },
+      {
+        "name": "invalid",
+        "type": {
+          "text": "boolean"
+        },
+        "description": "External error state; maps to `aria-invalid=\"true\"` and the error border."
+      },
+      {
+        "name": "name",
+        "type": {
+          "text": "string"
+        },
+        "description": "Field name used when the value is submitted with the owning form."
+      }
+    ],
+    "events": [
+      {
+        "name": "an-input",
+        "description": "Fired on every native input; `detail = { value, originalEvent }`."
+      },
+      {
+        "name": "an-change",
+        "description": "Fired on native change (blur or Enter); `detail = { value, originalEvent }`."
+      }
+    ],
+    "slots": [],
+    "cssProperties": [
+      {
+        "name": "--an-input-height",
+        "description": "Control height; defaults to 2.25rem (2rem sm, 2.75rem lg)."
+      },
+      {
+        "name": "--an-input-bg",
+        "description": "Control background; defaults to `--an-color-bg-1`."
+      },
+      {
+        "name": "--an-input-fg",
+        "description": "Text colour; defaults to `--an-color-fg-1`."
+      },
+      {
+        "name": "--an-input-border-color",
+        "description": "Border colour; defaults to `--an-color-border-1`."
+      },
+      {
+        "name": "--an-input-radius",
+        "description": "Corner radius; defaults to `--an-radius-md` (0.5rem)."
+      },
+      {
+        "name": "--an-input-font-size",
+        "description": "Text size; defaults to `--an-font-size-sm` (0.875rem)."
+      },
+      {
+        "name": "--an-input-padding-x",
+        "description": "Horizontal padding; defaults to `--an-space-3` (0.75rem)."
+      },
+      {
+        "name": "--an-input-focus-ring",
+        "description": "Focus outline colour; defaults to `--an-color-accent-9`."
+      }
+    ],
+    "cssParts": [
+      {
+        "name": "base",
+        "description": "Outer wrapper around the label and the control."
+      },
+      {
+        "name": "label",
+        "description": "The visible `<label>`; rendered only when `label` is non-empty."
+      },
+      {
+        "name": "input",
+        "description": "The internal native `<input>` element."
+      }
+    ]
+  }
+}

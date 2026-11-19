@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://an-ui-kit.dev/schema/an-ui-kit.config.schema.json",
+  "title": "AN UI Kit build configuration",
+  "description": "配置 @an-ui-kit/elements 的裁剪构建（scripts/build-elements.mjs --mode custom）。包本身只有单入口：需要更小产物时在这里点名组件，生成一个只含这些组件的单文件 bundle，而不是新增 exports 子路径。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["components"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "指向本 schema，供编辑器补全与校验。"
+    },
+    "components": {
+      "description": "\"all\" 表示全量；数组表示只打包列出的自定义元素标签名（标签名来自源码目录 packages/elements/src/<dir>/an-<tag>.ts）。",
+      "oneOf": [
+        {
+          "const": "all",
+          "description": "全量构建：所有组件，输出 packages/elements/dist/index.js。"
+        },
+        {
+          "type": "array",
+          "description": "裁剪构建：只含列出的组件，输出 packages/elements/dist/an-ui-kit.custom.js（或 --out 指定路径）。",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^an-[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+            "examples": ["an-button", "an-input"]
+          }
+        }
+      ]
+    }
+  }
+}

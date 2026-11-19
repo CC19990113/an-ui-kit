@@ -158,6 +158,26 @@ For runtime templates (`createApp({ template })`), set it on `app.config` as in 
 app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 ```
 
+### Form Input (`<an-input>`)
+
+`<an-input>` wraps a real native `<input>` inside Shadow DOM. The `value` attribute is only the **initial value** (typing never writes it back); value changes are delivered by the contract events `an-input` / `an-change` (`detail.value`). `FormData`, `required` validation, `form.reset()`, and `<fieldset disabled>` all follow native platform semantics.
+
+```html
+<an-input name="email" type="email" label="Email" placeholder="you@example.com" required></an-input>
+
+<script type="module">
+  import '@an-ui-kit/elements';
+
+  document.querySelector('an-input')?.addEventListener('an-input', (event) => {
+    console.log('value', event.detail.value);
+  });
+</script>
+```
+
+- **React 19**: `onan-input={(event) => setValue(event.detail.value)}` (event names bind verbatim, no camel-casing).
+- **Vue 3**: `@an-input="onInput"`.
+- **Forms**: when `disabled` (on the element or via an ancestor `<fieldset disabled>`) it is excluded from `FormData` and from constraint validation; with an empty `required` value, `form.requestSubmit()` is blocked.
+
 ### Theming
 
 Set `data-theme="dark"` or `data-theme="light"` on `<html>` (or on an element itself) to override the theme explicitly; otherwise it follows `prefers-color-scheme`.
@@ -189,7 +209,9 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ## Current Components
 
-The repository currently ships one custom element: **`<an-button>`** (`AnButton`, backed by a native `<button>` inside Shadow DOM; also exports the internal base class `AnElement` in CEM).
+The repository currently ships two custom elements: **`<an-button>`** (`AnButton`, backed by a native `<button>` inside Shadow DOM) and **`<an-input>`** (`AnInput`, backed by a native `<input>` inside Shadow DOM, form-associated; CEM also exports the internal base class `AnElement`).
+
+### `<an-button>`
 
 | Category | Details |
 |----------|---------|
@@ -199,6 +221,16 @@ The repository currently ships one custom element: **`<an-button>`** (`AnButton`
 | **CSS Properties** | `--an-button-height`, `--an-button-radius`, `--an-button-font-size` |
 | **CSS Parts** | `base` (the internal native `<button>` element) |
 
+### `<an-input>`
+
+| Category | Details |
+|----------|---------|
+| **Attributes** | `value` (`string`, initial value only), `type` (`text` \| `email` \| `password` \| `search` \| `tel` \| `url` \| `number`), `placeholder` (`string`), `label` (`string`), `size` (`sm` \| `md` \| `lg`), `disabled` (`boolean`), `readonly` (`boolean`), `required` (`boolean`), `invalid` (`boolean`), `name` (`string`) |
+| **Events** | `an-input` / `an-change` (`CustomEvent<{ value: string, originalEvent }>`, `bubbles: true`, `composed: true`) |
+| **Slots** | None (the visible label is rendered from the `label` attribute) |
+| **CSS Properties** | `--an-input-height`, `--an-input-bg`, `--an-input-fg`, `--an-input-border-color`, `--an-input-radius`, `--an-input-font-size`, `--an-input-padding-x`, `--an-input-focus-ring` |
+| **CSS Parts** | `base`, `label`, `input` (the internal native `<input>` element) |
+
 See [`packages/elements/README.md`](packages/elements/README.md) and [`custom-elements-manifest.json`](custom-elements-manifest.json) for full API details.
 
 ## AI Integration (CEM / Registry / MCP / Skill)
@@ -207,9 +239,9 @@ See [`packages/elements/README.md`](packages/elements/README.md) and [`custom-el
 
 | Artifact | Consumer | Description |
 |----------|----------|-------------|
-| [`registry/`](registry) | shadcn CLI / JSON-reading agents | Self-contained, zero-npm-dependency registry items (`an-button` includes 5 source files) with CEM `meta` (`attributes`, `events`, `slots`, `cssProperties`, `cssParts`). Cataloged in [`registry/index.json`](registry/index.json). |
+| [`registry/`](registry) | shadcn CLI / JSON-reading agents | Self-contained, zero-npm-dependency registry items (`an-button` / `an-input`, each with its full source file tree) with CEM `meta` (`attributes`, `events`, `slots`, `cssProperties`, `cssParts`). Cataloged in [`registry/index.json`](registry/index.json). |
 | [`packages/mcp/`](packages/mcp) | MCP-compatible agents / IDEs | `@an-ui-kit/mcp` (`an-ui-kit-mcp` CLI): read-only stdio MCP server with 3 tools (`list_components`, `get_component`, `search_components`) backed by a byte-for-byte copy of root CEM ([`manifest.json`](packages/mcp/manifest.json)). Requires Node.js `>=20`. |
-| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent skill hosts (e.g. Claude Code) | Usage rules, contract lookup workflow, anti-patterns, and self-checklists in [`SKILL.md`](skills/an-ui-kit/SKILL.md) and [`references/an-button.md`](skills/an-ui-kit/references/an-button.md). |
+| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent skill hosts (e.g. Claude Code) | Usage rules, contract lookup workflow, anti-patterns, and self-checklists in [`SKILL.md`](skills/an-ui-kit/SKILL.md), [`references/an-button.md`](skills/an-ui-kit/references/an-button.md), and [`references/an-input.md`](skills/an-ui-kit/references/an-input.md). |
 
 ### Option 1: Install Source via shadcn CLI
 
@@ -217,6 +249,7 @@ Install directly by URL:
 
 ```bash
 npx shadcn@latest add https://raw.githubusercontent.com/CC19990113/an-ui-kit/main/registry/an-button.json
+npx shadcn@latest add https://raw.githubusercontent.com/CC19990113/an-ui-kit/main/registry/an-input.json
 ```
 
 Or configure `@an-ui-kit` in `components.json`:
@@ -231,6 +264,7 @@ Or configure `@an-ui-kit` in `components.json`:
 
 ```bash
 npx shadcn@latest add @an-ui-kit/an-button
+npx shadcn@latest add @an-ui-kit/an-input
 ```
 
 Both methods install a self-contained file tree with zero npm dependencies (no `@an-ui-kit/elements` required):
@@ -240,9 +274,12 @@ src/an-ui-kit/
 ├─ css.d.ts              # *.css / *.css?inline module declarations
 ├─ internal/base.ts      # AnElement base class
 ├─ internal/reset.css    # :host reset
-└─ button/
-   ├─ an-button.ts
-   └─ an-button.css
+├─ button/
+│  ├─ an-button.ts
+│  └─ an-button.css
+└─ input/
+   ├─ an-input.ts
+   └─ an-input.css
 ```
 
 ### Option 2: Connect the MCP Server
@@ -280,7 +317,7 @@ an-ui-kit/
 ├─ apps/
 │  └─ demo/              # Browser verification: Native HTML / React 19 / Vue 3 / Tailwind v4
 ├─ registry/             # CEM-derived shadcn registry (index.json, item JSONs, files/)
-├─ skills/an-ui-kit/     # Agent skill (SKILL.md + references/an-button.md)
+├─ skills/an-ui-kit/     # Agent skill (SKILL.md + references/an-button.md, an-input.md)
 ├─ scripts/              # Zero-dependency scripts: a11y, CI assertions, registry generator
 ├─ custom-elements-manifest.json  # CEM 2.1.0 (single source of truth)
 ├─ CONTRACT.md           # 9 hard component contract rules

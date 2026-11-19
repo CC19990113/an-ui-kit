@@ -77,28 +77,35 @@ jobs:
       - name: Assert git author is not @shenshiads.com
         run: node scripts/ci/assert-author.mjs
 
-      # 11. 体积预算：dist/index.js gzip ≤ 3072B。
+      # 11. 体积预算：全量单入口 dist/index.js 的 gzip ≤ 2048B × 组件数。
+      #     组件数从源码扫描，加组件时预算自动跟着涨，衡量的是单个组件的成本。
       - name: Assert gzip budget
         run: node scripts/ci/assert-bundle-size.mjs
 
-      # 12. MCP 构建会把仓库根的 custom-elements-manifest.json 原样 copy 成
+      # 12. 裁剪构建断言：配置只点名 an-button 时，产物必须更小、且完全不含
+      #     an-input 的标签与类名。全程用临时目录，不污染 dist/，也不改仓库里的
+      #     an-ui-kit.config.json。
+      - name: Assert custom build trims unused components
+        run: node scripts/ci/assert-custom-build.mjs
+
+      # 13. MCP 构建会把仓库根的 custom-elements-manifest.json 原样 copy 成
       #     packages/mcp/manifest.json，所以必须排在 6（CEM 新鲜度）之后：
       #     否则可能把过期契约打进 MCP 产物，而且这里一过就没人再查了。
       - name: Build MCP
         run: pnpm --filter @an-ui-kit/mcp build
 
-      # 13. 契约工具的行为测试：读的正是上一步 copy 的新鲜 manifest，全绿才算
+      # 14. 契约工具的行为测试：读的正是上一步 copy 的新鲜 manifest，全绿才算
       #     AI 层可用。放在 Build MCP 之后（测试依赖 dist/server.js 与 manifest.json）。
       - name: Test MCP
         run: pnpm --filter @an-ui-kit/mcp test
 
-      # 14. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
+      # 15. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
       #     保证浏览器 revision 与 apps/demo 锁定的 1.65.1 一致（`npx playwright install`
       #     会临时拉最新版，rev 可能对不上）。CI 不依赖系统 Chrome 兜底。
       - name: Install Playwright browser
         run: pnpm --filter demo exec playwright install --with-deps chromium
 
-      # 15. 三框架 e2e：native / react / vue + Tailwind preflight。
-      #     放在 14 之后（浏览器已就绪），并依赖前面 @an-ui-kit/elements 的构建产物。
+      # 16. 三框架 e2e：native / react / vue + Tailwind preflight。
+      #     放在 15 之后（浏览器已就绪），并依赖前面 @an-ui-kit/elements 的构建产物。
       - name: E2E (three frameworks)
         run: pnpm --filter demo e2e

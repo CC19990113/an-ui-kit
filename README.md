@@ -158,6 +158,26 @@ export default defineConfig({
 app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 ```
 
+### 表单输入（`<an-input>`）
+
+`<an-input>` 在 Shadow DOM 里包装真正的原生 `<input>`，`value` attribute 只作为**初始值**（键入不回写），值变化走契约事件 `an-input` / `an-change`（`detail.value`）；`FormData`、`required` 校验、`form.reset()`、`<fieldset disabled>` 由平台按原生语义处理。
+
+```html
+<an-input name="email" type="email" label="邮箱" placeholder="you@example.com" required></an-input>
+
+<script type="module">
+  import '@an-ui-kit/elements';
+
+  document.querySelector('an-input')?.addEventListener('an-input', (event) => {
+    console.log('value', event.detail.value);
+  });
+</script>
+```
+
+- **React 19**：`onan-input={(event) => setValue(event.detail.value)}`（事件名原样绑定，不转 camelCase）。
+- **Vue 3**：`@an-input="onInput"`。
+- **表单**：`disabled`（自身或祖先 `<fieldset disabled>`）时既不进 `FormData` 也不参与约束校验；`required` 空值时 `form.requestSubmit()` 会被拦下。
+
 ### 主题切换
 
 在根节点（如 `<html>`）或组件自身设置 `data-theme="dark"` / `data-theme="light"` 即可显式切换主题；未设置时自动跟随系统 `prefers-color-scheme`。
@@ -189,7 +209,9 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ## 当前组件
 
-仓库当前包含 1 个 Custom Element：**`<an-button>`**（`AnButton`，Shadow DOM 内部封装真实原生 `<button>`；CEM 中同时包含内部基类 `AnElement`）。
+仓库当前包含 2 个 Custom Element：**`<an-button>`**（`AnButton`，Shadow DOM 内部封装真实原生 `<button>`）与 **`<an-input>`**（`AnInput`，Shadow DOM 内部封装真实原生 `<input>`，form-associated；CEM 中同时包含内部基类 `AnElement`）。
+
+### `<an-button>`
 
 | 类别 | 说明 |
 |------|------|
@@ -199,6 +221,16 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 | **CSS 变量** | `--an-button-height`、`--an-button-radius`、`--an-button-font-size` |
 | **CSS Parts** | `base`（内部的原生 `<button>` 元素） |
 
+### `<an-input>`
+
+| 类别 | 说明 |
+|------|------|
+| **Attributes** | `value`（`string`，只作初始值）、`type`（`text` \| `email` \| `password` \| `search` \| `tel` \| `url` \| `number`）、`placeholder`（`string`）、`label`（`string`）、`size`（`sm` \| `md` \| `lg`）、`disabled`（`boolean`）、`readonly`（`boolean`）、`required`（`boolean`）、`invalid`（`boolean`）、`name`（`string`） |
+| **Events** | `an-input` / `an-change`（`CustomEvent<{ value: string, originalEvent }>`，`bubbles: true`、`composed: true`） |
+| **Slots** | 无（可见 label 由 `label` attribute 渲染） |
+| **CSS 变量** | `--an-input-height`、`--an-input-bg`、`--an-input-fg`、`--an-input-border-color`、`--an-input-radius`、`--an-input-font-size`、`--an-input-padding-x`、`--an-input-focus-ring` |
+| **CSS Parts** | `base`、`label`、`input`（内部的原生 `<input>` 元素） |
+
 完整 API 详见 [`packages/elements/README.md`](packages/elements/README.md) 与 [`custom-elements-manifest.json`](custom-elements-manifest.json)。
 
 ## AI 集成（CEM / Registry / MCP / Skill）
@@ -207,9 +239,9 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 | 产物 | 消费方 | 说明 |
 |------|--------|------|
-| [`registry/`](registry) | shadcn CLI / 直接读 JSON 的 agent | 每组件一份**自包含、零 npm 依赖**的 registry item（`an-button` 包含 5 个源文件）；`meta` 原样携带 CEM 的 `attributes` / `events` / `slots` / `cssProperties` / `cssParts`，总目录见 [`registry/index.json`](registry/index.json) |
+| [`registry/`](registry) | shadcn CLI / 直接读 JSON 的 agent | 每组件一份**自包含、零 npm 依赖**的 registry item（`an-button` / `an-input` 各包含完整源文件树）；`meta` 原样携带 CEM 的 `attributes` / `events` / `slots` / `cssProperties` / `cssParts`，总目录见 [`registry/index.json`](registry/index.json) |
 | [`packages/mcp/`](packages/mcp) | 支持 MCP 的 agent / IDE | `@an-ui-kit/mcp`（命令行入口 `an-ui-kit-mcp`）：stdio 只读 MCP Server，提供 `list_components`、`get_component`、`search_components` 3 个工具，数据源为根 CEM 逐字节拷贝的 [`manifest.json`](packages/mcp/manifest.json)，要求 Node.js `>=20` |
-| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent Skill 宿主（如 Claude Code） | 包含使用时机、契约查询流程、反例对照与自查清单，见 [`SKILL.md`](skills/an-ui-kit/SKILL.md) 与 [`references/an-button.md`](skills/an-ui-kit/references/an-button.md) |
+| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent Skill 宿主（如 Claude Code） | 包含使用时机、契约查询流程、反例对照与自查清单，见 [`SKILL.md`](skills/an-ui-kit/SKILL.md) 与 [`references/an-button.md`](skills/an-ui-kit/references/an-button.md)、[`references/an-input.md`](skills/an-ui-kit/references/an-input.md) |
 
 ### 方式一：使用 shadcn CLI 安装源码
 
@@ -217,6 +249,7 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ```bash
 npx shadcn@latest add https://raw.githubusercontent.com/CC19990113/an-ui-kit/main/registry/an-button.json
+npx shadcn@latest add https://raw.githubusercontent.com/CC19990113/an-ui-kit/main/registry/an-input.json
 ```
 
 或在 `components.json` 中配置 `@an-ui-kit` 命名 registry：
@@ -231,6 +264,7 @@ npx shadcn@latest add https://raw.githubusercontent.com/CC19990113/an-ui-kit/mai
 
 ```bash
 npx shadcn@latest add @an-ui-kit/an-button
+npx shadcn@latest add @an-ui-kit/an-input
 ```
 
 两种方式都会安装一套零 npm 依赖、可独立编译的文件树（无需安装 `@an-ui-kit/elements`）：
@@ -240,9 +274,12 @@ src/an-ui-kit/
 ├─ css.d.ts              # *.css / *.css?inline 模块声明
 ├─ internal/base.ts      # AnElement 基类
 ├─ internal/reset.css    # :host reset
-└─ button/
-   ├─ an-button.ts
-   └─ an-button.css
+├─ button/
+│  ├─ an-button.ts
+│  └─ an-button.css
+└─ input/
+   ├─ an-input.ts
+   └─ an-input.css
 ```
 
 ### 方式二：接入 MCP Server
@@ -280,7 +317,7 @@ an-ui-kit/
 ├─ apps/
 │  └─ demo/              # 浏览器验证面：原生 HTML / React 19 / Vue 3 / Tailwind v4
 ├─ registry/             # CEM 派生的 shadcn registry（index.json、组件 JSON 与 files/）
-├─ skills/an-ui-kit/     # Agent Skill（SKILL.md + references/an-button.md）
+├─ skills/an-ui-kit/     # Agent Skill（SKILL.md + references/an-button.md、an-input.md）
 ├─ scripts/              # 零依赖脚本：a11y、CI 断言、registry 生成
 ├─ custom-elements-manifest.json  # CEM 2.1.0（唯一真相源）
 ├─ CONTRACT.md           # 9 条组件硬契约

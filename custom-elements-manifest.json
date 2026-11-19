@@ -88,6 +88,152 @@
     },
     {
       "kind": "javascript-module",
+      "path": "packages/elements/src/input/an-input.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnInput",
+          "tagName": "an-input",
+          "customElement": true,
+          "description": "`<an-input>` — a single-line field backed by a real native `<input>` inside the shadow root, so focus, selection, IME, autofill, `type` semantics and the on-screen keyboard all come from the platform.",
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "description": "Initial value. The attribute is read once and never written back on input."
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "('text'|'email'|'password'|'search'|'tel'|'url'|'number')"
+              },
+              "description": "Native type forwarded to the inner `<input>`; unknown values fall back to \"text\". Default: \"text\".",
+              "default": "text"
+            },
+            {
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "description": "Placeholder text forwarded to the inner `<input>`."
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "description": "Visible label. When empty no `<label>` is rendered and `aria-label`/`aria-labelledby` are forwarded from the host instead."
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "('sm'|'md'|'lg')"
+              },
+              "description": "Control size. Default: \"md\".",
+              "default": "md"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Disables the inner input and blocks `an-input`/`an-change`."
+            },
+            {
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Makes the inner input read-only and blocks `an-input`/`an-change`."
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Participates in constraint validation (`valueMissing` when empty)."
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "External error state; maps to `aria-invalid=\"true\"` and the error border."
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "description": "Field name used when the value is submitted with the owning form."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-input",
+              "description": "Fired on every native input; `detail = { value, originalEvent }`."
+            },
+            {
+              "name": "an-change",
+              "description": "Fired on native change (blur or Enter); `detail = { value, originalEvent }`."
+            }
+          ],
+          "slots": [],
+          "cssProperties": [
+            {
+              "name": "--an-input-height",
+              "description": "Control height; defaults to 2.25rem (2rem sm, 2.75rem lg)."
+            },
+            {
+              "name": "--an-input-bg",
+              "description": "Control background; defaults to `--an-color-bg-1`."
+            },
+            {
+              "name": "--an-input-fg",
+              "description": "Text colour; defaults to `--an-color-fg-1`."
+            },
+            {
+              "name": "--an-input-border-color",
+              "description": "Border colour; defaults to `--an-color-border-1`."
+            },
+            {
+              "name": "--an-input-radius",
+              "description": "Corner radius; defaults to `--an-radius-md` (0.5rem)."
+            },
+            {
+              "name": "--an-input-font-size",
+              "description": "Text size; defaults to `--an-font-size-sm` (0.875rem)."
+            },
+            {
+              "name": "--an-input-padding-x",
+              "description": "Horizontal padding; defaults to `--an-space-3` (0.75rem)."
+            },
+            {
+              "name": "--an-input-focus-ring",
+              "description": "Focus outline colour; defaults to `--an-color-accent-9`."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "Outer wrapper around the label and the control."
+            },
+            {
+              "name": "label",
+              "description": "The visible `<label>`; rendered only when `label` is non-empty."
+            },
+            {
+              "name": "input",
+              "description": "The internal native `<input>` element."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "packages/elements/src/internal/base.ts",
       "declarations": [
         {

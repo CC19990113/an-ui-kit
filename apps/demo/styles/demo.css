@@ -59,3 +59,25 @@ nav a {
   color: var(--an-color-accent-9, #2563eb);
   margin-right: 0.75rem;
 }
+
+h2 {
+  font-size: 1.125rem;
+  margin: 2rem 0 0.5rem;
+}
+
+/* 表单/字段集 fixture 的排版；不影响组件内部（Shadow DOM 隔离）。 */
+.stack {
+  display: grid;
+  gap: 0.75rem;
+  align-items: start;
+  justify-items: start;
+  border: 0;
+  margin: 0 0 1.5rem;
+  padding: 0;
+}
+
+fieldset.stack {
+  border: 1px solid var(--an-color-border-1, #e4e4e7);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
