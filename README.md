@@ -66,6 +66,11 @@ import '@an-ui-kit/tokens/tokens.css';
 import '@an-ui-kit/elements';
 ```
 
+> **需要更小的产物？** 只用少数几个组件时，用 `npx @an-ui-kit/cli generate` 按配置裁剪：
+> 先 `npx @an-ui-kit/cli init` 生成 `an-ui-kit.config.json`，把 `components` 改成 `["an-button"]` 这样的数组，
+> 再跑 `generate` 就得到只含选中组件的单文件 ESM（CSS 已内联、无运行时依赖）。
+> 详见 [`packages/cli/README.md`](packages/cli/README.md)。
+
 ### 原生 HTML
 
 在支持 ES 模块的环境（或使用 Vite 等打包器，参考 [`apps/demo/native.html`](apps/demo/native.html)）中导入后即可直接使用标签：

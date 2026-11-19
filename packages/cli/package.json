@@ -1,0 +1,46 @@
+{
+  "name": "@an-ui-kit/cli",
+  "version": "0.1.0",
+  "description": "Trim @an-ui-kit/elements down to the components listed in an-ui-kit.config.json and emit a single-file ESM bundle.",
+  "type": "module",
+  "bin": {
+    "an-ui-kit": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CC19990113/an-ui-kit.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/CC19990113/an-ui-kit#readme",
+  "bugs": {
+    "url": "https://github.com/CC19990113/an-ui-kit/issues"
+  },
+  "keywords": [
+    "an-ui-kit",
+    "custom-elements",
+    "web-components",
+    "cli",
+    "bundle"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "pnpm run build && node --test test/cli.test.js",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@an-ui-kit/elements": "workspace:^",
+    "esbuild": "^0.28.2"
+  }
+}

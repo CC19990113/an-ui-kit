@@ -58,6 +58,15 @@ importers:
         specifier: 8.3.8
         version: 8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)
 
+  packages/cli:
+    dependencies:
+      '@an-ui-kit/elements':
+        specifier: workspace:^
+        version: link:../elements
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+
   packages/elements:
     devDependencies:
       esbuild:

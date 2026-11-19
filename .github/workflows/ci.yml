@@ -94,18 +94,29 @@ jobs:
       - name: Build MCP
         run: pnpm --filter @an-ui-kit/mcp build
 
-      # 14. 契约工具的行为测试：读的正是上一步 copy 的新鲜 manifest，全绿才算
+      # 14. CLI 构建：@an-ui-kit/cli 是给使用者按配置裁剪单文件产物的构建工具，
+      #     和 MCP 一样发布前必须有 dist/cli.js（package.json 的 bin 指向它）。
+      #     CLI 只读 @an-ui-kit/elements 的 src/，不依赖上一步的 dist。
+      - name: Build CLI
+        run: pnpm --filter @an-ui-kit/cli build
+
+      # 15. 契约工具的行为测试：读的正是 Build MCP 上一步 copy 的新鲜 manifest，全绿才算
       #     AI 层可用。放在 Build MCP 之后（测试依赖 dist/server.js 与 manifest.json）。
       - name: Test MCP
         run: pnpm --filter @an-ui-kit/mcp test
 
-      # 15. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
+      # 16. CLI 端到端测试：spawn dist/cli.js 跑 list / init / generate，验证裁剪
+      #     产物的组件命中与 ESM 可执行性。放在 Build CLI 之后（测试依赖 dist/cli.js）。
+      - name: Test CLI
+        run: pnpm --filter @an-ui-kit/cli test
+
+      # 17. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
       #     保证浏览器 revision 与 apps/demo 锁定的 1.65.1 一致（`npx playwright install`
       #     会临时拉最新版，rev 可能对不上）。CI 不依赖系统 Chrome 兜底。
       - name: Install Playwright browser
         run: pnpm --filter demo exec playwright install --with-deps chromium
 
-      # 16. 三框架 e2e：native / react / vue + Tailwind preflight。
-      #     放在 15 之后（浏览器已就绪），并依赖前面 @an-ui-kit/elements 的构建产物。
+      # 18. 三框架 e2e：native / react / vue + Tailwind preflight。
+      #     放在 17 之后（浏览器已就绪），并依赖前面 @an-ui-kit/elements 的构建产物。
       - name: E2E (three frameworks)
         run: pnpm --filter demo e2e

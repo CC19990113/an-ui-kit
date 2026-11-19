@@ -7,7 +7,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "build:custom": "node scripts/build-elements.mjs --mode custom",
+    "build:cli": "pnpm --filter @an-ui-kit/cli build",
     "test": "pnpm -r test",
+    "test:cli": "pnpm --filter @an-ui-kit/cli test",
     "typecheck": "pnpm -r --if-present typecheck",
     "cem": "x-cem scan --src packages/elements/src --out custom-elements-manifest.json",
     "registry": "pnpm cem && node scripts/gen-registry.mjs",

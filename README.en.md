@@ -66,6 +66,12 @@ import '@an-ui-kit/tokens/tokens.css';
 import '@an-ui-kit/elements';
 ```
 
+> **Need a smaller bundle?** When you only use a few elements, trim by config with
+> `npx @an-ui-kit/cli generate`: run `npx @an-ui-kit/cli init` to create `an-ui-kit.config.json`,
+> set `components` to an array such as `["an-button"]`, then run `generate` for a single-file ESM
+> containing only the selected elements (CSS inlined, zero runtime dependencies).
+> See [`packages/cli/README.md`](packages/cli/README.md).
+
 ### Native HTML
 
 In an ES module environment (or using a bundler like Vite; see [`apps/demo/native.html`](apps/demo/native.html)):
