@@ -17,7 +17,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const bundle = join(ROOT, 'packages/elements/dist/index.js');
 
 if (!existsSync(bundle)) {
-  console.error(`[ci:bundle-size] FAIL 找不到 ${bundle}；请先跑 pnpm --filter @x/elements build`);
+  console.error(`[ci:bundle-size] FAIL 找不到 ${bundle}；请先跑 pnpm --filter @an-ui-kit/elements build`);
   process.exit(1);
 }
 

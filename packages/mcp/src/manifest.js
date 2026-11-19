@@ -104,7 +104,7 @@ export function loadManifest(manifestPath = DEFAULT_MANIFEST_PATH) {
   } catch (error) {
     throw new ManifestError(
       `Cannot read the Custom Elements Manifest at ${manifestPath} (${error.code ?? error.message}). ` +
-        'Generate the repo-root manifest with "pnpm cem", then run "pnpm --filter @x/mcp build" to copy it here.',
+        'Generate the repo-root manifest with "pnpm cem", then run "pnpm --filter @an-ui-kit/mcp build" to copy it here.',
       { cause: error },
     );
   }

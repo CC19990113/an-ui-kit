@@ -1,5 +1,5 @@
 {
-  "name": "@x/elements",
+  "name": "@an-ui-kit/elements",
   "version": "0.1.0",
   "description": "Framework-agnostic web components with zero runtime dependencies.",
   "type": "module",

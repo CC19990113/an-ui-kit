@@ -1,4 +1,4 @@
 {
-  "app": "x-elements-demo",
+  "app": "an-ui-kit-demo",
   "purpose": "Playwright webServer 健康检查用：确认 4173/4317 上跑的是本仓库的 demo，而不是同机其它项目。"
 }

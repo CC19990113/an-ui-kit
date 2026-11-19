@@ -22,8 +22,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_ROOT = resolve(ROOT, 'packages/elements/src');
 const REGISTRY_ITEM_SCHEMA = 'https://ui.shadcn.com/schema/registry-item.json';
 const REGISTRY_SCHEMA = 'https://ui.shadcn.com/schema/registry.json';
-const HOMEPAGE = 'https://github.com/CC19990113/x-elements';
-const INSTALL_ROOT = '~/src/x-elements';
+const HOMEPAGE = 'https://github.com/CC19990113/an-ui-kit';
+const INSTALL_ROOT = '~/src/an-ui-kit';
 
 const args = parseArgs(process.argv.slice(2));
 const manifestPath = resolve(ROOT, args.manifest ?? 'custom-elements-manifest.json');
@@ -265,7 +265,7 @@ async function main() {
 
   const index = {
     $schema: REGISTRY_SCHEMA,
-    name: 'x-elements',
+    name: 'an-ui-kit',
     homepage: HOMEPAGE,
     items: items.map((item) => ({
       name: item.name,

@@ -47,7 +47,7 @@ const host = (page: Page, testId: string) => page.locator(`[data-testid="${testI
 async function stylesOf(page: Page, testId: string): Promise<Record<string, string>> {
   const value = await host(page, testId).evaluate((element, props) => {
     const inner = (element as HTMLElement).shadowRoot?.querySelector('button');
-    if (!inner) throw new Error('<x-button> 里没有 <button>');
+    if (!inner) throw new Error('<an-button> 里没有 <button>');
     const style = getComputedStyle(inner);
     // getPropertyValue 只认 kebab-case；camelCase 传进去会静默返回 ""，
     // 那样「两页都为 ""」会被判成相等 —— 典型的假绿，这里显式转一次。
@@ -61,12 +61,12 @@ async function openPage(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await expect(host(page, 'btn-default')).toBeVisible();
   // 自定义元素已定义 + 事件记录器已就绪，后面才能数事件。
-  await page.waitForFunction(() => Boolean(customElements.get('x-button')));
-  await page.waitForFunction(() => Array.isArray(window.__xButtonClickLog));
+  await page.waitForFunction(() => Boolean(customElements.get('an-button')));
+  await page.waitForFunction(() => Array.isArray(window.__anButtonClickLog));
 }
 
-/** 数 DOM 上真实发生的 x-button-click 次数。 */
-const clickLog = (page: Page) => page.evaluate(() => window.__xButtonClickLog);
+/** 数 DOM 上真实发生的 an-button-click 次数。 */
+const clickLog = (page: Page) => page.evaluate(() => window.__anButtonClickLog);
 
 for (const framework of FRAMEWORKS) {
   test.describe(`${framework.name} 页`, () => {
@@ -94,7 +94,7 @@ for (const framework of FRAMEWORKS) {
       expect(danger.backgroundColor).not.toBe(defaults.backgroundColor);
       expect(ghost.backgroundColor).toBe('rgba(0, 0, 0, 0)');
 
-      // 3. 高度来自组件 CSS（--x-button-height 默认 2.25rem = 36px），不是 UA 默认
+      // 3. 高度来自组件 CSS（--an-button-height 默认 2.25rem = 36px），不是 UA 默认
       expect(primary.height).toBe('36px');
       expect(primary.boxSizing).toBe('border-box');
       expect(primary.appearance).toBe('none');
@@ -106,18 +106,18 @@ for (const framework of FRAMEWORKS) {
       );
     });
 
-    test('点击恰好派发 1 次 x-button-click（bubbles + composed + originalEvent）', async ({
+    test('点击恰好派发 1 次 an-button-click（bubbles + composed + originalEvent）', async ({
       page,
     }) => {
       await host(page, 'btn-primary').click();
 
       await expect
-        .poll(async () => (await clickLog(page)).length, { message: 'x-button-click 次数' })
+        .poll(async () => (await clickLog(page)).length, { message: 'an-button-click 次数' })
         .toBe(1);
 
       const [record] = await clickLog(page);
       expect(record.id).toBe('btn-primary');
-      expect(record.tag).toBe('x-button');
+      expect(record.tag).toBe('an-button');
       expect(record.bubbles).toBe(true);
       expect(record.composed).toBe(true);
       expect(record.hasOriginalEvent).toBe(true);
@@ -169,7 +169,7 @@ for (const framework of FRAMEWORKS) {
 }
 
 test.describe('Tailwind v4 preflight', () => {
-  test('preflight 确实加载，但没有打穿 <x-button>', async ({ page }) => {
+  test('preflight 确实加载，但没有打穿 <an-button>', async ({ page }) => {
     await openPage(page, '/native.html');
     const nativeStyles: Record<string, Record<string, string>> = {};
     for (const id of BUTTON_IDS) nativeStyles[id] = await stylesOf(page, id);

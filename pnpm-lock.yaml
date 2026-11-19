@@ -14,10 +14,10 @@ importers:
 
   apps/demo:
     dependencies:
-      '@x/elements':
+      '@an-ui-kit/elements':
         specifier: workspace:*
         version: link:../../packages/elements
-      '@x/tokens':
+      '@an-ui-kit/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
       react:

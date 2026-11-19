@@ -1,9 +1,9 @@
 {
-  "name": "@x/tokens",
+  "name": "@an-ui-kit/tokens",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "x-elements design tokens — OKLCH palette with a zero-dependency build pipeline",
+  "description": "AN UI Kit design tokens — OKLCH palette with a zero-dependency build pipeline",
   "files": [
     "dist"
   ],

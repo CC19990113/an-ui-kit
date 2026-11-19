@@ -1,6 +1,6 @@
-# 组件契约（CONTRACT）
+# AN UI Kit · 组件契约（CONTRACT）
 
-x-elements 的每个组件都必须满足以下 **9 条契约**。它们是可被 CI 或评审验证的硬规则，不是风格建议。
+AN UI Kit 的每个组件都必须满足以下 **9 条契约**。它们是可被 CI 或评审验证的硬规则，不是风格建议。
 新增或修改组件前先读本文件；契约本身要改，先改本文件，再改实现。
 
 适用范围：`packages/elements` 下的全部组件。
@@ -8,10 +8,10 @@ x-elements 的每个组件都必须满足以下 **9 条契约**。它们是可�
 
 | # | 契约 | 关键约束 | 检查方式 |
 |---|------|----------|----------|
-| 1 | 标签名 | `x-{component}`，必须带连字符 | 评审 + CEM `tagName` |
+| 1 | 标签名 | `an-{component}`，必须带连字符 | 评审 + CEM `tagName` |
 | 2 | attribute / property | attribute 全 kebab-case，property camelCase | 评审 + 类型派生 |
-| 3 | 事件 | `x-{component}-{action}`，`bubbles: true, composed: true` | 评审 + 测试断言 |
-| 4 | CSS 变量 | `--x-{component}-{prop}`，带 fallback，不硬编码颜色 | 评审 + grep 颜色字面量 |
+| 3 | 事件 | `an-{component}-{action}`，`bubbles: true, composed: true` | 评审 + 测试断言 |
+| 4 | CSS 变量 | `--an-{component}-{prop}`，带 fallback，不硬编码颜色 | 评审 + grep 颜色字面量 |
 | 5 | CSS parts | 只暴露语义名，最小集合 | 评审 |
 | 6 | 主题 | `:host([data-theme="dark"])` 与 `prefers-color-scheme` 双入口 | 评审 + 视觉回归 |
 | 7 | CEM | CEM 是唯一真相源，禁止另写规格 | CI：scan 后 diff 为空 |
@@ -20,26 +20,26 @@ x-elements 的每个组件都必须满足以下 **9 条契约**。它们是可�
 
 ---
 
-## 1. 标签名：`x-{component}`，必须带连字符
+## 1. 标签名：`an-{component}`，必须带连字符
 
-- 统一前缀 `x-`，格式 `x-{component}`；`component` 用小写 kebab-case（如 `x-split-button`）。
+- 统一前缀 `an-`，格式 `an-{component}`；`component` 用小写 kebab-case（如 `an-split-button`）。
 - Custom Elements 规范要求自定义元素名**必须包含连字符**，且只能用小写字母、数字和 `-`。
 - 一个标签只注册一次：重复 `customElements.define()` 会抛 `NotSupportedError`，入口处必须用 `customElements.get()` 守卫。
-- 标签名与源码目录一一对应：`src/button/button.ts` → `x-button`。
+- 标签名与源码目录一一对应：`src/button/an-button.ts` → `an-button`。
 
 **✅ 正确**
 
 ```ts
-customElements.define('x-button', XButton);
-customElements.define('x-split-button', XSplitButton);
+customElements.define('an-button', AnButton);
+customElements.define('an-split-button', AnSplitButton);
 ```
 
 **❌ 错误**
 
 ```ts
-customElements.define('xbutton', Xbutton);   // 没有连字符，浏览器直接拒绝注册
-customElements.define('xButton', XButton);   // 大写字母不合法
-customElements.define('button', Button);     // 污染原生标签命名空间
+customElements.define('anbutton', AnButton);   // 没有连字符，浏览器直接拒绝注册
+customElements.define('anButton', AnButton);   // 大写字母不合法
+customElements.define('button', Button);       // 污染原生标签命名空间
 ```
 
 ---
@@ -50,13 +50,13 @@ customElements.define('button', Button);     // 污染原生标签命名空间
 - JS property：camelCase（`loadingText`、`maxCount`）。
 - 两者一一对应：attribute 变化通过 `attributeChangedCallback` 同步到 property；property 变化只在需要被 CSS 选择器或 SSR 消费时反射回 attribute。
 - attribute 名里不允许出现大写、下划线或驼峰。
-- boolean 属性用「存在」表达：`<x-button disabled>`。禁止写 `disabled="false"` 想表达「不禁用」——它在语义上是**开启**。
+- boolean 属性用「存在」表达：`<an-button disabled>`。禁止写 `disabled="false"` 想表达「不禁用」——它在语义上是**开启**。
 - property 不要占用原生 DOM 已有语义名（`title`、`hidden`、`id` 等），避免覆盖宿主行为。
 
 **✅ 正确**
 
 ```ts
-class XButton extends HTMLElement {
+class AnButton extends HTMLElement {
   static observedAttributes = ['loading-text'];
 
   get loadingText(): string | null {
@@ -70,32 +70,32 @@ class XButton extends HTMLElement {
 ```
 
 ```html
-<x-button loading-text="保存中"></x-button>
-<x-button disabled></x-button>
+<an-button loading-text="保存中"></an-button>
+<an-button disabled></an-button>
 ```
 
 **❌ 错误**
 
 ```ts
-class XButton extends HTMLElement {
+class AnButton extends HTMLElement {
   static observedAttributes = ['loadingText'];        // attribute 不能是 camelCase
   get loading_text(): string | null { return null; }  // property 不能是 snake_case
 }
 ```
 
 ```html
-<x-button loadingText="保存中"></x-button>
+<an-button loadingText="保存中"></an-button>
 <!-- HTML 解析会转小写，映射不上 kebab-case 的 attribute 名 -->
 
-<x-button disabled="false"></x-button>
+<an-button disabled="false"></an-button>
 <!-- 实际效果是「禁用」 -->
 ```
 
 ---
 
-## 3. 事件：`x-{component}-{action}`，必须 `bubbles: true, composed: true`
+## 3. 事件：`an-{component}-{action}`，必须 `bubbles: true, composed: true`
 
-- 事件名全小写 kebab-case，格式 `x-{component}-{action}`；`action` 用动词或过去分词语义（`click`、`change`、`open`、`close`）。
+- 事件名全小写 kebab-case，格式 `an-{component}-{action}`；`action` 用动词或过去分词语义（`click`、`change`、`open`、`close`）。
 - 对外事件**必须**同时设置 `bubbles: true`（可冒泡到宿主页面）与 `composed: true`（可穿透 Shadow DOM 边界）。缺一个，框架和 `document` 级监听就收不到。
 - 禁止对外派发无前缀事件（`click`、`change`），避免和原生事件混淆；原生事件只在组件内部使用。
 - `detail` 是普通对象，字段 camelCase；内部原生事件放 `detail.originalEvent`。不要把 `Event` 对象直接当 `detail`（丢失可序列化性与可测性）。
@@ -105,7 +105,7 @@ class XButton extends HTMLElement {
 
 ```ts
 this.dispatchEvent(
-  new CustomEvent('x-button-click', {
+  new CustomEvent('an-button-click', {
     detail: { originalEvent: event },
     bubbles: true,
     composed: true,
@@ -117,40 +117,40 @@ this.dispatchEvent(
 
 ```ts
 this.dispatchEvent(new CustomEvent('click', { detail: {} }));                 // 无组件前缀，与原生事件冲突
-this.dispatchEvent(new CustomEvent('xButtonClick', { bubbles: true }));       // 非 kebab-case
-this.dispatchEvent(new CustomEvent('x-button-click', { detail: { event } })); // 缺 bubbles/composed，跨 shadow 即丢失
+this.dispatchEvent(new CustomEvent('anButtonClick', { bubbles: true }));       // 非 kebab-case
+this.dispatchEvent(new CustomEvent('an-button-click', { detail: { event } })); // 缺 bubbles/composed，跨 shadow 即丢失
 ```
 
 框架监听映射（保持一致，不要另起别名）：
 
 | 框架 | 监听写法 |
 |------|----------|
-| 原生 | `el.addEventListener('x-button-click', fn)` |
-| React 19 | `onx-button-click={fn}`（`on` + **事件名原样**；React 19 对自定义元素执行 `addEventListener(key.slice(2))`，不做 camelCase 转换。`x-button-click` 本身全小写，所以形态恰好是全小写，写成 `onXButtonClick` 监听的是 `XButtonClick`，命中 0 次） |
-| Vue 3 | `@x-button-click="fn"` |
-| Angular | `(x-button-click)="fn($event)"` |
-| jQuery | `.on('x-button-click', fn)` |
+| 原生 | `el.addEventListener('an-button-click', fn)` |
+| React 19 | `onan-button-click={fn}`（`on` + **事件名原样**；React 19 对自定义元素执行 `addEventListener(key.slice(2))`，不做 camelCase 转换。`an-button-click` 本身全小写，所以形态恰好是全小写，写成 `onAnButtonClick` 监听的是 `AnButtonClick`，命中 0 次） |
+| Vue 3 | `@an-button-click="fn"` |
+| Angular | `(an-button-click)="fn($event)"` |
+| jQuery | `.on('an-button-click', fn)` |
 
 > 验证状态：原生 / React 19 / Vue 3 由 `apps/demo` 的 Playwright e2e 覆盖；**Angular 与 jQuery 是 planned，未在本仓库 demo 验证**，表中写法仅供参考。
 
 ---
 
-## 4. CSS 变量：`--x-{component}-{prop}`
+## 4. CSS 变量：`--an-{component}-{prop}`
 
-- 组件所有对外可调的外观参数都用 CSS 自定义属性暴露，命名 `--x-{component}-{prop}`，`prop` 小写 kebab-case。
-- 组件内部必须给 fallback：`var(--x-button-height, 2.25rem)`；能和设计 token 链条就链上：`var(--x-button-bg, var(--x-color-accent-9))`。
-- 颜色、间距、字号、圆角禁止写死字面量，优先消费 tokens 的变量：颜色 `--x-color-{hue}-{1..12}` 与语义别名（`--x-color-accent-9`、`--x-color-bg-1`、`--x-color-fg-1`）、字号 `--x-font-size-{xs,sm,md,lg,xl,xxl}`、间距 `--x-space-*`、圆角 `--x-radius-*`；组件级变量只是「这个组件的可调参数出口」。
+- 组件所有对外可调的外观参数都用 CSS 自定义属性暴露，命名 `--an-{component}-{prop}`，`prop` 小写 kebab-case。
+- 组件内部必须给 fallback：`var(--an-button-height, 2.25rem)`；能和设计 token 链条就链上：`var(--an-button-bg, var(--an-color-accent-9))`。
+- 颜色、间距、字号、圆角禁止写死字面量，优先消费 tokens 的变量：颜色 `--an-color-{hue}-{1..12}` 与语义别名（`--an-color-accent-9`、`--an-color-bg-1`、`--an-color-fg-1`）、字号 `--an-font-size-{xs,sm,md,lg,xl,xxl}`、间距 `--an-space-*`、圆角 `--an-radius-*`；组件级变量只是「这个组件的可调参数出口」。
 - 变量只影响外观（颜色、尺寸、间距、圆角、动效），不得用来切换结构或语义。
-- 不允许缺 `x-` 前缀，防止与宿主页面的同名变量碰撞。
+- 不允许缺 `an-` 前缀，防止与宿主页面的同名变量碰撞。
 
 **✅ 正确**
 
 ```css
 :host {
-  --x-button-height: 2.25rem;
-  --x-button-bg: var(--x-color-accent-9);
-  height: var(--x-button-height);
-  background: var(--x-button-bg);
+  --an-button-height: 2.25rem;
+  --an-button-bg: var(--an-color-accent-9);
+  height: var(--an-button-height);
+  background: var(--an-button-bg);
 }
 ```
 
@@ -158,8 +158,8 @@ this.dispatchEvent(new CustomEvent('x-button-click', { detail: { event } })); //
 
 ```css
 :host {
-  --button-height: 2.25rem;     /* 缺 x- 前缀，必碰撞 */
-  --x-button--height: 2.25rem;  /* 双连字符，不规范 */
+  --button-height: 2.25rem;     /* 缺 an- 前缀，必碰撞 */
+  --an-button--height: 2.25rem;  /* 双连字符，不规范 */
   background: #3b82f6;          /* 硬编码颜色，绕过 token */
 }
 ```
@@ -185,7 +185,7 @@ this.dispatchEvent(new CustomEvent('x-button-click', { detail: { event } })); //
 **❌ 错误**
 
 ```html
-<div part="x-button-wrapper">     <!-- 含组件名前缀，且语义空洞 -->
+<div part="an-button-wrapper">     <!-- 含组件名前缀，且语义空洞 -->
   <div part="inner-1"></div>      <!-- 结构名，不是语义名 -->
   <div class="shadow-layer"></div> <!-- 想给外部定制却没暴露 part -->
 </div>
@@ -199,7 +199,7 @@ this.dispatchEvent(new CustomEvent('x-button-click', { detail: { event } })); //
   1. **显式**：宿主或祖先带 `data-theme="dark"` → `:host([data-theme="dark"])`；
   2. **系统**：`@media (prefers-color-scheme: dark)`。
 - 显式 `data-theme="light"` 必须能击败系统暗色（`:host([data-theme="light"])`，或对媒体查询用 `:not([data-theme])`）。
-- 颜色只从 `--x-color-*` 消费，组件 CSS 里不得出现颜色字面量；深色不是「另写一套色值」，而是同一套 token 换值。
+- 颜色只从 `--an-color-*` 消费，组件 CSS 里不得出现颜色字面量；深色不是「另写一套色值」，而是同一套 token 换值。
 - 组件声明 `color-scheme`，让原生控件（滚动条、输入框、焦点环）跟随主题。
 
 **✅ 正确**
@@ -207,20 +207,20 @@ this.dispatchEvent(new CustomEvent('x-button-click', { detail: { event } })); //
 ```css
 /* token 层：两条入口都要有 */
 :root {
-  --x-color-bg-1: oklch(0.99 0 0);
+  --an-color-bg-1: oklch(0.99 0 0);
 }
 [data-theme='dark'] {
-  --x-color-bg-1: oklch(0.18 0 0);
+  --an-color-bg-1: oklch(0.18 0 0);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --x-color-bg-1: oklch(0.18 0 0);
+    --an-color-bg-1: oklch(0.18 0 0);
   }
 }
 
 /* 组件层：只消费 token，并声明 color-scheme */
 :host {
-  background: var(--x-color-bg-1);
+  background: var(--an-color-bg-1);
   color-scheme: light dark;
 }
 :host([data-theme='dark']) {
@@ -269,11 +269,11 @@ attribute，因此 registry / MCP / skill 都查不到它，这不是遗漏。�
  * 主按钮。
  *
  * @attr {string} variant - primary | secondary
- * @fires {CustomEvent<{ originalEvent: MouseEvent }>} x-button-click - 点击
- * @cssprop --x-button-bg - 背景色
+ * @fires {CustomEvent<{ originalEvent: MouseEvent }>} an-button-click - 点击
+ * @cssprop --an-button-bg - 背景色
  * @csspart base - 根按钮
  */
-export class XButton extends HTMLElement { /* ... */ }
+export class AnButton extends HTMLElement { /* ... */ }
 ```
 
 **❌ 错误**
@@ -289,7 +289,7 @@ export class XButton extends HTMLElement { /* ... */ }
 
 ```ts
 // 手改派生类型，加一个 CEM 里不存在、运行时也没有的属性
-interface XButtonProps {
+interface AnButtonProps {
   variant: 'primary' | 'secondary';
   ghost: boolean;
 }
@@ -326,8 +326,8 @@ interface XButtonProps {
   line-height: 1.5;
 
   font: inherit;
-  color: var(--x-color-fg-1);
-  padding: var(--x-button-padding, 0 1rem);
+  color: var(--an-color-fg-1);
+  padding: var(--an-button-padding, 0 1rem);
 }
 ```
 
@@ -358,7 +358,7 @@ interface XButtonProps {
 
 ```json
 {
-  "name": "@x/elements",
+  "name": "@an-ui-kit/elements",
   "dependencies": {},
   "devDependencies": {
     "vitest": "^5.1.1"
@@ -379,7 +379,7 @@ interface XButtonProps {
 ```json
 {
   "dependencies": {
-    "@x/tokens": "workspace:*"
+    "@an-ui-kit/tokens": "workspace:*"
   }
 }
 ```
@@ -392,15 +392,15 @@ interface XButtonProps {
 
 ### `type="submit"` 不提交外层表单
 
-`<x-button type="submit">` 内部是 Shadow DOM 里的原生 `<button>`，它不是外层 `<form>` 的表单关联元素：
+`<an-button type="submit">` 内部是 Shadow DOM 里的原生 `<button>`，它不是外层 `<form>` 的表单关联元素：
 `button.form === null`，点击**不会**触发表单提交（`submit` / `requestSubmit` 都不会发生）。
 本库组件目前也没有声明 `static formAssociated = true`、没有通过 `ElementInternals` 做表单关联。
 
-- 影响：从原生 `<button>` 迁到 `<x-button>` 时，提交按钮的既有行为会静默失效。
-- 临时方案：监听 `x-button-click`，手动调用外层表单的 `requestSubmit()`。
-- 待办：下一阶段在 `XElement` 基类统一支持 `static formAssociated` + `ElementInternals`（含 `setFormValue`），
+- 影响：从原生 `<button>` 迁到 `<an-button>` 时，提交按钮的既有行为会静默失效。
+- 临时方案：监听 `an-button-click`，手动调用外层表单的 `requestSubmit()`。
+- 待办：下一阶段在 `AnElement` 基类统一支持 `static formAssociated` + `ElementInternals`（含 `setFormValue`），
   组件继承后 `type="submit"` / `type="reset"` 才能真实作用于外层表单。
-- 在此之前：文档、JSDoc、skill 与 AI 元数据**不得**声称 `<x-button>` 具备 "form semantics"；
+- 在此之前：文档、JSDoc、skill 与 AI 元数据**不得**声称 `<an-button>` 具备 "form semantics"；
   已修正为「`type="submit"` 不提交外层表单（Shadow DOM 限制）」。
 
 ---
@@ -409,13 +409,13 @@ interface XButtonProps {
 
 | 对象 | 规则 | 示例 |
 |------|------|------|
-| 标签名 | `x-{component}` | `x-button` |
+| 标签名 | `an-{component}` | `an-button` |
 | attribute | kebab-case | `loading-text` |
 | property | camelCase | `loadingText` |
-| 事件 | `x-{component}-{action}` | `x-button-click` |
-| CSS 变量 | `--x-{component}-{prop}` | `--x-button-bg` |
+| 事件 | `an-{component}-{action}` | `an-button-click` |
+| CSS 变量 | `--an-{component}-{prop}` | `--an-button-bg` |
 | CSS part | 语义名 | `base` / `icon` / `label` |
-| 设计 token | 颜色 `--x-color-{hue}-{1..12}` + 语义别名；字号 `--x-font-size-{xs,sm,md,lg,xl,xxl}`；间距 `--x-space-*`；圆角 `--x-radius-*` | `--x-color-accent-9` |
+| 设计 token | 颜色 `--an-color-{hue}-{1..12}` + 语义别名；字号 `--an-font-size-{xs,sm,md,lg,xl,xxl}`；间距 `--an-space-*`；圆角 `--an-radius-*` | `--an-color-accent-9` |
 | detail 字段 | camelCase | `detail.originalEvent` |
 
 ## 附录 B：契约变更流程
@@ -429,6 +429,6 @@ interface XButtonProps {
 
 `packages/tokens` 的 `exports` 指向构建产物（`./dist/tokens.ts`、`./dist/tokens.css`），而 `dist/` 不进版本库。因此：
 
-1. **packages/tokens 必须先 build**：`pnpm --filter @x/tokens build`；
-2. 其它包才能 `import '@x/tokens'` 或引用 `@x/tokens/tokens.css`；
+1. **packages/tokens 必须先 build**：`pnpm --filter @an-ui-kit/tokens build`；
+2. 其它包才能 `import '@an-ui-kit/tokens'` 或引用 `@an-ui-kit/tokens/tokens.css`；
 3. 新 clone 与 CI 的 build/test 步骤必须先构建 tokens，不要依赖仓库里不存在的 `dist/`。

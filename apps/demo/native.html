@@ -4,40 +4,40 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:," />
-    <title>x-button · native HTML</title>
+    <title>an-button · native HTML</title>
     <link rel="stylesheet" href="./styles/demo.css" />
   </head>
   <body>
     <main>
-      <h1>&lt;x-button&gt; · 原生 HTML</h1>
+      <h1>&lt;an-button&gt; · 原生 HTML</h1>
       <p class="hint">
-        零框架：一个 <code>&lt;script type="module"&gt;</code> import <code>@x/elements</code>
+        零框架：一个 <code>&lt;script type="module"&gt;</code> import <code>@an-ui-kit/elements</code>
         就能用。4 个变体 + <code>disabled</code> + <code>loading</code>；点击会派发
-        <code>x-button-click</code>，日志打在下方和 console。
+        <code>an-button-click</code>，日志打在下方和 console。
       </p>
 
       <!-- 与 tailwind.html 的 fixture 保持逐字一致：e2e 会逐属性对比两页的计算样式。 -->
       <div class="row" data-testid="button-row">
-        <x-button data-testid="btn-default" variant="default">Default</x-button>
-        <x-button data-testid="btn-primary" variant="primary">Primary</x-button>
-        <x-button data-testid="btn-danger" variant="danger">Danger</x-button>
-        <x-button data-testid="btn-ghost" variant="ghost">Ghost</x-button>
-        <x-button data-testid="btn-disabled" disabled>Disabled</x-button>
-        <x-button data-testid="btn-loading" loading>Loading</x-button>
+        <an-button data-testid="btn-default" variant="default">Default</an-button>
+        <an-button data-testid="btn-primary" variant="primary">Primary</an-button>
+        <an-button data-testid="btn-danger" variant="danger">Danger</an-button>
+        <an-button data-testid="btn-ghost" variant="ghost">Ghost</an-button>
+        <an-button data-testid="btn-disabled" disabled>Disabled</an-button>
+        <an-button data-testid="btn-loading" loading>Loading</an-button>
       </div>
 
       <ul class="log" id="event-log" data-testid="event-log" aria-live="polite"></ul>
     </main>
 
     <script type="module">
-      import '@x/tokens/tokens.css';
-      import '@x/elements';
+      import '@an-ui-kit/tokens/tokens.css';
+      import '@an-ui-kit/elements';
 
       /** 共享给 e2e 的记录数组（与 React/Vue 页同构）。 */
-      const log = (window.__xButtonClickLog = []);
+      const log = (window.__anButtonClickLog = []);
       const list = document.getElementById('event-log');
 
-      document.addEventListener('x-button-click', (event) => {
+      document.addEventListener('an-button-click', (event) => {
         const target = event.target;
         const record = {
           id: target instanceof Element ? target.getAttribute('data-testid') : null,
@@ -47,7 +47,7 @@
           hasOriginalEvent: event.detail?.originalEvent instanceof MouseEvent,
         };
         log.push(record);
-        console.log('[native] x-button-click', record, event.detail?.originalEvent);
+        console.log('[native] an-button-click', record, event.detail?.originalEvent);
 
         const item = document.createElement('li');
         item.textContent =

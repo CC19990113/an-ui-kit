@@ -13,8 +13,8 @@ body {
     Arial,
     sans-serif;
   line-height: 1.5;
-  color: var(--x-color-fg-1, #18181b);
-  background: var(--x-color-bg-1, #ffffff);
+  color: var(--an-color-fg-1, #18181b);
+  background: var(--an-color-bg-1, #ffffff);
 }
 
 h1 {
@@ -23,7 +23,7 @@ h1 {
 }
 
 .hint {
-  color: var(--x-color-fg-2, #52525b);
+  color: var(--an-color-fg-2, #52525b);
   margin: 0 0 1.5rem;
 }
 
@@ -48,7 +48,7 @@ h1 {
 }
 
 pre {
-  background: var(--x-color-gray-2, #f4f4f5);
+  background: var(--an-color-gray-2, #f4f4f5);
   border-radius: 0.375rem;
   padding: 0.75rem 1rem;
   overflow-x: auto;
@@ -56,6 +56,6 @@ pre {
 }
 
 nav a {
-  color: var(--x-color-accent-9, #2563eb);
+  color: var(--an-color-accent-9, #2563eb);
   margin-right: 0.75rem;
 }

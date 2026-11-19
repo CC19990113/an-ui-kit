@@ -23,14 +23,14 @@ const localManifest = resolve(root, 'manifest.json');
 
 if (!existsSync(rootManifest)) {
   console.error(
-    `[x-elements-mcp] missing ${rootManifest}. Run "pnpm cem" at the repository root first, ` +
-      'then rerun "pnpm --filter @x/mcp build".',
+    `[an-ui-kit-mcp] missing ${rootManifest}. Run "pnpm cem" at the repository root first, ` +
+      'then rerun "pnpm --filter @an-ui-kit/mcp build".',
   );
   process.exit(1);
 }
 
 copyFileSync(rootManifest, localManifest);
-console.log(`[x-elements-mcp] manifest.json <- ${rootManifest}`);
+console.log(`[an-ui-kit-mcp] manifest.json <- ${rootManifest}`);
 
 // Imported after the manifest check so a missing root CEM fails fast with a
 // clear message instead of a module-resolution error.

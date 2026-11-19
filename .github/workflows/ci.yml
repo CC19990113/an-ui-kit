@@ -36,39 +36,69 @@ jobs:
 
       # 2. tokens 必须最先构建：elements 的类型与产物依赖它的 dist/。
       - name: Build tokens
-        run: pnpm --filter @x/tokens build
+        run: pnpm --filter @an-ui-kit/tokens build
 
       # 3. 类型层（含 React 事件名、Vue augmentation、CEM 派生类型）。
       - name: Typecheck elements
-        run: pnpm --filter @x/elements typecheck
+        run: pnpm --filter @an-ui-kit/elements typecheck
 
       # 4. 组件产物。
       - name: Build elements
-        run: pnpm --filter @x/elements build
+        run: pnpm --filter @an-ui-kit/elements build
 
       # 5. 单元测试。
       - name: Test elements
-        run: pnpm --filter @x/elements test
+        run: pnpm --filter @an-ui-kit/elements test
 
-      # 6. 零运行时依赖红线：每个 packages/* 的 dependencies 必须是空对象。
+      # 6. CEM 是 AI 层（registry / MCP / skill）唯一的契约源。这一步重新扫描
+      #    源码，与提交进仓库的 custom-elements-manifest.json 逐字节比对：改了组件
+      #    JSDoc 却忘了跑 `pnpm cem` 时，前面几步全绿而这里必须红。
+      #    放在单测之后：源码先定稿，再证明提交进去的契约确实是新生成的。
+      - name: Assert CEM is fresh
+        run: node scripts/ci/assert-cem-fresh.mjs
+
+      # 7. registry 由 CEM + 源码派生，必须紧跟 CEM 检查：CEM 确认新鲜后，
+      #    再证明 registry/*.json 的 meta 与 files 确实是它派生的（CEM 一过期，
+      #    这里会连带报同样的因）。
+      - name: Assert registry is in sync
+        run: node scripts/check-registry.mjs
+
+      # 8. skill（SKILL.md + references/）是给人/agent 读的契约，最容易忘记同步。
+      #    放在 6/7 之后：CEM 与 registry 都确认新鲜后，这里的报错才明确指向
+      #    skill 自己过期，而不是上游 CEM 过期。
+      - name: Assert skill is in sync with CEM
+        run: node scripts/ci/assert-skill-sync.mjs
+
+      # 9. 零运行时依赖红线：每个 packages/* 的 dependencies 必须是空对象。
       - name: Assert zero runtime dependencies
         run: node scripts/ci/assert-empty-deps.mjs
 
-      # 7. 公开历史里不能出现公司邮箱。
+      # 10. 公开历史里不能出现公司邮箱。
       - name: Assert git author is not @shenshiads.com
         run: node scripts/ci/assert-author.mjs
 
-      # 8. 体积预算：dist/index.js gzip ≤ 3072B。
+      # 11. 体积预算：dist/index.js gzip ≤ 3072B。
       - name: Assert gzip budget
         run: node scripts/ci/assert-bundle-size.mjs
 
-      # 9. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
-      #    保证浏览器 revision 与 apps/demo 锁定的 1.65.1 一致（`npx playwright install`
-      #    会临时拉最新版，rev 可能对不上）。CI 不依赖系统 Chrome 兜底。
+      # 12. MCP 构建会把仓库根的 custom-elements-manifest.json 原样 copy 成
+      #     packages/mcp/manifest.json，所以必须排在 6（CEM 新鲜度）之后：
+      #     否则可能把过期契约打进 MCP 产物，而且这里一过就没人再查了。
+      - name: Build MCP
+        run: pnpm --filter @an-ui-kit/mcp build
+
+      # 13. 契约工具的行为测试：读的正是上一步 copy 的新鲜 manifest，全绿才算
+      #     AI 层可用。放在 Build MCP 之后（测试依赖 dist/server.js 与 manifest.json）。
+      - name: Test MCP
+        run: pnpm --filter @an-ui-kit/mcp test
+
+      # 14. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
+      #     保证浏览器 revision 与 apps/demo 锁定的 1.65.1 一致（`npx playwright install`
+      #     会临时拉最新版，rev 可能对不上）。CI 不依赖系统 Chrome 兜底。
       - name: Install Playwright browser
         run: pnpm --filter demo exec playwright install --with-deps chromium
 
-      # 10. 三框架 e2e：native / react / vue + Tailwind preflight。
-      #     放在 9 之后（浏览器已就绪），并依赖前面 @x/elements 的构建产物。
+      # 15. 三框架 e2e：native / react / vue + Tailwind preflight。
+      #     放在 14 之后（浏览器已就绪），并依赖前面 @an-ui-kit/elements 的构建产物。
       - name: E2E (three frameworks)
         run: pnpm --filter demo e2e

@@ -17,12 +17,12 @@ function toKebabCase(name: string): string {
 }
 
 /**
- * Dependency-free base class for every `x-*` custom element.
+ * Dependency-free base class for every `an-*` custom element.
  *
  * Contract:
- * - Constructor only touches `this` (`attachShadow`, local fields, accessors):
- *   it never reads `document`, `window`, storage or the network, so importing a
- *   component stays safe under SSR and inside workers.
+ * - Constructor only touches `this` (`attachShadow`, `attachInternals`, local
+ *   fields, accessors): it never reads `document`, `window`, storage or the
+ *   network, so importing a component stays safe under SSR and inside workers.
  * - `static defaults` declares the attribute-backed API. Property accessors are
  *   generated from it and reflect back to attributes, so `el.variant` and
  *   `variant="primary"` can never disagree; attributes stay the source of truth.
@@ -30,8 +30,14 @@ function toKebabCase(name: string): string {
  *   the shadow root, including `static styles` plus the shared reset.
  * - Listeners belong on the shadow root (event delegation), because re-rendering
  *   replaces the inner markup.
+ * - Every write re-renders before it returns, so `el.disabled = true` followed by
+ *   a synchronous `shadowRoot` read already sees the new markup.
+ * - Form participation is opt-in: a subclass sets `static formAssociated = true`
+ *   and then gets `this.internals`, the platform lifecycle callbacks
+ *   (`formAssociatedCallback`, `formResetCallback`, `formDisabledCallback`) and
+ *   the protected `onFormReset` / `onFormDisabled` hooks.
  */
-export abstract class XElement extends HTMLElement {
+export abstract class AnElement extends HTMLElement {
   /** Shadow-DOM stylesheet source for this element. */
   static styles: string = '';
 
@@ -43,6 +49,19 @@ export abstract class XElement extends HTMLElement {
     return Object.keys(this.defaults).map(toKebabCase);
   }
 
+  /**
+   * Opts the element into `ElementInternals` form participation.
+   * Subclasses that submit/reset/validate through a form set this to `true`.
+   */
+  static formAssociated: boolean = false;
+
+  /**
+   * Platform form internals, attached only when `static formAssociated` is
+   * `true`. `null` on elements that did not opt in and on DOM implementations
+   * without `attachInternals()`.
+   */
+  protected internals: ElementInternals | null = null;
+
   #defaults: Defaults = {};
   #values: Record<string, Primitive> = {};
   #rendered = false;
@@ -51,8 +70,19 @@ export abstract class XElement extends HTMLElement {
 
   constructor() {
     super();
-    const ctor = this.constructor as typeof XElement;
+    const ctor = this.constructor as typeof AnElement;
     const root = this.attachShadow({ mode: 'open' });
+
+    if (ctor.formAssociated) {
+      try {
+        this.internals = this.attachInternals();
+      } catch {
+        // `attachInternals()` throws unless the element opted in, and some DOM
+        // implementations (e.g. happy-dom) do not expose it at all: degrade to a
+        // plain element instead of failing construction.
+        this.internals = null;
+      }
+    }
 
     this.#defaults = ctor.defaults;
     this.#values = { ...ctor.defaults };
@@ -70,9 +100,11 @@ export abstract class XElement extends HTMLElement {
   }
 
   connectedCallback(): void {
-    if (this.#rendered) return;
-    this.#rendered = true;
-    this.requestUpdate();
+    if (!this.#rendered) {
+      this.#rendered = true;
+      this.requestUpdate();
+    }
+    this.onConnect();
   }
 
   /** Re-renders the shadow root from `render()`. */
@@ -83,6 +115,39 @@ export abstract class XElement extends HTMLElement {
     if (this.#fallbackStyle && !this.#fallbackStyle.isConnected) root.prepend(this.#fallbackStyle);
     this.afterRender();
   }
+
+  disconnectedCallback(): void {
+    this.onDisconnect();
+  }
+
+  /**
+   * Platform callback: the element was associated with, or disassociated from,
+   * a form. Association itself is opt-in, so the default implementation is a
+   * no-op; a subclass may read `this.internals?.form` here.
+   */
+  formAssociatedCallback(): void {}
+
+  /** Platform callback: the owning form was reset. */
+  formResetCallback(): void {
+    this.onFormReset();
+  }
+
+  /** Platform callback: the platform disabled or enabled the element. */
+  formDisabledCallback(disabled: boolean): void {
+    this.onFormDisabled(disabled);
+  }
+
+  /** Hook: connected and rendered; default no-op. */
+  protected onConnect(): void {}
+
+  /** Hook: disconnected from the document; default no-op. */
+  protected onDisconnect(): void {}
+
+  /** Hook: the owning form was reset; restore state here. Default no-op. */
+  protected onFormReset(): void {}
+
+  /** Hook: the platform-level disabled state changed; default no-op. */
+  protected onFormDisabled(disabled: boolean): void {}
 
   /** Returns the shadow-DOM markup; called on connect and after every change. */
   protected abstract render(): string;

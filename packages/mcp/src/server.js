@@ -1,5 +1,5 @@
 /**
- * x-elements MCP server (stdio).
+ * an-ui-kit MCP server (stdio).
  *
  * Exposes the generated Custom Elements Manifest as three read-only tools so
  * an AI agent can look up the real component contract instead of guessing:
@@ -29,14 +29,14 @@ function packageVersion() {
 }
 
 const VERSION = packageVersion();
-const manifestPath = process.env.X_ELEMENTS_MCP_MANIFEST?.trim() || undefined;
+const manifestPath = process.env.AN_UI_KIT_MCP_MANIFEST?.trim() || undefined;
 
 let store;
 try {
   store = loadManifest(manifestPath);
 } catch (error) {
   const detail = error instanceof ManifestError ? error.message : String(error);
-  console.error(`[x-elements-mcp] failed to start: ${detail}`);
+  console.error(`[an-ui-kit-mcp] failed to start: ${detail}`);
   process.exit(1);
 }
 
@@ -49,7 +49,7 @@ function availableNames() {
   const names = store.components.map((component) => component.tagName);
   return names.length > 0
     ? names.join(', ')
-    : '(none — run "pnpm cem" then "pnpm --filter @x/mcp build")';
+    : '(none — run "pnpm cem" then "pnpm --filter @an-ui-kit/mcp build")';
 }
 
 /** Keep a handler failure a tool error instead of a crashed process. */
@@ -58,28 +58,28 @@ function guarded(label, handler) {
     try {
       return await handler(args);
     } catch (error) {
-      console.error(`[x-elements-mcp] ${label} failed: ${error?.stack ?? error}`);
+      console.error(`[an-ui-kit-mcp] ${label} failed: ${error?.stack ?? error}`);
       return asError(`${label} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 }
 
 const server = new McpServer({
-  name: 'x-elements',
-  title: 'x-elements component contracts',
+  name: 'an-ui-kit',
+  title: 'an-ui-kit component contracts',
   version: VERSION,
   instructions:
-    'x-elements component contracts. Call list_components first, then get_component({ tagName }) before writing UI code. ' +
+    'an-ui-kit component contracts. Call list_components first, then get_component({ tagName }) before writing UI code. ' +
     'Only use attributes and events returned by the manifest; in React 19, listen to an event with "on" + its exact name ' +
-    '(x-button-click -> onx-button-click).',
+    '(an-button-click -> onan-button-click).',
 });
 
 server.registerTool(
   'list_components',
   {
-    title: 'List x-elements components',
+    title: 'List an-ui-kit components',
     description:
-      'List every custom element in the x-elements manifest with its tag name, class name, and a short description. ' +
+      'List every custom element in the an-ui-kit manifest with its tag name, class name, and a short description. ' +
       'Use this first to discover which components exist; call get_component for the full contract.',
     inputSchema: {},
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
@@ -92,14 +92,14 @@ server.registerTool(
   {
     title: 'Get one component contract',
     description:
-      'Return the complete contract of a single x-elements component: attributes (name, declared type, default, description), ' +
+      'Return the complete contract of a single an-ui-kit component: attributes (name, declared type, default, description), ' +
       'events, slots, CSS custom properties, and CSS parts. Attribute types are verbatim CEM type text such as ' +
       "\"('default'|'primary'|'danger'|'ghost')\". Only use attributes returned here.",
     inputSchema: {
       tagName: z
         .string()
         .min(1)
-        .describe('Custom element tag name as written in HTML, e.g. "x-button".'),
+        .describe('Custom element tag name as written in HTML, e.g. "an-button".'),
     },
     annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   },
@@ -118,9 +118,9 @@ server.registerTool(
 server.registerTool(
   'search_components',
   {
-    title: 'Search x-elements components',
+    title: 'Search an-ui-kit components',
     description:
-      'Fuzzy-search x-elements components. Matches whitespace-separated terms against tag names, class names, descriptions, ' +
+      'Fuzzy-search an-ui-kit components. Matches whitespace-separated terms against tag names, class names, descriptions, ' +
       'and attribute names (case-insensitive); every term must match. Returns matching components plus why each matched.',
     inputSchema: {
       query: z
@@ -144,6 +144,6 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 
 console.error(
-  `[x-elements-mcp] v${VERSION} ready on stdio — ${store.components.length} component(s) ` +
+  `[an-ui-kit-mcp] v${VERSION} ready on stdio — ${store.components.length} component(s) ` +
     `from ${store.source} (CEM ${store.schemaVersion})`,
 );

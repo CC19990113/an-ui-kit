@@ -1,11 +1,11 @@
 {
-  "name": "@x/mcp",
+  "name": "@an-ui-kit/mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP server exposing the x-elements Custom Elements Manifest so AI agents can query component contracts.",
+  "description": "MCP server exposing the AN UI Kit Custom Elements Manifest so AI agents can query component contracts.",
   "type": "module",
   "bin": {
-    "x-elements-mcp": "./dist/server.js"
+    "an-ui-kit-mcp": "./dist/server.js"
   },
   "files": [
     "dist",

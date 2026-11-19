@@ -1,5 +1,5 @@
 {
-  "name": "x-elements",
+  "name": "an-ui-kit",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "cem": "x-cem scan --src packages/elements/src --out custom-elements-manifest.json",
     "registry": "pnpm cem && node scripts/gen-registry.mjs",
-    "registry:check": "node scripts/check-registry.mjs"
+    "registry:check": "node scripts/check-registry.mjs",
+    "new:component": "node scripts/new-component.mjs"
   },
   "devDependencies": {
     "x-cem": "^0.1.2"

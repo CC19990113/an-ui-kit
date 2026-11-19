@@ -1,6 +1,6 @@
-# @x/tokens
+# @an-ui-kit/tokens
 
-x-elements 的设计 token 包。零第三方依赖：色板、构建、对比度断言全部自研。
+AN UI Kit 的设计 token 包。零第三方依赖：色板、构建、对比度断言全部自研。
 
 ## 命令
 
@@ -29,15 +29,15 @@ node scripts/contrast.mjs   # WCAG 2.x 对比度断言，任一主题不达标 e
 
 模型参数（锚点）写在 tokens.json 每个色族的 `$description` 里。
 
-## 产出契约（@x/elements 消费）
+## 产出契约（@an-ui-kit/elements 消费）
 
 | 种类 | 变量 |
 | --- | --- |
-| 色阶 | `--x-color-{hue}-{1..12}`，hue ∈ gray\|blue\|red\|green\|yellow |
-| 语义色 | `--x-color-accent-9`（blue-9）、`--x-color-danger-9`（red-9）、`--x-color-fg-1`、`--x-color-bg-1`、`--x-color-border-1` |
-| 间距 | `--x-space-{0..12}`，4px 步进 |
-| 圆角 | `--x-radius-{none,sm,md,lg,full}` |
-| 字号 | `--x-font-size-{xs,sm,md,lg,xl,xxl}` |
+| 色阶 | `--an-color-{hue}-{1..12}`，hue ∈ gray\|blue\|red\|green\|yellow |
+| 语义色 | `--an-color-accent-9`（blue-9）、`--an-color-danger-9`（red-9）、`--an-color-fg-1`、`--an-color-bg-1`、`--an-color-border-1` |
+| 间距 | `--an-space-{0..12}`，4px 步进 |
+| 圆角 | `--an-radius-{none,sm,md,lg,full}` |
+| 字号 | `--an-font-size-{xs,sm,md,lg,xl,xxl}` |
 
 - `dist/tokens.css`：`:root` 为亮色，`[data-theme="dark"]` 覆盖暗色语义别名；另提供
   `[data-theme="light"]`（显式亮色优先）与 `@media (prefers-color-scheme: dark)` 系统暗色入口。
@@ -52,15 +52,15 @@ node scripts/contrast.mjs   # WCAG 2.x 对比度断言，任一主题不达标 e
 
 | token | light | dark |
 | --- | --- | --- |
-| `--x-color-bg-1` | gray-1 | gray-12 |
-| `--x-color-fg-1` | gray-12 | gray-1 |
-| `--x-color-border-1` | gray-6 | gray-11 |
-| `--x-color-accent-9` | blue-9 | blue-9 |
-| `--x-color-danger-9` | red-9 | red-9 |
+| `--an-color-bg-1` | gray-1 | gray-12 |
+| `--an-color-fg-1` | gray-12 | gray-1 |
+| `--an-color-border-1` | gray-6 | gray-11 |
+| `--an-color-accent-9` | blue-9 | blue-9 |
+| `--an-color-danger-9` | red-9 | red-9 |
 
-`--x-color-accent-9` / `--x-color-danger-9` 对白色文字的对比度均 ≥ 4.5:1（blue-9、red-9）。
+`--an-color-accent-9` / `--an-color-danger-9` 对白色文字的对比度均 ≥ 4.5:1（blue-9、red-9）。
 
 ## 对比度
 
 `scripts/contrast.mjs` 自实现 OKLCH → OKLab → linear sRGB → WCAG 相对亮度链路，逐主题检查
-`--x-color-fg-1` 对 `--x-color-bg-1` 是否 ≥ 4.5:1，并打印十六进制近似值便于核对。
+`--an-color-fg-1` 对 `--an-color-bg-1` 是否 ≥ 4.5:1，并打印十六进制近似值便于核对。

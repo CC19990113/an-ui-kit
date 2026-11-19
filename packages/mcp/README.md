@@ -1,6 +1,6 @@
-# @x/mcp
+# @an-ui-kit/mcp
 
-x-elements 的 MCP server（stdio）。把仓库根目录的 Custom Elements Manifest（CEM）暴露给 AI agent，让它查真实契约，而不是猜属性名和事件名。
+AN UI Kit 的 MCP server（stdio）。把仓库根目录的 Custom Elements Manifest（CEM）暴露给 AI agent，让它查真实契约，而不是猜属性名和事件名。
 
 - **只读**：三个工具都不改文件、不联网。
 - **不另写规格**：数据源是仓库根 `custom-elements-manifest.json` 的拷贝 `manifest.json`（CEM 2.1.0），本包不单独扫描组件源码。
@@ -25,19 +25,19 @@ x-elements 的 MCP server（stdio）。把仓库根目录的 Custom Elements Man
 pnpm cem
 
 # 2. 拷贝根 CEM 到 packages/mcp/manifest.json，并打包成单文件 CLI
-pnpm --filter @x/mcp build             # -> packages/mcp/manifest.json + dist/server.js
+pnpm --filter @an-ui-kit/mcp build             # -> packages/mcp/manifest.json + dist/server.js
 
 # 3. 跑端到端测试（用官方 client 真连 stdio server）
-pnpm --filter @x/mcp test
+pnpm --filter @an-ui-kit/mcp test
 
 # 4. 手动启动（构建产物 / 源码直跑）
-pnpm --filter @x/mcp start   # node dist/server.js
-pnpm --filter @x/mcp dev     # node src/server.js（读已提交的 manifest.json）
+pnpm --filter @an-ui-kit/mcp start   # node dist/server.js
+pnpm --filter @an-ui-kit/mcp dev     # node src/server.js（读已提交的 manifest.json）
 ```
 
 根 CEM 不存在时 `build` 直接报错退出，提示先跑 `pnpm cem`。启动后只向 **stderr** 打一行就绪日志；stdout 全部是 JSON-RPC。
 
-`X_ELEMENTS_MCP_MANIFEST=/path/to/manifest.json` 可覆盖 manifest 位置（测试或多版本对比用）。
+`AN_UI_KIT_MCP_MANIFEST=/path/to/manifest.json` 可覆盖 manifest 位置（测试或多版本对比用）。
 
 ## 接到 agent
 
@@ -47,9 +47,9 @@ pnpm --filter @x/mcp dev     # node src/server.js（读已提交的 manifest.jso
 // Claude Desktop: claude_desktop_config.json
 {
   "mcpServers": {
-    "x-elements": {
+    "an-ui-kit": {
       "command": "node",
-      "args": ["/absolute/path/to/x-elements/packages/mcp/dist/server.js"]
+      "args": ["/absolute/path/to/an-ui-kit/packages/mcp/dist/server.js"]
     }
   }
 }
@@ -57,9 +57,9 @@ pnpm --filter @x/mcp dev     # node src/server.js（读已提交的 manifest.jso
 
 ```toml
 # Codex: ~/.codex/config.toml
-[mcp_servers.x-elements]
+[mcp_servers.an-ui-kit]
 command = "node"
-args = ["/absolute/path/to/x-elements/packages/mcp/dist/server.js"]
+args = ["/absolute/path/to/an-ui-kit/packages/mcp/dist/server.js"]
 ```
 
 调试用 MCP Inspector：
@@ -67,7 +67,7 @@ args = ["/absolute/path/to/x-elements/packages/mcp/dist/server.js"]
 ```bash
 npx -y @modelcontextprotocol/inspector --cli node dist/server.js --method tools/list
 npx -y @modelcontextprotocol/inspector --cli node dist/server.js \
-  --method tools/call --tool-name get_component --tool-arg tagName=x-button
+  --method tools/call --tool-name get_component --tool-arg tagName=an-button
 ```
 
 ## 目录
@@ -84,9 +84,9 @@ packages/mcp/
 
 ## 已知缺口
 
-1. **`type="submit"` 不提交外层表单**：`<x-button>` 内部的原生 button 在 Shadow DOM 里，拿不到外层 `<form>`（`button.form === null`），这是 Shadow DOM 结构限制，不是按钮实现写错。当前文档只承诺 `type` 的原生语义（`button` / `submit` / `reset`），表单提交必须监听 `x-button-click` 后手动 `form.requestSubmit()`。后续给组件基类引入 `ElementInternals` + `static formAssociated = true` 后统一支持（下一阶段）。
-2. **`data-theme` 不在 CEM attributes 里**：`:host([data-theme='dark'])` 是库级主题入口（CONTRACT §6），不是组件 `@attr`，所以 MCP 的 `get_component` 查不到它。主题用法见 `skills/x-elements`。
-3. **manifest 来源是根 CEM 拷贝**：`packages/mcp/manifest.json` 由构建步骤从仓库根 `custom-elements-manifest.json` 复制，本包不 `x-cem scan`。根 CEM 更新后必须重新 `pnpm --filter @x/mcp build`，否则本包仍是旧副本。
+1. **`type="submit"` 不提交外层表单**：`<an-button>` 内部的原生 button 在 Shadow DOM 里，拿不到外层 `<form>`（`button.form === null`），这是 Shadow DOM 结构限制，不是按钮实现写错。当前文档只承诺 `type` 的原生语义（`button` / `submit` / `reset`），表单提交必须监听 `an-button-click` 后手动 `form.requestSubmit()`。后续给组件基类引入 `ElementInternals` + `static formAssociated = true` 后统一支持（下一阶段）。
+2. **`data-theme` 不在 CEM attributes 里**：`:host([data-theme='dark'])` 是库级主题入口（CONTRACT §6），不是组件 `@attr`，所以 MCP 的 `get_component` 查不到它。主题用法见 `skills/an-ui-kit`。
+3. **manifest 来源是根 CEM 拷贝**：`packages/mcp/manifest.json` 由构建步骤从仓库根 `custom-elements-manifest.json` 复制，本包不 `x-cem scan`。根 CEM 更新后必须重新 `pnpm --filter @an-ui-kit/mcp build`，否则本包仍是旧副本。
 4. **类级 description 缺失（待 x-cem 0.1.2）**：x-cem 0.1.1 不输出 class `description`；`list_components` 的 `description` 会退化为按 manifest 现场拼的事实摘要（属性名、事件名），不复制手写文档。scanner 支持后自动改用真 description。
 5. **默认值位置（待 x-cem 0.1.2）**：0.1.1 把 `Default: "md"` 写在属性 description 里。服务端优先读结构化 `attribute.default`（0.1.2 起），读不到时用正则从 description 还原；无默认值的布尔属性为 `null`。
 

@@ -9,7 +9,7 @@
  *   2. `meta` is a field-for-field copy of the CEM declaration;
  *   3. every `files[].content` is byte-identical to the source on disk;
  *   4. the item is dependency-free and every target stays inside
- *      `~/src/x-elements/`.
+ *      `~/src/an-ui-kit/`.
  *
  * Exit code 1 on any failure, so CI can gate on it.
  */
@@ -22,7 +22,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_ROOT = resolve(ROOT, 'packages/elements/src');
 const ITEM_SCHEMA = 'https://ui.shadcn.com/schema/registry-item.json';
 const INDEX_SCHEMA = 'https://ui.shadcn.com/schema/registry.json';
-const INSTALL_PREFIX = '~/src/x-elements/';
+const INSTALL_PREFIX = '~/src/an-ui-kit/';
 const CONTRACT_KEYS = ['attributes', 'events', 'slots', 'cssProperties', 'cssParts'];
 
 const args = parseArgs(process.argv.slice(2));

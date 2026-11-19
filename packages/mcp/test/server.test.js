@@ -19,7 +19,7 @@ before(async () => {
     cwd: packageRoot,
     stderr: 'pipe',
   });
-  client = new Client({ name: 'x-elements-mcp-test', version: '0.0.0' });
+  client = new Client({ name: 'an-ui-kit-mcp-test', version: '0.0.0' });
   await client.connect(transport);
 });
 
@@ -43,18 +43,18 @@ test('tools/list exposes the three contract tools', async () => {
   assert.equal(byName.get('list_components').inputSchema.type, 'object');
 });
 
-test('list_components returns x-button', async () => {
+test('list_components returns an-button', async () => {
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
-  const button = components.find((component) => component.tagName === 'x-button');
+  const button = components.find((component) => component.tagName === 'an-button');
 
-  assert.ok(button, 'x-button should be listed');
-  assert.equal(button.name, 'XButton');
+  assert.ok(button, 'an-button should be listed');
+  assert.equal(button.name, 'AnButton');
   assert.ok(button.description.length > 0, 'description should not be empty');
 });
 
-test('get_component returns the full x-button contract', async () => {
+test('get_component returns the full an-button contract', async () => {
   const component = textPayload(
-    await client.callTool({ name: 'get_component', arguments: { tagName: 'x-button' } }),
+    await client.callTool({ name: 'get_component', arguments: { tagName: 'an-button' } }),
   );
 
   const variant = component.attributes.find((attribute) => attribute.name === 'variant');
@@ -65,27 +65,27 @@ test('get_component returns the full x-button contract', async () => {
     component.attributes.map((attribute) => attribute.name),
     ['variant', 'size', 'disabled', 'loading', 'type'],
   );
-  assert.equal(component.events[0].name, 'x-button-click');
+  assert.equal(component.events[0].name, 'an-button-click');
   assert.equal(component.slots[0].name, '');
-  assert.ok(component.cssProperties.some((property) => property.name === '--x-button-height'));
+  assert.ok(component.cssProperties.some((property) => property.name === '--an-button-height'));
   assert.ok(component.cssParts.some((part) => part.name === 'base'));
   assert.equal(component.description.length > 0, true);
 });
 
 test('get_component tag lookup is case-insensitive', async () => {
   const component = textPayload(
-    await client.callTool({ name: 'get_component', arguments: { tagName: '  X-Button  ' } }),
+    await client.callTool({ name: 'get_component', arguments: { tagName: '  AN-Button  ' } }),
   );
-  assert.equal(component.tagName, 'x-button');
+  assert.equal(component.tagName, 'an-button');
 });
 
 test('unknown tagName returns a clear tool error, not a crash', async () => {
-  const result = await client.callTool({ name: 'get_component', arguments: { tagName: 'x-nope' } });
+  const result = await client.callTool({ name: 'get_component', arguments: { tagName: 'an-nope' } });
 
   assert.equal(result.isError, true);
   const text = result.content[0].text;
-  assert.match(text, /Unknown component "x-nope"/);
-  assert.match(text, /Available components: x-button/);
+  assert.match(text, /Unknown component "an-nope"/);
+  assert.match(text, /Available components: an-button/);
 
   // The server must still answer after the error.
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
@@ -97,7 +97,7 @@ test('search_components matches name, attribute, and miss', async () => {
     await client.callTool({ name: 'search_components', arguments: { query: 'variant' } }),
   );
   assert.equal(byAttribute.count, 1);
-  assert.equal(byAttribute.results[0].tagName, 'x-button');
+  assert.equal(byAttribute.results[0].tagName, 'an-button');
   assert.ok(byAttribute.results[0].matches.includes('attribute:variant'));
 
   const byName = textPayload(

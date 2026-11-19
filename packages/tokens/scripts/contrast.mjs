@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @x/tokens — WCAG 2.x contrast assertion. Zero dependencies, zero color libs.
+ * @an-ui-kit/tokens — WCAG 2.x contrast assertion. Zero dependencies, zero color libs.
  *
  * Reads src/tokens.json, resolves the semantic fg-1 / bg-1 aliases for the
  * light and dark themes, and checks the pair against AA normal text (4.5:1).
@@ -139,15 +139,15 @@ for (const theme of themes) {
 /* ------------------------------------------------------------------ *
  * Report
  * ------------------------------------------------------------------ */
-console.log(`@x/tokens — WCAG 2.x contrast check (AA normal text, threshold ${THRESHOLD}:1)`);
+console.log(`@an-ui-kit/tokens — WCAG 2.x contrast check (AA normal text, threshold ${THRESHOLD}:1)`);
 console.log(`sample: "${SAMPLE_TEXT}"`);
 console.log("");
 
 for (const { theme, fg, bg, ratio, pass } of results) {
   const status = pass ? "PASS" : "FAIL";
   console.log(
-    `[${status}] ${theme.padEnd(5)} --x-color-fg-1 ${toHex(fg)} ${formatOklch(fg)} ` +
-      `on --x-color-bg-1 ${toHex(bg)} ${formatOklch(bg)} -> ${ratio.toFixed(2)}:1`,
+    `[${status}] ${theme.padEnd(5)} --an-color-fg-1 ${toHex(fg)} ${formatOklch(fg)} ` +
+      `on --an-color-bg-1 ${toHex(bg)} ${formatOklch(bg)} -> ${ratio.toFixed(2)}:1`,
   );
 }
 

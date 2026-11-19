@@ -1,24 +1,24 @@
 /**
- * `@x/elements` — framework-agnostic web components with zero runtime deps.
+ * `@an-ui-kit/elements` — framework-agnostic web components with zero runtime deps.
  *
  * Importing this module registers every element with `customElements`; importing
- * a single component module (e.g. `@x/elements/button`) does the same for that
+ * a single component module (e.g. `@an-ui-kit/elements/button`) does the same for that
  * element only.
  */
 
-import { XButton } from './button/x-button';
+import { AnButton } from './button/an-button';
 
-export { XElement } from './internal/base';
+export { AnElement } from './internal/base';
 export type { Defaults, Primitive } from './internal/base';
-export { XButton } from './button/x-button';
-export type { XButtonSize, XButtonType, XButtonVariant } from './button/x-button';
+export { AnButton } from './button/an-button';
+export type { AnButtonSize, AnButtonType, AnButtonVariant } from './button/an-button';
 
 declare global {
   interface HTMLElementTagNameMap {
-    'x-button': XButton;
+    'an-button': AnButton;
   }
 }
 
-if (typeof customElements !== 'undefined' && !customElements.get('x-button')) {
-  customElements.define('x-button', XButton);
+if (typeof customElements !== 'undefined' && !customElements.get('an-button')) {
+  customElements.define('an-button', AnButton);
 }
