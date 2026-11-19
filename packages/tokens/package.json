@@ -1,13 +1,20 @@
 {
   "name": "@an-ui-kit/tokens",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "AN UI Kit design tokens — OKLCH palette with a zero-dependency build pipeline",
   "files": [
     "dist"
   ],
+  "types": "./dist/tokens.d.ts",
   "exports": {
-    ".": "./dist/tokens.ts",
+    ".": {
+      "types": "./dist/tokens.d.ts",
+      "import": "./dist/tokens.js",
+      "default": "./dist/tokens.js"
+    },
+    "./css": "./dist/tokens.css",
+    "./json": "./dist/tokens.json",
     "./tokens.css": "./dist/tokens.css",
     "./tokens.json": "./dist/tokens.json",
     "./package.json": "./package.json"

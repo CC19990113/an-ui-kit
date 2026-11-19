@@ -5,7 +5,7 @@ AN UI Kit 的设计 token 包。零第三方依赖：色板、构建、对比度
 ## 命令
 
 ```bash
-node scripts/build.mjs      # src/tokens.json -> dist/{tokens.css,tokens.ts,tokens.json}
+node scripts/build.mjs      # src/tokens.json -> dist/{tokens.css,tokens.ts,tokens.js,tokens.d.ts,tokens.json}
 node scripts/contrast.mjs   # WCAG 2.x 对比度断言，任一主题不达标 exit 1
 ```
 
@@ -41,8 +41,23 @@ node scripts/contrast.mjs   # WCAG 2.x 对比度断言，任一主题不达标 e
 
 - `dist/tokens.css`：`:root` 为亮色，`[data-theme="dark"]` 覆盖暗色语义别名；另提供
   `[data-theme="light"]`（显式亮色优先）与 `@media (prefers-color-scheme: dark)` 系统暗色入口。
-- `dist/tokens.ts`：`export const tokens = {...} as const`，颜色为解析后的 `{l,c,h}`。
+- `dist/tokens.js`：纯 ESM JavaScript，`export const tokens = {...}`，是 `exports["."]` 的 `import` 目标。
+- `dist/tokens.d.ts`：`tokens.js` 的类型声明，TS 用户无需额外配置。
+- `dist/tokens.ts`：`export const tokens = {...} as const`（带 `as const` 的字面量类型，供源码内直接引用）。
 - `dist/tokens.json`：扁平点号键，附 `cssVar` / `css`，便于 AI/工具读取。
+
+`.js` / `.ts` / `.d.ts` 三份都从同一份序列化结果生成，数据不会漂移。
+
+### 使用
+
+```js
+import { tokens } from '@an-ui-kit/tokens';          // 变量值（纯 ESM，裸 Node 也能跑）
+import '@an-ui-kit/tokens/css';                       // 整份自定义属性（= /tokens.css 旧路径）
+import tokensJson from '@an-ui-kit/tokens/json' with { type: 'json' }; // 扁平键（= /tokens.json）
+```
+
+> CSS 入口只能由打包器 / Vite 处理；裸 Node 不认 `.css`，`import` 它会报 `ERR_UNKNOWN_FILE_EXTENSION`。
+> 这是 Node 的限制，不是 exports 配置问题。
 
 ### 暗色主题
 
