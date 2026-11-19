@@ -100,7 +100,7 @@
         </an-field>
 
         <an-field data-testid="field-city" label="城市">
-          <an-select data-testid="form-city" name="city" placeholder="请选择">
+          <an-select data-testid="form-city" name="city" label="城市" placeholder="请选择">
             <option value="bj">北京</option>
             <option value="sh">上海</option>
           </an-select>
@@ -117,11 +117,126 @@
         <pre data-testid="form-output"></pre>
       </form>
 
+      <h2>表单族（新增 7 个组件）</h2>
+      <p class="hint">
+        7 个新增组件全部包在 <code>&lt;an-form&gt;</code> 里：提交时读
+        <code>an-form-submit</code> 的 <code>detail.formData</code>，校验失败时读
+        <code>an-form-invalid</code> 并在下方显示错误。事件同时写入
+        <code>window.__familyState</code> 供 e2e 断言。
+      </p>
+
+      <an-form class="stack" data-testid="family-form">
+        <an-field label="单选（城市）">
+          <an-select data-testid="family-select-single" name="single" placeholder="请选择城市">
+            <an-option value="bj">北京</an-option>
+            <an-option value="sh">上海</an-option>
+            <an-option value="gz">广州</an-option>
+            <an-option value="sz" disabled>深圳（已满）</an-option>
+          </an-select>
+        </an-field>
+
+        <an-field label="多选（可搜索，option 里放 HTML）">
+          <an-select
+            data-testid="family-select-multi"
+            name="tags"
+            multiple
+            searchable
+            max-tags="2"
+            placeholder="搜索标签（可多选）"
+          >
+            <an-option value="react"><b>React</b><small>组件化 UI</small></an-option>
+            <an-option value="vue"><b>Vue</b><small>渐进式框架</small></an-option>
+            <an-option value="wc"><b>Web Component</b><small>浏览器原生</small></an-option>
+            <an-option value="ts"><b>TypeScript</b><small>类型系统</small></an-option>
+            <an-option value="a11y"><b>Accessibility</b><small>可访问性</small></an-option>
+          </an-select>
+        </an-field>
+
+        <an-field label="上传（图片 ≤ 2 KB，最多 2 个）" hint="auto-upload 关闭，文件留在队列里，提交时作为 File 进 FormData">
+          <an-upload
+            data-testid="family-upload"
+            name="attachment"
+            accept="image/*"
+            max-size="2048"
+            max-files="2"
+            multiple
+            auto-upload="false"
+          ></an-upload>
+        </an-field>
+
+        <an-field label="数字（1~10，步长 2，stepper）">
+          <an-number
+            data-testid="family-number"
+            name="quantity"
+            value="3"
+            min="1"
+            max="10"
+            step="2"
+            stepper
+            required
+          ></an-number>
+        </an-field>
+
+        <an-field label="日期（普通 + inline）">
+          <div class="row">
+            <an-date
+              data-testid="family-date"
+              name="day"
+              value="2026-11-10"
+              min="2026-11-05"
+              max="2026-11-25"
+            ></an-date>
+            <an-date data-testid="family-date-inline" inline value="2026-11-12"></an-date>
+          </div>
+        </an-field>
+
+        <an-field label="日期区间（提交 from / to 两个字段）">
+          <an-date-range
+            data-testid="family-range"
+            name="from"
+            end-name="to"
+            start="2026-11-05"
+            end="2026-11-09"
+            min="2026-11-01"
+            max="2026-11-30"
+          ></an-date-range>
+        </an-field>
+
+        <an-field label="方向键多选（checkbox-group）">
+          <an-checkbox-group
+            data-testid="family-checkbox-group"
+            name="topics"
+            label="关注方向"
+            min="1"
+            max="3"
+            orientation="horizontal"
+          >
+            <an-checkbox value="a11y" checked>可访问性</an-checkbox>
+            <an-checkbox value="perf">性能</an-checkbox>
+            <an-checkbox value="docs">文档</an-checkbox>
+            <an-checkbox value="tests">测试</an-checkbox>
+          </an-checkbox-group>
+        </an-field>
+
+        <div class="row">
+          <an-button data-testid="family-submit" type="submit" variant="primary">
+            提交表单族
+          </an-button>
+          <an-button data-testid="family-reset" type="reset">重置</an-button>
+        </div>
+        <div data-testid="family-errors"></div>
+        <pre data-testid="family-output"></pre>
+      </an-form>
+
     </main>
 
     <script type="module">
       import '@an-ui-kit/tokens/tokens.css';
       import '@an-ui-kit/elements';
+      import { installFormFamilyDemo } from './src/form-family-demo';
+
+      // 表单族：事件记录 + an-form 提交/校验回显（与 React/Vue 页共用同一模块）。
+      installFormFamilyDemo();
 
       const log = (window.__anButtonClickLog = []);
       const list = document.getElementById('event-log');

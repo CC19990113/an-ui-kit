@@ -1,0 +1,46 @@
+/* Hooks: --an-date-height | --an-date-bg | --an-date-fg | --an-date-border-color
+   | --an-date-radius | --an-date-font-size | --an-date-padding-x | --an-date-focus-ring
+   | --an-date-muted-fg | --an-date-panel-bg | --an-date-panel-fg
+   | --an-date-panel-border-color | --an-date-panel-radius | --an-date-panel-shadow
+   | --an-date-day-size | --an-date-day-hover-bg | --an-date-day-selected-bg
+   | --an-date-day-selected-fg | --an-date-range-bg | --an-date-today-ring.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */
+
+:host {
+  box-sizing: border-box;
+  border: 0 solid transparent;
+  margin: 0;
+  line-height: 1.5;
+
+  display: inline-block;
+  vertical-align: middle;
+  color-scheme: light dark;
+  font: inherit;
+  color: var(--an-color-fg-1, #1f2937);
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host(:not([data-theme='light'])) {
+    color-scheme: dark;
+  }
+}
+
+.trigger {
+  min-width: 11rem;
+}
+
+:host([inline]) {
+  display: inline-flex;
+}
+
+:host([inline]) .base {
+  width: auto;
+}

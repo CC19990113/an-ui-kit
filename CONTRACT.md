@@ -435,3 +435,61 @@ interface AnButtonProps {
 1. **packages/tokens 必须先 build**：`pnpm --filter @an-ui-kit/tokens build`；
 2. 其它包才能 `import '@an-ui-kit/tokens'` 或引用 `@an-ui-kit/tokens/tokens.css`；
 3. 新 clone 与 CI 的 build/test 步骤必须先构建 tokens，不要依赖仓库里不存在的 `dist/`。
+
+## 附录 D：表单族补充约定
+
+本附录补充 9 条硬规则未覆盖、但表单族组件（`an-checkbox-group`、`an-date`、`an-date-range`、`an-form`、`an-number`、`an-select`、`an-upload` 等）必须共同遵守的 6 条约定。违反其中任何一条都按契约破坏处理。
+
+### D.1 多值序列化：attribute 逗号分隔，property 为 `string[]`
+
+多选组件的值有两个面：
+
+| 组件 | attribute | property | 提交行为 |
+| --- | --- | --- | --- |
+| `an-select`（`multiple`） | `values="a,b"` | `.values: string[]` | 每个选中值一条 `name` 记录 |
+| `an-checkbox-group` | `value="a,b"` | `.value: string[]` | 每个选中值一条 `name` 记录 |
+
+- attribute 是**逗号分隔**的字符串，property 是**数组**；property 为权威读写面，attribute 只是反射/初始值。
+- **元素值本身含逗号时，attribute 无法往返**（`a,b` 无法区分「一个值」还是「两个值」）。这种值必须只走 property，不要写进 attribute，也不要依赖 `attributeChangedCallback` 回读。
+- 读值一律读 property（`element.values` / `element.value`），不要解析 attribute 字符串。
+- 提交时每个值单独 `append`，不要用 `join(',')` 拼成一条 `FormData` 记录。
+
+### D.2 受控开合：`open` 只做布尔属性，方法只有 `show()` / `close()` / `toggle()`
+
+适用于带浮层的 `an-select`、`an-date`、`an-date-range`：
+
+- `open` 是**布尔 attribute**（存在即 true），property `open: boolean` 与 attribute 双向反射；不要给 `open` 赋字符串或数字。
+- 打开/关闭/切换只用方法 `show()`、`close()`、`toggle()`；只读属性 `isOpen: boolean` 用于查询实际状态（可能因用户 Esc、点击外部而关闭）。
+- **禁止 `open()` 方法**：它与 `open` 属性同名，调用 `element.open()` 会因属性遮蔽而报错，也会让「属性即状态」的契约失效。
+- `an-upload.open()` 是**打开文件选择器**的独立动作，与浮层开合无关，不在本条约束内。
+
+### D.3 浮层：留在 shadow 内，优先 `popover="manual"`，回退 `position: fixed`
+
+- 浮层面板必须渲染在组件自己的 Shadow DOM 内（用 `::part(panel)` 暴露样式），不得 `append` 到 `document.body`。
+- 有 Popover API 时优先用 `popover="manual"` 把面板提升到 top-layer，避免被祖先 `overflow: hidden` / `transform` 裁剪；关闭时恢复原有的 `popover` 值。
+- 没有 Popover API 时回退到 `position: fixed`，仍以视口坐标定位。
+- 定位只用 `getBoundingClientRect()` 的**视口坐标**，空间不足时垂直 flip、水平 shift（保留视口边距）。
+- **不得依赖 `offsetParent`**：Shadow DOM 与 `position: fixed` 下它不可靠，`offsetTop/offsetLeft` 同理。
+- 滚动、resize、视口变化时重新定位；面板关闭或元素断开时解绑监听。
+
+### D.4 上传安全：`accept` / `max-size` 只是 UX 校验
+
+- `accept`、`max-size`、`max-files` 只用于前端提示与提前拒绝，**不是安全边界**；服务端必须重新校验 MIME、扩展名、大小与内容。
+- 图片预览用的 `objectURL` 必须在文件移除、队列清空、组件断开时 `URL.revokeObjectURL()`；重新连接后按需重建，避免泄漏。
+- 内置上传器每个文件每次只发**一次**请求：不注入业务鉴权头、不处理登录态/签名、不做自动重试与退避。手动 `start()` 允许重试失败项，这是用户显式动作，不是自动重试。
+- 上传端点（`action`）、字段名（`field-name`）与请求方法（`method`）由使用方给定，组件不推测后端协议。
+
+### D.5 `an-form` 不拥有 `<form>`
+
+- `an-form` 没有 Shadow DOM（`display: contents` 参与 light DOM 流式布局）。Shadow 内的控件无法与 light DOM 的 `<form>` 建立 form owner 关系，因此 `an-form` **不是 form owner，也不替代 `<form>`**。
+- 它通过**控件协议**聚合：每个控件暴露 `checkValidity()` / `reportValidity()` / `reset()` / `getFormData()`；`an-form` 用这些方法做校验、重置与序列化（`validate()` / `submit()` / `reset()` / `getFormData()`）。
+- `submit()` 只做「校验 → 派发 `an-form-submit`（`detail.formData` / `detail.values`）」，**不调用**原生 `form.requestSubmit()`，也不发网络请求；要真正提交由使用者决定。
+- `an-form` **不级联 `disabled`**：禁用单个控件用控件自身的 `disabled`，禁用整组用祖先 `<fieldset disabled>`（平台语义），不要给 `an-form` 加 `disabled` 期待它下推。
+- `required`、`FormData`、`form.reset()` 等平台能力仍然由各 form-associated 控件直接提供；有原生 `<form>` 时优先用平台，`an-form` 只负责给**没有原生 `<form>`** 的场景做轻量聚合与事件（它只扫描自己的 light DOM 后代，不穿透其它元素的 shadow root）。
+
+### D.6 日期时区：只用本地日期字段
+
+- 日期值统一用 `YYYY-MM-DD` 字符串表示；内部构造只用 `new Date(year, month - 1, day)` 的**本地日期字段**。
+- **禁止 `toISOString()`**：它按 UTC 换算，东八区等时区会把本地午夜回退到前一天，产生差一天的 bug。
+- **禁止 `getUTC*()` / UTC 换算 / 时区偏移补偿**；`Date.parse('YYYY-MM-DD')` 也按 UTC 解析，同样禁止。
+- 比较与运算按 `(year, month, day)` 三元组进行；「今天」用 `new Date()` 的本地年月日读取。

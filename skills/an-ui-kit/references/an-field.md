@@ -13,7 +13,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 9 个组件
+import '@an-ui-kit/elements';            // 注册全部 16 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -152,9 +152,14 @@ import '@an-ui-kit/tokens/tokens.css';
 ## 反例
 
 ```html
-<!-- ❌ 找 an-form：没有这个组件；field 也不是表单容器 -->
-<an-form>
+<!-- ❌ 把 <an-form> 当表单容器，还指望它下推 disabled -->
+<an-form disabled>
   <an-field label="邮箱"><an-input name="email"></an-input></an-field>
+</an-form>
+
+<!-- ✅ an-form 只是没有原生 form 时的聚合器；禁用控件自身或用 fieldset -->
+<an-form>
+  <an-field label="邮箱"><an-input name="email" required></an-input></an-field>
 </an-form>
 
 <!-- ❌ 给 field 写 name/value：它不参与表单值 -->

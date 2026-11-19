@@ -88,6 +88,110 @@
     },
     {
       "kind": "javascript-module",
+      "path": "packages/elements/src/checkbox-group/an-checkbox-group.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnCheckboxGroup",
+          "tagName": "an-checkbox-group",
+          "customElement": true,
+          "description": "`<an-checkbox-group>` — form-associated container for a set of `<an-checkbox>` options.",
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "description": "Form field name; each selected value is submitted under it."
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "description": "Comma-separated selected values (`value=\"a,b\"`); reflected by `.value`."
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Disables the whole group, including every child."
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Requires at least one selection for form submission."
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "description": "Visible label of the group; also names the `group` for assistive tech."
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "('vertical'|'horizontal')"
+              },
+              "description": "Stacking direction of the options. Default: \"vertical\".",
+              "default": "vertical"
+            },
+            {
+              "name": "min",
+              "type": {
+                "text": "number"
+              },
+              "description": "Minimum number of selected options; `0` disables the check."
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "description": "Maximum number of selected options; `0` means unlimited."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-checkbox-group-change",
+              "description": "Fired when the selection changes; `detail = { value, originalEvent }`."
+            }
+          ],
+          "slots": [
+            {
+              "name": "",
+              "description": "The `<an-checkbox>` options."
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--an-checkbox-group-gap",
+              "description": "Gap between options; defaults to `--an-space-2` (0.5rem)."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "Outer wrapper around the label and the options."
+            },
+            {
+              "name": "label",
+              "description": "The visible group label; rendered only when `label` is non-empty."
+            },
+            {
+              "name": "group",
+              "description": "The `role=\"group\"` container holding the options."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "packages/elements/src/checkbox/an-checkbox.ts",
       "declarations": [
         {
@@ -194,6 +298,488 @@
     },
     {
       "kind": "javascript-module",
+      "path": "packages/elements/src/date/an-date-range.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnDateRange",
+          "tagName": "an-date-range",
+          "customElement": true,
+          "description": "`<an-date-range>` — a form-associated date-range picker.",
+          "attributes": [
+            {
+              "name": "start",
+              "description": "Range start in `YYYY-MM-DD`."
+            },
+            {
+              "name": "end",
+              "description": "Range end in `YYYY-MM-DD`."
+            },
+            {
+              "name": "min",
+              "description": "Earliest selectable day in `YYYY-MM-DD`."
+            },
+            {
+              "name": "max",
+              "description": "Latest selectable day in `YYYY-MM-DD`."
+            },
+            {
+              "name": "open",
+              "description": "Controlled open state of the panel; reflect target of the `open` property."
+            },
+            {
+              "name": "inline",
+              "description": "Keeps the panel in flow and removes the trigger."
+            },
+            {
+              "name": "disabled",
+              "description": "Blocks every interaction and submission."
+            },
+            {
+              "name": "required",
+              "description": "Reports `valueMissing` until both ends are set."
+            },
+            {
+              "name": "placeholder",
+              "description": "Placeholder of the text field; defaults to `开始日期 — 结束日期`."
+            },
+            {
+              "name": "name",
+              "description": "Field name submitted for the start day."
+            },
+            {
+              "name": "end-name",
+              "description": "Field name submitted for the end day."
+            },
+            {
+              "name": "size",
+              "description": "`sm` | `md` | `lg`."
+            },
+            {
+              "name": "first-day",
+              "description": "Weekday column 0: `0` = Sunday, `1` = Monday (default)."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-date-range-change",
+              "description": "Fired when the range completes or clears; `detail: { start, end }`."
+            },
+            {
+              "name": "an-date-range-open",
+              "description": "Fired when the popover panel opens."
+            },
+            {
+              "name": "an-date-range-close",
+              "description": "Fired when the popover panel closes."
+            }
+          ],
+          "slots": [
+            {
+              "name": "label",
+              "description": "Optional label rendered above the trigger."
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--an-date-range-height",
+              "description": "Trigger height; defaults to `--an-space-11`."
+            },
+            {
+              "name": "--an-date-range-bg",
+              "description": "Trigger background; defaults to `--an-color-bg-1`."
+            },
+            {
+              "name": "--an-date-range-fg",
+              "description": "Trigger text colour; defaults to `--an-color-fg-1`."
+            },
+            {
+              "name": "--an-date-range-border-color",
+              "description": "Trigger border; defaults to `--an-color-border-1`."
+            },
+            {
+              "name": "--an-date-range-radius",
+              "description": "Trigger radius; defaults to `--an-radius-md`."
+            },
+            {
+              "name": "--an-date-range-font-size",
+              "description": "Trigger font size; defaults to `--an-font-size-md`."
+            },
+            {
+              "name": "--an-date-range-padding-x",
+              "description": "Trigger padding; defaults to `--an-space-3`."
+            },
+            {
+              "name": "--an-date-range-focus-ring",
+              "description": "Focus ring colour; defaults to `--an-color-accent-9`."
+            },
+            {
+              "name": "--an-date-range-muted-fg",
+              "description": "Muted text; defaults to `--an-color-gray-9`."
+            },
+            {
+              "name": "--an-date-range-panel-bg",
+              "description": "Panel background; defaults to `--an-color-bg-1`."
+            },
+            {
+              "name": "--an-date-range-panel-fg",
+              "description": "Panel text colour; defaults to `--an-color-fg-1`."
+            },
+            {
+              "name": "--an-date-range-panel-border-color",
+              "description": "Panel border; defaults to `--an-color-border-1`."
+            },
+            {
+              "name": "--an-date-range-panel-radius",
+              "description": "Panel radius; defaults to `--an-radius-lg`."
+            },
+            {
+              "name": "--an-date-range-panel-shadow",
+              "description": "Panel shadow."
+            },
+            {
+              "name": "--an-date-range-day-size",
+              "description": "Day button size; defaults to `2.25rem`."
+            },
+            {
+              "name": "--an-date-range-day-hover-bg",
+              "description": "Day hover background; defaults to `--an-color-gray-2`."
+            },
+            {
+              "name": "--an-date-range-day-selected-bg",
+              "description": "Endpoint background; defaults to `--an-color-accent-9`."
+            },
+            {
+              "name": "--an-date-range-day-selected-fg",
+              "description": "Endpoint text; defaults to `#ffffff`."
+            },
+            {
+              "name": "--an-date-range-in-range-bg",
+              "description": "Background of days inside the range."
+            },
+            {
+              "name": "--an-date-range-today-ring",
+              "description": "Ring drawn around today; defaults to `--an-color-accent-9`."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "Wrapper around the label, the trigger and the panel."
+            },
+            {
+              "name": "label",
+              "description": "The visible label; hidden while the `label` slot is empty."
+            },
+            {
+              "name": "trigger",
+              "description": "The clickable field that opens the panel."
+            },
+            {
+              "name": "input",
+              "description": "The internal native `<input role=\"combobox\">`."
+            },
+            {
+              "name": "panel",
+              "description": "The calendar dialog."
+            },
+            {
+              "name": "header",
+              "description": "Month bar holding the title and the two arrows."
+            },
+            {
+              "name": "title",
+              "description": "The `YYYY年M月` title."
+            },
+            {
+              "name": "nav-prev",
+              "description": "Previous-month button."
+            },
+            {
+              "name": "nav-next",
+              "description": "Next-month button."
+            },
+            {
+              "name": "grid",
+              "description": "The 6 x 7 `role=\"grid\"` container."
+            },
+            {
+              "name": "weekday",
+              "description": "One weekday column header."
+            },
+            {
+              "name": "day",
+              "description": "One day button."
+            },
+            {
+              "name": "day-selected",
+              "description": "Added to both range endpoints."
+            },
+            {
+              "name": "day-today",
+              "description": "Added to today."
+            },
+            {
+              "name": "day-outside",
+              "description": "Added to days of the neighbouring months."
+            },
+            {
+              "name": "footer",
+              "description": "Bottom bar with the clear and today buttons."
+            },
+            {
+              "name": "clear",
+              "description": "Clears the range."
+            },
+            {
+              "name": "today",
+              "description": "Starts a range on today."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/date/an-date.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnDate",
+          "tagName": "an-date",
+          "customElement": true,
+          "description": "`<an-date>` — a form-associated single-date picker.",
+          "attributes": [
+            {
+              "name": "value",
+              "description": "Selected day in `YYYY-MM-DD`; seeds the property, never written back."
+            },
+            {
+              "name": "min",
+              "description": "Earliest selectable day in `YYYY-MM-DD`."
+            },
+            {
+              "name": "max",
+              "description": "Latest selectable day in `YYYY-MM-DD`."
+            },
+            {
+              "name": "open",
+              "description": "Controlled open state of the panel; reflect target of the `open` property."
+            },
+            {
+              "name": "inline",
+              "description": "Keeps the panel in flow and removes the trigger."
+            },
+            {
+              "name": "disabled",
+              "description": "Blocks every interaction and submission."
+            },
+            {
+              "name": "readonly",
+              "description": "Shows the value but forbids picking or typing."
+            },
+            {
+              "name": "required",
+              "description": "Reports `valueMissing` while no day is selected."
+            },
+            {
+              "name": "placeholder",
+              "description": "Placeholder of the text field."
+            },
+            {
+              "name": "name",
+              "description": "Field name submitted with the owning form."
+            },
+            {
+              "name": "size",
+              "description": "`sm` | `md` | `lg`."
+            },
+            {
+              "name": "first-day",
+              "description": "Weekday column 0: `0` = Sunday, `1` = Monday (default)."
+            },
+            {
+              "name": "format",
+              "description": "Display pattern; `YYYY`, `MM`, `M`, `DD` and `D` are replaced."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-date-change",
+              "description": "Fired when a day is picked, typed, cleared or reset; `detail: { value, originalEvent }`."
+            },
+            {
+              "name": "an-date-open",
+              "description": "Fired when the popover panel opens."
+            },
+            {
+              "name": "an-date-close",
+              "description": "Fired when the popover panel closes."
+            }
+          ],
+          "slots": [
+            {
+              "name": "label",
+              "description": "Optional label rendered above the trigger."
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--an-date-height",
+              "description": "Trigger height; defaults to `--an-space-11`."
+            },
+            {
+              "name": "--an-date-bg",
+              "description": "Trigger background; defaults to `--an-color-bg-1`."
+            },
+            {
+              "name": "--an-date-fg",
+              "description": "Trigger text colour; defaults to `--an-color-fg-1`."
+            },
+            {
+              "name": "--an-date-border-color",
+              "description": "Trigger border; defaults to `--an-color-border-1`."
+            },
+            {
+              "name": "--an-date-radius",
+              "description": "Trigger radius; defaults to `--an-radius-md`."
+            },
+            {
+              "name": "--an-date-font-size",
+              "description": "Trigger font size; defaults to `--an-font-size-md`."
+            },
+            {
+              "name": "--an-date-padding-x",
+              "description": "Trigger horizontal padding; defaults to `--an-space-3`."
+            },
+            {
+              "name": "--an-date-focus-ring",
+              "description": "Focus ring colour; defaults to `--an-color-accent-9`."
+            },
+            {
+              "name": "--an-date-muted-fg",
+              "description": "Muted text (weekdays, outside days); defaults to `--an-color-gray-9`."
+            },
+            {
+              "name": "--an-date-panel-bg",
+              "description": "Panel background; defaults to `--an-color-bg-1`."
+            },
+            {
+              "name": "--an-date-panel-fg",
+              "description": "Panel text colour; defaults to `--an-color-fg-1`."
+            },
+            {
+              "name": "--an-date-panel-border-color",
+              "description": "Panel border; defaults to `--an-color-border-1`."
+            },
+            {
+              "name": "--an-date-panel-radius",
+              "description": "Panel radius; defaults to `--an-radius-lg`."
+            },
+            {
+              "name": "--an-date-panel-shadow",
+              "description": "Panel shadow."
+            },
+            {
+              "name": "--an-date-day-size",
+              "description": "Day button size; defaults to `2.25rem`."
+            },
+            {
+              "name": "--an-date-day-hover-bg",
+              "description": "Day hover background; defaults to `--an-color-gray-2`."
+            },
+            {
+              "name": "--an-date-day-selected-bg",
+              "description": "Selected day background; defaults to `--an-color-accent-9`."
+            },
+            {
+              "name": "--an-date-day-selected-fg",
+              "description": "Selected day text; defaults to `#ffffff`."
+            },
+            {
+              "name": "--an-date-today-ring",
+              "description": "Ring drawn around today; defaults to `--an-color-accent-9`."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "Wrapper around the label, the trigger and the panel."
+            },
+            {
+              "name": "label",
+              "description": "The visible label; hidden while the `label` slot is empty."
+            },
+            {
+              "name": "trigger",
+              "description": "The clickable field that opens the panel."
+            },
+            {
+              "name": "input",
+              "description": "The internal native `<input role=\"combobox\">`."
+            },
+            {
+              "name": "panel",
+              "description": "The calendar dialog."
+            },
+            {
+              "name": "header",
+              "description": "Month bar holding the title and the two arrows."
+            },
+            {
+              "name": "title",
+              "description": "The `YYYY年M月` title."
+            },
+            {
+              "name": "nav-prev",
+              "description": "Previous-month button."
+            },
+            {
+              "name": "nav-next",
+              "description": "Next-month button."
+            },
+            {
+              "name": "grid",
+              "description": "The 6 x 7 `role=\"grid\"` container."
+            },
+            {
+              "name": "weekday",
+              "description": "One weekday column header."
+            },
+            {
+              "name": "day",
+              "description": "One day button."
+            },
+            {
+              "name": "day-selected",
+              "description": "Added to the selected day."
+            },
+            {
+              "name": "day-today",
+              "description": "Added to today."
+            },
+            {
+              "name": "day-outside",
+              "description": "Added to days of the neighbouring months."
+            },
+            {
+              "name": "footer",
+              "description": "Bottom bar with the clear and today buttons."
+            },
+            {
+              "name": "clear",
+              "description": "Clears the selection."
+            },
+            {
+              "name": "today",
+              "description": "Selects today."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "packages/elements/src/field/an-field.ts",
       "declarations": [
         {
@@ -271,6 +857,52 @@
               "description": "The `<p role=\"alert\">` error; hidden while no error shows."
             }
           ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/form/an-form.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnForm",
+          "tagName": "an-form",
+          "customElement": true,
+          "description": "`<an-form>` — the container that gives custom controls form semantics without requiring a native `<form>`.",
+          "attributes": [
+            {
+              "name": "novalidate",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Skip constraint validation on `submit()`, like the native attribute."
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Marks a submission in flight; the form itself changes no behaviour and leaves the buttons untouched."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-form-submit",
+              "description": "Fired after a successful `submit()`; `detail = { formData, values }`."
+            },
+            {
+              "name": "an-form-invalid",
+              "description": "Fired when `submit()` finds invalid controls; `detail = { fields }`."
+            },
+            {
+              "name": "an-form-reset",
+              "description": "Fired after `reset()`; the detail is empty."
+            }
+          ],
+          "slots": [],
+          "cssProperties": [],
+          "cssParts": []
         }
       ]
     },
@@ -432,6 +1064,230 @@
           "attributes": [],
           "events": [],
           "slots": [],
+          "cssProperties": [],
+          "cssParts": []
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/number/an-number.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnNumber",
+          "tagName": "an-number",
+          "customElement": true,
+          "description": "`<an-number>` — a numeric field backed by an internal `<input type=\"text\" inputmode=\"decimal\" role=\"spinbutton\">`, so typing, selection, IME and the on-screen keyboard come from the platform.",
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "description": "Initial numeric text. It seeds the field and is never written back; use the `value` property to read the parsed number. The property also accepts a number or a numeric string (framework templates pass `value=\"3\"` through as a string)."
+            },
+            {
+              "name": "min",
+              "type": {
+                "text": "number"
+              },
+              "description": "Minimum accepted value. Values below it are normalised to it and flagged `rangeUnderflow` until then. No default."
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "description": "Maximum accepted value. Values above it are normalised to it and flagged `rangeOverflow` until then. No default."
+            },
+            {
+              "name": "step",
+              "type": {
+                "text": "number"
+              },
+              "description": "Stepping interval for the arrow keys, the stepper buttons and `stepUp()`/`stepDown()`. Default: 1.",
+              "default": "1"
+            },
+            {
+              "name": "precision",
+              "type": {
+                "text": "number"
+              },
+              "description": "Decimal places applied when the text is committed; trailing zeros are always dropped. No default (keeps the natural decimals)."
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Disables the field, drops it from `FormData` and from constraint validation."
+            },
+            {
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Makes the field read-only: it still submits but is barred from constraint validation and from stepping."
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Fails constraint validation with `valueMissing` while the field is empty."
+            },
+            {
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "description": "Placeholder text forwarded to the internal input."
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "description": "Name of the `FormData` entry."
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "('sm'|'md'|'lg')"
+              },
+              "description": "Control size. Default: \"md\".",
+              "default": "md"
+            },
+            {
+              "name": "stepper",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Renders the up/down spin buttons, which also repeat while held."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-number-change",
+              "type": {
+                "text": "CustomEvent<AnNumberChangeDetail>"
+              },
+              "description": "The parsed value changed, on commit, on a keyboard/stepper step, or when `stepUp()`/`stepDown()` move it. Never fires when the parsed value stays the same."
+            }
+          ],
+          "slots": [
+            {
+              "name": "",
+              "description": "No slots are projected; the whole control is rendered in the shadow root."
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--an-number-height",
+              "description": "Height of the field."
+            },
+            {
+              "name": "--an-number-bg",
+              "description": "Field background."
+            },
+            {
+              "name": "--an-number-fg",
+              "description": "Field text colour."
+            },
+            {
+              "name": "--an-number-border-color",
+              "description": "Field border colour."
+            },
+            {
+              "name": "--an-number-radius",
+              "description": "Field corner radius."
+            },
+            {
+              "name": "--an-number-font-size",
+              "description": "Field font size."
+            },
+            {
+              "name": "--an-number-padding-x",
+              "description": "Horizontal padding of the field."
+            },
+            {
+              "name": "--an-number-focus-ring",
+              "description": "Focus outline and border colour."
+            },
+            {
+              "name": "--an-number-stepper-width",
+              "description": "Width of the stepper column."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "The wrapper around the input and the optional stepper."
+            },
+            {
+              "name": "input",
+              "description": "The internal text input."
+            },
+            {
+              "name": "stepper",
+              "description": "The stepper wrapper, rendered only with `stepper`."
+            },
+            {
+              "name": "spin-up",
+              "description": "The increment button."
+            },
+            {
+              "name": "spin-down",
+              "description": "The decrement button."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/option/an-option.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnOption",
+          "tagName": "an-option",
+          "customElement": true,
+          "description": "`<an-option>` — one option of an `<an-select>`.",
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "description": "Value submitted when this option is selected. Default: the trimmed text content.",
+              "default": "the"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Prevents the option from being selected. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "description": "Accessible name. Default: the trimmed text content.",
+              "default": "the"
+            }
+          ],
+          "events": [],
+          "slots": [
+            {
+              "name": "",
+              "description": "Option label, used when `label` and `value` are absent."
+            }
+          ],
           "cssProperties": [],
           "cssParts": []
         }
@@ -603,123 +1459,252 @@
           "name": "AnSelect",
           "tagName": "an-select",
           "customElement": true,
-          "description": "`<an-select>` — a select control backed by a real native `<select>` inside the shadow root. Markup stays native: the author writes `<option>` children in the light DOM and the element mirrors them into the shadow select, so option semantics, keyboard interaction, mobile pickers and screen-reader behaviour all come from the platform.",
+          "description": "`<an-select>` — a self-drawn listbox with a light-DOM option source.",
           "attributes": [
-            {
-              "name": "value",
-              "type": {
-                "text": "string"
-              },
-              "description": "Initial selection. Never reflected back onto the attribute."
-            },
             {
               "name": "label",
               "type": {
                 "text": "string"
               },
-              "description": "Visible label text; also names the control."
+              "description": "Visible label above the trigger. Default: empty.",
+              "default": "empty"
             },
             {
               "name": "placeholder",
               "type": {
                 "text": "string"
               },
-              "description": "When non-empty, prepends a disabled `value=\"\"` option."
+              "description": "Text shown while nothing is selected. Default: empty.",
+              "default": "empty"
             },
             {
               "name": "size",
               "type": {
-                "text": "('sm'|'md'|'lg')"
+                "text": "'sm'|'md'|'lg'"
               },
-              "description": "Control size. Default: \"md\".",
-              "default": "md"
-            },
-            {
-              "name": "disabled",
-              "type": {
-                "text": "boolean"
-              },
-              "description": "Disables the inner select and bars validation."
-            },
-            {
-              "name": "required",
-              "type": {
-                "text": "boolean"
-              },
-              "description": "Raises `valueMissing` while the value is empty."
-            },
-            {
-              "name": "invalid",
-              "type": {
-                "text": "boolean"
-              },
-              "description": "Marks the control invalid with `aria-invalid=\"true\"`."
+              "description": "Control size. Default: `md`.",
+              "default": "`md`"
             },
             {
               "name": "name",
               "type": {
                 "text": "string"
               },
-              "description": "Form field name used by `FormData`."
+              "description": "Form field name. Default: empty.",
+              "default": "empty"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Blocks interaction and form submission. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Marks the field as mandatory. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Applies the invalid styling and `aria-invalid`. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "description": "Initial/current single value. The property never writes back the attribute."
+            },
+            {
+              "name": "values",
+              "type": {
+                "text": "string"
+              },
+              "description": "Multi-select values, comma separated."
+            },
+            {
+              "name": "multiple",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Turns the control into a multi-select. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "searchable",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Renders a local search box in the panel. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Shows the loading row. Default: false.",
+              "default": "false"
+            },
+            {
+              "name": "virtual",
+              "type": {
+                "text": "'auto'|'on'|'off'"
+              },
+              "description": "Virtualization mode. Default: `auto`.",
+              "default": "`auto`"
+            },
+            {
+              "name": "max-tags",
+              "type": {
+                "text": "number"
+              },
+              "description": "Tags shown on a multi-select trigger before `+N`. Default: 3.",
+              "default": "3"
+            },
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Whether the panel is open. Reflected by the property."
             }
           ],
           "events": [
             {
               "name": "an-select-change",
-              "description": "The user picked another option; `detail = { value, originalEvent }`."
+              "description": "User changed the selection. Detail: `{ value, values, option, originalEvent }`."
+            },
+            {
+              "name": "an-select-open",
+              "description": "The panel opened."
+            },
+            {
+              "name": "an-select-close",
+              "description": "The panel closed."
+            },
+            {
+              "name": "an-search",
+              "description": "Debounced search query. Detail: `{ query }`."
             }
           ],
-          "slots": [],
+          "slots": [
+            {
+              "name": "",
+              "description": "`<an-option>` or native `<option>` children; they stay in the light DOM."
+            }
+          ],
           "cssProperties": [
             {
               "name": "--an-select-height",
-              "description": "Control height; defaults to 2.25rem (2rem sm, 2.75rem lg)."
+              "description": "Trigger height."
             },
             {
               "name": "--an-select-bg",
-              "description": "Control background; defaults to the `bg-1` token."
+              "description": "Trigger background."
             },
             {
               "name": "--an-select-fg",
-              "description": "Text and arrow colour; defaults to the `fg-1` token."
+              "description": "Trigger foreground."
             },
             {
               "name": "--an-select-border-color",
-              "description": "Border colour; defaults to the `border-1` token."
+              "description": "Border colour."
             },
             {
               "name": "--an-select-radius",
-              "description": "Border radius; defaults to the `radius-md` token."
+              "description": "Corner radius."
             },
             {
               "name": "--an-select-font-size",
-              "description": "Text size; defaults to the `font-size-sm` token."
+              "description": "Font size."
             },
             {
               "name": "--an-select-padding-x",
-              "description": "Horizontal padding; defaults to the `space-3` token."
+              "description": "Horizontal padding."
             },
             {
               "name": "--an-select-focus-ring",
-              "description": "Focus outline colour; defaults to the `accent-9` token."
+              "description": "Focus ring colour."
+            },
+            {
+              "name": "--an-select-panel-bg",
+              "description": "Panel background."
+            },
+            {
+              "name": "--an-select-panel-max-height",
+              "description": "Listbox max height."
+            },
+            {
+              "name": "--an-select-min-width",
+              "description": "Minimum control width."
             }
           ],
           "cssParts": [
             {
               "name": "base",
-              "description": "The wrapper around the control."
+              "description": "Column wrapper around the label and the control."
             },
             {
               "name": "label",
-              "description": "The visible `<label>`; rendered only when `label` is non-empty."
+              "description": "Visible label."
             },
             {
-              "name": "select",
-              "description": "The internal native `<select>` element."
+              "name": "trigger",
+              "description": "The combobox trigger."
             },
             {
-              "name": "chevron",
-              "description": "The decorative arrow drawn over the select."
+              "name": "placeholder",
+              "description": "Placeholder text slot."
+            },
+            {
+              "name": "tags",
+              "description": "Tag container on a multi-select trigger."
+            },
+            {
+              "name": "tag",
+              "description": "One selected tag."
+            },
+            {
+              "name": "tag-remove",
+              "description": "The tag remove button."
+            },
+            {
+              "name": "panel",
+              "description": "The floating panel."
+            },
+            {
+              "name": "search",
+              "description": "The search input."
+            },
+            {
+              "name": "listbox",
+              "description": "The `role=\"listbox\"` scroller."
+            },
+            {
+              "name": "option",
+              "description": "One list item."
+            },
+            {
+              "name": "option-indicator",
+              "description": "The selected check mark."
+            },
+            {
+              "name": "empty",
+              "description": "The no-results row."
+            },
+            {
+              "name": "loading",
+              "description": "The loading row."
             }
           ]
         }
@@ -940,6 +1925,321 @@
             {
               "name": "textarea",
               "description": "The internal native `<textarea>` element."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/elements/src/upload/an-upload.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "AnUpload",
+          "tagName": "an-upload",
+          "customElement": true,
+          "description": "`<an-upload>` — file picker, drop target and upload queue in one control.",
+          "attributes": [
+            {
+              "name": "name",
+              "description": "Form field name and the default multipart field name."
+            },
+            {
+              "name": "accept",
+              "description": "Comma-separated MIME types, `image/*` wildcards or `.ext` names."
+            },
+            {
+              "name": "multiple",
+              "description": "Lets the picker and drop target accept more than one file."
+            },
+            {
+              "name": "max-files",
+              "description": "Upper bound of queued files; `0` means unlimited."
+            },
+            {
+              "name": "max-size",
+              "description": "Per-file upper bound in bytes; `0` means unlimited."
+            },
+            {
+              "name": "disabled",
+              "description": "Disables picking, dropping and uploading."
+            },
+            {
+              "name": "required",
+              "description": "Marks the control invalid while the queue is empty."
+            },
+            {
+              "name": "action",
+              "description": "Upload endpoint; enables the built-in XHR uploader."
+            },
+            {
+              "name": "method",
+              "description": "HTTP method for `action`; defaults to `POST`."
+            },
+            {
+              "name": "field-name",
+              "description": "Multipart field name; defaults to `name`."
+            },
+            {
+              "name": "auto-upload",
+              "description": "Starts uploading as soon as files are added; defaults to `true`."
+            },
+            {
+              "name": "size",
+              "description": "Control size: `sm`, `md` or `lg`."
+            }
+          ],
+          "events": [
+            {
+              "name": "an-upload-change",
+              "description": "Files were added, removed or cleared; detail is `AnUploadChangeDetail`."
+            },
+            {
+              "name": "an-upload-reject",
+              "description": "A file failed validation; detail is `AnUploadRejectDetail`."
+            },
+            {
+              "name": "an-upload-progress",
+              "description": "Bytes were transferred; detail is `AnUploadProgressDetail`."
+            },
+            {
+              "name": "an-upload-success",
+              "description": "A file finished; detail is `AnUploadSuccessDetail`."
+            },
+            {
+              "name": "an-upload-error",
+              "description": "A file failed; detail is `AnUploadErrorDetail`."
+            },
+            {
+              "name": "an-upload-abort",
+              "description": "A running upload was cancelled; detail is `AnUploadAbortDetail`."
+            }
+          ],
+          "slots": [
+            {
+              "name": "trigger",
+              "description": "Replaces the default button and hint inside the dropzone."
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--an-upload-fg",
+              "description": "Text colour."
+            },
+            {
+              "name": "--an-upload-bg",
+              "description": "Dropzone background."
+            },
+            {
+              "name": "--an-upload-border-color",
+              "description": "Dropzone border."
+            },
+            {
+              "name": "--an-upload-radius",
+              "description": "Dropzone corner radius."
+            },
+            {
+              "name": "--an-upload-gap",
+              "description": "Gap between the dropzone and the list."
+            },
+            {
+              "name": "--an-upload-font-size",
+              "description": "Base font size."
+            },
+            {
+              "name": "--an-upload-focus-ring",
+              "description": "Focus ring colour."
+            },
+            {
+              "name": "--an-upload-dropzone-padding",
+              "description": "Dropzone padding."
+            },
+            {
+              "name": "--an-upload-dropzone-gap",
+              "description": "Gap between trigger and hint."
+            },
+            {
+              "name": "--an-upload-dragover-border-color",
+              "description": "Border colour while dragging."
+            },
+            {
+              "name": "--an-upload-trigger-height",
+              "description": "Trigger button height."
+            },
+            {
+              "name": "--an-upload-trigger-padding-x",
+              "description": "Trigger horizontal padding."
+            },
+            {
+              "name": "--an-upload-trigger-radius",
+              "description": "Trigger corner radius."
+            },
+            {
+              "name": "--an-upload-trigger-bg",
+              "description": "Trigger background."
+            },
+            {
+              "name": "--an-upload-trigger-fg",
+              "description": "Trigger text colour."
+            },
+            {
+              "name": "--an-upload-trigger-font-size",
+              "description": "Trigger font size."
+            },
+            {
+              "name": "--an-upload-hint-color",
+              "description": "Hint and secondary text colour."
+            },
+            {
+              "name": "--an-upload-hint-font-size",
+              "description": "Hint font size."
+            },
+            {
+              "name": "--an-upload-list-gap",
+              "description": "Gap between list rows."
+            },
+            {
+              "name": "--an-upload-item-bg",
+              "description": "List row background."
+            },
+            {
+              "name": "--an-upload-item-border-color",
+              "description": "List row border."
+            },
+            {
+              "name": "--an-upload-item-radius",
+              "description": "List row corner radius."
+            },
+            {
+              "name": "--an-upload-item-padding",
+              "description": "List row padding."
+            },
+            {
+              "name": "--an-upload-item-gap",
+              "description": "Gap inside a list row."
+            },
+            {
+              "name": "--an-upload-preview-size",
+              "description": "Thumbnail edge length."
+            },
+            {
+              "name": "--an-upload-preview-radius",
+              "description": "Thumbnail corner radius."
+            },
+            {
+              "name": "--an-upload-preview-bg",
+              "description": "Thumbnail background."
+            },
+            {
+              "name": "--an-upload-name-font-size",
+              "description": "File name font size."
+            },
+            {
+              "name": "--an-upload-size-color",
+              "description": "File size colour."
+            },
+            {
+              "name": "--an-upload-size-font-size",
+              "description": "File size font size."
+            },
+            {
+              "name": "--an-upload-progress-height",
+              "description": "Progress bar height."
+            },
+            {
+              "name": "--an-upload-progress-color",
+              "description": "Progress bar fill."
+            },
+            {
+              "name": "--an-upload-progress-track",
+              "description": "Progress bar track."
+            },
+            {
+              "name": "--an-upload-error-color",
+              "description": "Error text colour."
+            },
+            {
+              "name": "--an-upload-error-font-size",
+              "description": "Error text size."
+            },
+            {
+              "name": "--an-upload-button-bg",
+              "description": "Item button background."
+            },
+            {
+              "name": "--an-upload-button-color",
+              "description": "Item button text colour."
+            },
+            {
+              "name": "--an-upload-button-border-color",
+              "description": "Item button border."
+            },
+            {
+              "name": "--an-upload-button-radius",
+              "description": "Item button corner radius."
+            },
+            {
+              "name": "--an-upload-button-font-size",
+              "description": "Item button font size."
+            },
+            {
+              "name": "--an-upload-empty-color",
+              "description": "Empty placeholder colour."
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "base",
+              "description": "Root wrapper."
+            },
+            {
+              "name": "dropzone",
+              "description": "Clickable, keyboard-activatable drop area."
+            },
+            {
+              "name": "trigger",
+              "description": "Default \"choose file\" button (absent when `trigger` is slotted)."
+            },
+            {
+              "name": "list",
+              "description": "`<ul>` that holds the queued files."
+            },
+            {
+              "name": "item",
+              "description": "One `<li>` per queued file."
+            },
+            {
+              "name": "item-preview",
+              "description": "Thumbnail slot of an item."
+            },
+            {
+              "name": "item-name",
+              "description": "File name of an item."
+            },
+            {
+              "name": "item-size",
+              "description": "Human-readable file size of an item."
+            },
+            {
+              "name": "item-progress",
+              "description": "Progress bar track of an item."
+            },
+            {
+              "name": "item-error",
+              "description": "Error text of an item."
+            },
+            {
+              "name": "item-remove",
+              "description": "Remove button of an item."
+            },
+            {
+              "name": "item-cancel",
+              "description": "Cancel button, rendered only while uploading."
+            },
+            {
+              "name": "empty",
+              "description": "Placeholder shown while the queue is empty."
             }
           ]
         }

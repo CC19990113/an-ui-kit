@@ -195,7 +195,9 @@ function readConfig(configPath) {
  * 经 tsc 产出）并不包含它们 —— 运行时导出和类型面就对不上了。显式导出保证全量产物
  * 的导出面与改动前完全一致（`AnElement` + 各组件类），裁剪产物也遵循同一条规则。
  *
- * `./internal/base` 始终导出：`AnElement` 是公共 API，且每个组件都依赖它。
+ * `./internal/base` 始终导出：`AnElement` 是公共 API，shadow 组件都依赖它
+ * （无 shadow 的控制器如 `an-form` 直接继承 `HTMLElement`，并不需要它，但入口
+ * 导出的是一份固定的公共面，不随选中组件变化）。
  * 组件模块本身不自注册（注册是入口的职责，见 CONTRACT.md §1），所以入口必须带上
  * `customElements.get()` 守卫的注册语句，否则产物只导出类、不会定义元素。
  *

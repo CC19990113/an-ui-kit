@@ -110,13 +110,44 @@ jobs:
       - name: Test CLI
         run: pnpm --filter @an-ui-kit/cli test
 
-      # 17. 装 Playwright 自带 Chromium。用 demo 自己的 playwright 可执行文件安装，
-      #     保证浏览器 revision 与 apps/demo 锁定的 1.65.1 一致（`npx playwright install`
-      #     会临时拉最新版，rev 可能对不上）。CI 不依赖系统 Chrome 兜底。
-      - name: Install Playwright browser
-        run: pnpm --filter demo exec playwright install --with-deps chromium
+  # 浏览器 e2e 独立成一个 job：三浏览器（chromium / webkit / firefox）需要各自
+  # 下载 ~150MB 的构建，和 verify 的纯 Node 校验并行跑，互不拖慢。
+  e2e:
+    name: e2e (chromium / webkit / firefox)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # 18. 三框架 e2e：native / react / vue + Tailwind preflight。
-      #     放在 17 之后（浏览器已就绪），并依赖前面 @an-ui-kit/elements 的构建产物。
-      - name: E2E (three frameworks)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # demo 走 `vite build` 打包 @an-ui-kit/elements，所以两个上游 dist 必须先就绪。
+      - name: Build tokens
+        run: pnpm --filter @an-ui-kit/tokens build
+
+      - name: Build elements
+        run: pnpm --filter @an-ui-kit/elements build
+
+      # 用 demo 自己的 playwright 可执行文件安装，保证浏览器 revision 与
+      # apps/demo 锁定的 1.65.1 一致（`npx playwright install` 会临时拉最新版，
+      # rev 可能对不上）。CI 不依赖系统 Chrome 兜底，三个 project 都必须真跑。
+      - name: Install Playwright browsers
+        run: pnpm --filter demo exec playwright install --with-deps chromium webkit firefox
+
+      # playwright.config.ts 的 webServer 会先 build 再 vite preview；
+      # 三个 project 重复跑同一套 native / react / vue / tailwind 断言。
+      - name: E2E (three frameworks x three browsers)
         run: pnpm --filter demo e2e

@@ -7,8 +7,16 @@
  *   1. **组件清单来自源码目录，不硬编码。** CONTRACT.md §1 规定标签名与源码
  *      目录一一对应：`packages/elements/src/<dir>/an-<tag>.ts` → 标签 `<tag>`。
  *      所以扫描 `src/<dir>/an-*.ts`，标签取文件名去掉 `.ts`，类名取该文件里
- *      `export class <Name> extends AnElement` 的 `<Name>`。新增组件只要按约定
- *      落文件就会被构建脚本、体积预算与裁剪断言同时看见。
+ *      `export class <Name> extends (AnElement | HTMLElement)` 的 `<Name>`，
+ *      两条基类都合法。新增组件只要按约定落文件就会被构建脚本、体积预算与
+ *      裁剪断言同时看见。
+ *
+ *      **为什么允许 `HTMLElement`：** `AnElement` 是 shadow 组件的基类（自带
+ *      `attachShadow` + 模板渲染）；无 shadow 的控制器/容器组件不需要 shadow
+ *      root，契约上就应当直接 `extends HTMLElement` —— 例如 `<an-form>`：它只
+ *      作为透明容器用 `display: contents` 留在 light DOM 里，包住消费者自己的
+ *      控件（shadow 会把外部子节点挡在插槽另一侧，反而要额外转发）。两者共用
+ *      同一套标签推导规则，构建脚本无需为它们分叉。
  *   2. **esbuild 从 packages/elements 解析。** 它是该包的 devDependency；从仓库根
  *      直接 `import('esbuild')` 在 pnpm 的隔离 node_modules 下解析不到。用
  *      createRequire 从 elements 的 package.json 起解析，零新依赖。
@@ -28,8 +36,12 @@ export const CONFIG_PATH = path.join(ROOT, 'an-ui-kit.config.json');
 /** Custom Elements: `an-` 前缀 + 小写 kebab-case，必须带连字符。 */
 const TAG_PATTERN = /^an-[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
-/** 组件模块必须导出继承自 `AnElement` 的类，名字就是标签的 PascalCase 形式。 */
-const CLASS_PATTERN = /export\s+class\s+([A-Za-z_$][\w$]*)\s+extends\s+AnElement\b/;
+/**
+ * 组件模块必须导出继承自 `AnElement` 或 `HTMLElement` 的类，名字就是标签的
+ * PascalCase 形式。`AnElement` 用于 shadow 组件；`HTMLElement` 用于无 shadow
+ * 的控制器/容器（如 `an-form`，用 `display: contents` 留在 light DOM）。
+ */
+const CLASS_PATTERN = /export\s+class\s+([A-Za-z_$][\w$]*)\s+extends\s+(?:AnElement|HTMLElement)\b/;
 
 /**
  * Scan `packages/elements/src/<dir>/an-*.ts` and return every component, sorted
@@ -56,8 +68,9 @@ export function discoverComponents({ srcDir = SRC_DIR } = {}) {
       const match = CLASS_PATTERN.exec(source);
       if (!match) {
         throw new Error(
-          `组件模块 ${path.join(dir, file)} 没有按约定导出 \`export class <Name> extends AnElement\`，` +
-            '无法推导类名（见 CONTRACT.md §1 与 scripts/new-component.mjs 的骨架）。',
+          `组件模块 ${path.join(dir, file)} 没有按约定导出 \`export class <Name> extends (AnElement | HTMLElement)\`，` +
+            '无法推导类名（shadow 组件继承 AnElement，无 shadow 控制器继承 HTMLElement；' +
+            '见 CONTRACT.md §1 与 scripts/new-component.mjs 的骨架）。',
         );
       }
 

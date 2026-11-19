@@ -1,0 +1,72 @@
+/* Hooks: --an-date-range-height | --an-date-range-bg | --an-date-range-fg
+   | --an-date-range-border-color | --an-date-range-radius | --an-date-range-font-size
+   | --an-date-range-padding-x | --an-date-range-focus-ring | --an-date-range-muted-fg
+   | --an-date-range-panel-bg | --an-date-range-panel-fg | --an-date-range-panel-border-color
+   | --an-date-range-panel-radius | --an-date-range-panel-shadow | --an-date-range-day-size
+   | --an-date-range-day-hover-bg | --an-date-range-day-selected-bg
+   | --an-date-range-day-selected-fg | --an-date-range-in-range-bg | --an-date-range-today-ring.
+   The panel rules are shared with `<an-date>`; this host re-maps every `--an-date-*`
+   hook from its own `--an-date-range-*` name, so both controls document their own prefix.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */
+
+:host {
+  box-sizing: border-box;
+  border: 0 solid transparent;
+  margin: 0;
+  line-height: 1.5;
+
+  display: inline-block;
+  vertical-align: middle;
+  color-scheme: light dark;
+  font: inherit;
+  color: var(--an-color-fg-1, #1f2937);
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host(:not([data-theme='light'])) {
+    color-scheme: dark;
+  }
+}
+
+:host {
+  --an-date-height: var(--an-date-range-height, var(--an-space-11, 2.75rem));
+  --an-date-bg: var(--an-date-range-bg, var(--an-color-bg-1, #ffffff));
+  --an-date-fg: var(--an-date-range-fg, var(--an-color-fg-1, #1f2937));
+  --an-date-border-color: var(--an-date-range-border-color, var(--an-color-border-1, #d1d5db));
+  --an-date-radius: var(--an-date-range-radius, var(--an-radius-md, 0.5rem));
+  --an-date-font-size: var(--an-date-range-font-size, var(--an-font-size-md, 1rem));
+  --an-date-padding-x: var(--an-date-range-padding-x, var(--an-space-3, 0.75rem));
+  --an-date-focus-ring: var(--an-date-range-focus-ring, rgb(37 99 235 / 0.25));
+  --an-date-muted-fg: var(--an-date-range-muted-fg, var(--an-color-gray-9, #6b7280));
+  --an-date-panel-bg: var(--an-date-range-panel-bg, var(--an-color-bg-1, #ffffff));
+  --an-date-panel-fg: var(--an-date-range-panel-fg, var(--an-color-fg-1, #1f2937));
+  --an-date-panel-border-color: var(--an-date-range-panel-border-color, var(--an-color-border-1, #e5e7eb));
+  --an-date-panel-radius: var(--an-date-range-panel-radius, var(--an-radius-lg, 0.625rem));
+  --an-date-panel-shadow: var(--an-date-range-panel-shadow, 0 12px 32px rgb(15 23 42 / 0.18));
+  --an-date-day-size: var(--an-date-range-day-size, 2.25rem);
+  --an-date-day-hover-bg: var(--an-date-range-day-hover-bg, var(--an-color-gray-2, #f3f4f6));
+  --an-date-day-selected-bg: var(--an-date-range-day-selected-bg, var(--an-color-accent-9, #2563eb));
+  --an-date-day-selected-fg: var(--an-date-range-day-selected-fg, #ffffff);
+  --an-date-range-bg: var(--an-date-range-in-range-bg, var(--an-color-gray-3, #e5e7eb));
+  --an-date-today-ring: var(--an-date-range-today-ring, var(--an-color-accent-9, #2563eb));
+}
+
+.trigger {
+  min-width: 16rem;
+}
+
+:host([inline]) {
+  display: inline-flex;
+}
+
+:host([inline]) .base {
+  width: auto;
+}

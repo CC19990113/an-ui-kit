@@ -5,16 +5,31 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { installClickLog } from './src/click-log';
+import { installFormFamilyDemo } from './src/form-family-demo';
 import { installInputLog } from './src/input-log';
 
 // 页面级监听器：e2e 用它数 DOM 上真实发生的 an-button-click 次数。
 installClickLog('react');
 // 同一套思路记录 `<an-input>` / `<an-change>`，e2e 用它核对 detail.value。
 installInputLog('react');
+// 表单族（7 个新增组件）的事件记录与 an-form 回显，四个页面共用。
+installFormFamilyDemo();
 window.__reactHandlerCalls = [];
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('react.html: #root not found');
+
+/**
+ * 包内 `@an-ui-kit/elements/react` 的 `<an-select>` 类型还是旧的 9 标签版本
+ * （`packages/**` 本任务不改），没有 `multiple` / `searchable` / `max-tags`。
+ * 用一个精确类型别名去 spread，既保留 JSX 结构又不需要 `any`；
+ * 包内类型补齐后删掉这段即可。
+ */
+const multiSelectAttrs = {
+  multiple: true,
+  searchable: true,
+  'max-tags': '2',
+} as unknown as React.JSX.IntrinsicElements['an-select'];
 
 function App(): React.JSX.Element {
   const [handlerCalls, setHandlerCalls] = useState(0);
@@ -195,7 +210,7 @@ function App(): React.JSX.Element {
         </an-field>
 
         <an-field data-testid="field-city" label="城市">
-          <an-select data-testid="form-city" name="city" placeholder="请选择">
+          <an-select data-testid="form-city" name="city" label="城市" placeholder="请选择">
             <option value="bj">北京</option>
             <option value="sh">上海</option>
           </an-select>
@@ -235,6 +250,138 @@ function App(): React.JSX.Element {
         <pre data-testid="form-output">{demoFormOutput}</pre>
       </form>
 
+      <h2>表单族（新增 7 个组件）</h2>
+      <p className="hint">
+        7 个新增组件全部包在 <code>&lt;an-form&gt;</code> 里：提交时读
+        <code>an-form-submit</code> 的 <code>detail.formData</code>，校验失败时读
+        <code>an-form-invalid</code> 并在下方显示错误。事件同时写入
+        <code>window.__familyState</code> 供 e2e 断言。
+      </p>
+
+      <an-form className="stack" data-testid="family-form">
+        <an-field label="单选（城市）">
+          <an-select data-testid="family-select-single" name="single" placeholder="请选择城市">
+            <an-option value="bj">北京</an-option>
+            <an-option value="sh">上海</an-option>
+            <an-option value="gz">广州</an-option>
+            <an-option value="sz" disabled>
+              深圳（已满）
+            </an-option>
+          </an-select>
+        </an-field>
+
+        <an-field label="多选（可搜索，option 里放 HTML）">
+          <an-select
+            data-testid="family-select-multi"
+            name="tags"
+            placeholder="搜索标签（可多选）"
+            {...multiSelectAttrs}
+          >
+            <an-option value="react">
+              <b>React</b>
+              <small>组件化 UI</small>
+            </an-option>
+            <an-option value="vue">
+              <b>Vue</b>
+              <small>渐进式框架</small>
+            </an-option>
+            <an-option value="wc">
+              <b>Web Component</b>
+              <small>浏览器原生</small>
+            </an-option>
+            <an-option value="ts">
+              <b>TypeScript</b>
+              <small>类型系统</small>
+            </an-option>
+            <an-option value="a11y">
+              <b>Accessibility</b>
+              <small>可访问性</small>
+            </an-option>
+          </an-select>
+        </an-field>
+
+        <an-field
+          label="上传（图片 ≤ 2 KB，最多 2 个）"
+          hint="auto-upload 关闭，文件留在队列里，提交时作为 File 进 FormData"
+        >
+          <an-upload
+            data-testid="family-upload"
+            name="attachment"
+            accept="image/*"
+            max-size="2048"
+            max-files="2"
+            multiple
+            auto-upload="false"
+          />
+        </an-field>
+
+        <an-field label="数字（1~10，步长 2，stepper）">
+          <an-number
+            data-testid="family-number"
+            name="quantity"
+            value={3}
+            min="1"
+            max="10"
+            step="2"
+            stepper
+            required
+          />
+        </an-field>
+
+        <an-field label="日期（普通 + inline）">
+          <div className="row">
+            <an-date
+              data-testid="family-date"
+              name="day"
+              value="2026-11-10"
+              min="2026-11-05"
+              max="2026-11-25"
+            />
+            <an-date data-testid="family-date-inline" inline value="2026-11-12" />
+          </div>
+        </an-field>
+
+        <an-field label="日期区间（提交 from / to 两个字段）">
+          <an-date-range
+            data-testid="family-range"
+            name="from"
+            end-name="to"
+            start="2026-11-05"
+            end="2026-11-09"
+            min="2026-11-01"
+            max="2026-11-30"
+          />
+        </an-field>
+
+        <an-field label="方向键多选（checkbox-group）">
+          <an-checkbox-group
+            data-testid="family-checkbox-group"
+            name="topics"
+            label="关注方向"
+            min="1"
+            max="3"
+            orientation="horizontal"
+          >
+            <an-checkbox value="a11y" checked>
+              可访问性
+            </an-checkbox>
+            <an-checkbox value="perf">性能</an-checkbox>
+            <an-checkbox value="docs">文档</an-checkbox>
+            <an-checkbox value="tests">测试</an-checkbox>
+          </an-checkbox-group>
+        </an-field>
+
+        <div className="row">
+          <an-button data-testid="family-submit" type="submit" variant="primary">
+            提交表单族
+          </an-button>
+          <an-button data-testid="family-reset" type="reset">
+            重置
+          </an-button>
+        </div>
+        <div data-testid="family-errors"></div>
+        <pre data-testid="family-output"></pre>
+      </an-form>
     </>
   );
 }

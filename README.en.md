@@ -21,7 +21,7 @@ A single build works directly in **Native HTML**, **React 19**, and **Vue 3** (*
 
 ## Key Features
 
-- **Zero Runtime Dependencies**: `packages/*/dependencies` is always `{}` and enforced in CI (`assert-empty-deps.mjs`). Build outputs never import third-party runtime libraries, and `@an-ui-kit/elements` (`dist/index.js`) is checked against a `gzip ≤ 3072B` budget.
+- **Zero Runtime Dependencies**: `packages/*/dependencies` is always `{}` and enforced in CI (`assert-empty-deps.mjs`). Build outputs never import third-party runtime libraries, and `@an-ui-kit/elements` (`dist/index.js`) is checked against a `gzip ≤ 4096B base + 2048B × 16 components = 36864B` budget (currently 34649B, 2215B headroom).
 - **Native Custom Elements + Shadow DOM**: Built on native semantic HTML elements inside `attachShadow({ mode: 'open' })`, exposing attributes, properties, bubbling/composed events, CSS custom properties, and `::part()`.
 - **OKLCH Design Tokens & Theming**: `@an-ui-kit/tokens` compiles design tokens into CSS variables supporting explicit `data-theme="dark"` / `data-theme="light"` and `prefers-color-scheme`, verified with a built-in WCAG 2.x contrast check.
 - **AI-Native Tooling**: Driven by [`custom-elements-manifest.json`](custom-elements-manifest.json) (CEM 2.1.0), projecting into a shadcn-compatible [`registry/`](registry), a read-only MCP server ([`@an-ui-kit/mcp`](packages/mcp)), and an Agent Skill ([`skills/an-ui-kit/`](skills/an-ui-kit)).
@@ -184,11 +184,13 @@ app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 - **Vue 3**: `@an-input="onInput"`.
 - **Forms**: when `disabled` (on the element or via an ancestor `<fieldset disabled>`) it is excluded from `FormData` and from constraint validation; with an empty `required` value, `form.requestSubmit()` is blocked.
 
-### Forms: native `<form>` + `<an-field>` (there is no `an-form`)
+### Forms: native `<form>` + `<an-field>` (optional `<an-form>`)
 
-**There is deliberately no `an-form`.** Every value control is a form-associated custom element: it participates through `ElementInternals.setFormValue()` / `setValidity()`, so `form.requestSubmit()`, `new FormData(form)`, `form.reset()`, and constraint validation (`required`, the `invalid` event) **need no wrapper at all**. An `an-form` layer would only re-implement semantics the platform already owns, while fighting the `<form>` lifecycle (who calls `preventDefault`, who focuses the first invalid control, the fact that `reset` is a cancelable event, and so on).
+Every value control is a form-associated custom element: it participates through `ElementInternals.setFormValue()` / `setValidity()`, so `form.requestSubmit()`, `new FormData(form)`, `form.reset()`, and constraint validation (`required`, the `invalid` event) **need no wrapper** — they use platform semantics directly.
 
-Typical composition: `<an-field>` owns label / hint / error, while a native `<form>` owns submit / reset / validation.
+`<an-form>` is a **validation / submit controller, not a form owner**: it has no Shadow DOM (`display: contents`) and aggregates descendant controls through `checkValidity()` / `reportValidity()` / `reset()` / `getFormData()`. `submit()` only validates and dispatches `an-form-submit`; it does **not** call native `form.requestSubmit()` and does not perform network requests. With a native `<form>` you do not need it; use it only when there is no native `<form>` and you still need one validation pass or one `FormData` snapshot (it scans its own light-DOM descendants and does not pierce other elements' shadow roots).
+
+Typical composition: `<an-field>` owns label / hint / error, a native `<form>` owns submit / reset / validation (add `<an-form>` only for cross-boundary aggregation).
 
 ```html
 <form id="profile">
@@ -224,10 +226,16 @@ Typical composition: `<an-field>` owns label / hint / error, while a native `<fo
 |---------|------------|-----------------------------------------------------------------|------------|
 | `<an-input>` | Empty after trim → `valueMissing`, blocks submit and fires `invalid` | Disabled; excluded from `FormData` and constraint validation | Supported: still submits its value but, like the native element, **skips constraint validation** |
 | `<an-textarea>` | Same (empty after trim → `valueMissing`) | Same | Supported: value still submitted, validation skipped |
-| `<an-select>` | Nothing selected (`value=""`) → `valueMissing` | Same | **Not supported** (native `<select>` has no `readonly` either; use `disabled` for a read-only look) |
+| `<an-select>` | Nothing selected (`value=""`) → `valueMissing` | Same | **Not supported** (the component has no `readonly`; use `disabled` for a read-only look) |
 | `<an-checkbox>` | Unchecked → `valueMissing` | Same | **Not supported** (native checkbox has no `readonly`; use `disabled`) |
 | `<an-switch>` | Off → `valueMissing` | Same | **Not supported** (same) |
 | `<an-radio-group>` | No option selected → `valueMissing` | Whole group disabled; excluded from `FormData` | **Not supported** (native radio has no `readonly`) |
+| `<an-number>` | Empty → `valueMissing` | Same | Supported: value still submitted; validation and stepping skipped |
+| `<an-date>` | No day selected → `valueMissing` | Same | Supported: value still submitted, validation skipped; picking and typing are blocked |
+| `<an-date-range>` | Either end missing → `valueMissing` | Same | **Not supported** (use `disabled`) |
+| `<an-checkbox-group>` | Nothing selected → `valueMissing` | Whole group disabled, including every child | **Not supported** (use `disabled`) |
+| `<an-upload>` | Empty queue → `valueMissing` | Picking / dropping / uploading disabled | **Not supported** (use `disabled`) |
+| `<an-form>` | — (`novalidate` makes `submit()` skip validation) | **Does not cascade**: disable the control itself or an ancestor `<fieldset disabled>` | — |
 | `<an-button>` | — | Disabled; blocks clicks and form submission | — |
 
 **How validation errors are shown**
@@ -269,7 +277,7 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ## Current Components
 
-The repository currently ships nine custom elements (CEM also exports the internal base class `AnElement`): eight interactive controls plus one form-field wrapper, `<an-field>`. Except for `<an-radio>` and `<an-field>`, all of them are form-associated and take part in native `<form>` semantics directly.
+The repository currently ships sixteen custom elements (CEM also exports the internal base class `AnElement`): twelve form-associated value controls + three non-form controls (`<an-option>`, `<an-radio>`, `<an-field>`) + one validation/submit controller, `<an-form>`. `<an-form>` is not a form owner; `<an-field>` is only a label / hint / error wrapper.
 
 ### Component Overview
 
@@ -278,12 +286,19 @@ The repository currently ships nine custom elements (CEM also exports the intern
 | `<an-button>` | Button (a real native `<button>` inside Shadow DOM) | `variant` (`default` \| `primary` \| `danger` \| `ghost`), `size`, `disabled`, `loading`, `type` (`button` \| `submit` \| `reset`); event `an-button-click` |
 | `<an-input>` | Single-line input (form-associated, native `<input>`) | `type`, `placeholder`, `label`, `size`, `value` (initial only), `disabled`, `readonly`, `required`, `invalid`, `name`; events `an-input` / `an-change` |
 | `<an-textarea>` | Multi-line text (form-associated, native `<textarea>`) | `rows`, `maxlength`, `resize` (`none` \| `vertical` \| `both`), `placeholder`, `label`, `disabled`, `readonly`, `required`, `invalid`, `name`; events `an-textarea-input` / `an-textarea-change` |
-| `<an-select>` | Dropdown (form-associated; `<option>` children live in light DOM) | `placeholder`, `size`, `label`, `disabled`, `required`, `invalid`, `name`; event `an-select-change` |
+| `<an-number>` | Numeric input (form-associated; internal `<input type="text" inputmode="decimal" role="spinbutton">`, not native `type=number`) | `value` (initial text only), `min`, `max`, `step`, `precision`, `stepper`, `placeholder`, `size`, `disabled`, `readonly`, `required`, `name`; event `an-number-change` |
+| `<an-select>` | Dropdown (form-associated; options live in light DOM as `<an-option>` or native `<option>`) | `multiple`, `value` / `values` (`string[]` for multi-select), `searchable`, `virtual`, `max-tags`, `open`, `placeholder`, `size`, `label`, `disabled`, `required`, `invalid`, `name`; events `an-select-change` / `an-select-open` / `an-select-close` / `an-search` |
+| `<an-option>` | Option of `<an-select>` (light DOM, submits no value itself) | `value` (defaults to text content), `label`, `disabled`; no events |
 | `<an-checkbox>` | Checkbox (form-associated, native `<input type="checkbox">`) | `checked`, `indeterminate`, `disabled`, `required`, `name`, `value`; event `an-checkbox-change` |
+| `<an-checkbox-group>` | Checkbox group (form-associated, submits multiple values together) | `name`, `value` (comma-separated attribute / `string[]` property), `label`, `orientation`, `min`, `max`, `disabled`, `required`; event `an-checkbox-group-change` |
 | `<an-radio>` | One radio option (no form value of its own; the group submits it) | `value`, `checked` (driven by the group), `disabled`; events `an-radio-select` / `an-radio-connect` |
 | `<an-radio-group>` | Radio group (form-associated, roving keyboard navigation inside) | `value` (initial), `label`, `disabled`, `required`, `name`; event `an-radio-change` |
 | `<an-switch>` | Switch (form-associated; contributes to `FormData` only while on) | `checked`, `disabled`, `required`, `name`, `value`; event `an-switch-change` |
+| `<an-date>` | Single-date picker (form-associated, `YYYY-MM-DD`) | `value`, `min`, `max`, `format`, `first-day`, `inline`, `open`, `placeholder`, `size`, `disabled`, `readonly`, `required`, `name`; events `an-date-change` / `an-date-open` / `an-date-close` |
+| `<an-date-range>` | Date range (form-associated; submits the `name` and `end-name` fields) | `start`, `end`, `end-name`, `min`, `max`, `first-day`, `inline`, `open`, `placeholder`, `size`, `disabled`, `required`, `name`; events `an-date-range-change` / `an-date-range-open` / `an-date-range-close` |
+| `<an-upload>` | File picker / drop target + upload queue (form-associated) | `accept`, `multiple`, `max-files`, `max-size`, `action`, `method`, `field-name`, `auto-upload`, `name`, `size`, `disabled`, `required`; events `an-upload-change` / `an-upload-reject` / `an-upload-progress` / `an-upload-success` / `an-upload-error` / `an-upload-abort` |
 | `<an-field>` | Label / hint / error wrapper (no value, not form-associated) | `label`, `hint`, `error` (forced message), `required` (star + `aria-required` only) |
+| `<an-form>` | Validation / submit controller (not a form owner, no value, does not cascade `disabled`) | `novalidate`, `loading`; events `an-form-submit` / `an-form-invalid` / `an-form-reset` |
 
 ### `<an-button>`
 
@@ -313,9 +328,9 @@ See [`packages/elements/README.md`](packages/elements/README.md) and [`custom-el
 
 | Artifact | Consumer | Description |
 |----------|----------|-------------|
-| [`registry/`](registry) | shadcn CLI / JSON-reading agents | Self-contained, zero-npm-dependency registry items (`an-button` / `an-input`, each with its full source file tree) with CEM `meta` (`attributes`, `events`, `slots`, `cssProperties`, `cssParts`). Cataloged in [`registry/index.json`](registry/index.json). |
+| [`registry/`](registry) | shadcn CLI / JSON-reading agents | Self-contained, zero-npm-dependency registry items (one per component, each with its full source file tree) with CEM `meta` (`attributes`, `events`, `slots`, `cssProperties`, `cssParts`). Cataloged in [`registry/index.json`](registry/index.json). |
 | [`packages/mcp/`](packages/mcp) | MCP-compatible agents / IDEs | `@an-ui-kit/mcp` (`an-ui-kit-mcp` CLI): read-only stdio MCP server with 3 tools (`list_components`, `get_component`, `search_components`) backed by a byte-for-byte copy of root CEM ([`manifest.json`](packages/mcp/manifest.json)). Requires Node.js `>=20`. |
-| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent skill hosts (e.g. Claude Code) | Usage rules, contract lookup workflow, anti-patterns, and self-checklists in [`SKILL.md`](skills/an-ui-kit/SKILL.md), [`references/an-button.md`](skills/an-ui-kit/references/an-button.md), and [`references/an-input.md`](skills/an-ui-kit/references/an-input.md). |
+| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent skill hosts (e.g. Claude Code) | Usage rules, contract lookup workflow, anti-patterns, and self-checklists in [`SKILL.md`](skills/an-ui-kit/SKILL.md) and [`references/`](skills/an-ui-kit/references) (one page per component, 16 in total). |
 
 ### Option 1: Install Source via shadcn CLI
 
@@ -391,7 +406,7 @@ an-ui-kit/
 ├─ apps/
 │  └─ demo/              # Browser verification: Native HTML / React 19 / Vue 3 / Tailwind v4
 ├─ registry/             # CEM-derived shadcn registry (index.json, item JSONs, files/)
-├─ skills/an-ui-kit/     # Agent skill (SKILL.md + references/an-button.md, an-input.md)
+├─ skills/an-ui-kit/     # Agent skill (SKILL.md + references/*.md, one per component)
 ├─ scripts/              # Zero-dependency scripts: a11y, CI assertions, registry generator
 ├─ custom-elements-manifest.json  # CEM 2.1.0 (single source of truth)
 ├─ CONTRACT.md           # 9 hard component contract rules
@@ -425,7 +440,7 @@ pnpm --filter demo typecheck  # Includes React event-name & Vue augmentation che
 pnpm --filter demo e2e        # Playwright: native / react / vue + Tailwind preflight
 ```
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push to `main` and pull request: `tokens build` → `elements typecheck / build / test` → CEM freshness, registry sync, skill sync, empty `dependencies`, git author, and `dist/index.js` gzip (`≤ 3072B`) assertions → `mcp build / test` → Playwright Chromium E2E across Native HTML, React 19, Vue 3, and Tailwind preflight.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push to `main` and pull request: `tokens build` → `elements typecheck / build / test` → CEM freshness, registry sync, skill sync, empty `dependencies`, git author, and `dist/index.js` gzip (`≤ 4096B base + 2048B × 16 components = 36864B`, measured 34649B) assertions → `mcp build / test` → Playwright Chromium E2E across Native HTML, React 19, Vue 3, and Tailwind preflight.
 
 ## Component Contract
 

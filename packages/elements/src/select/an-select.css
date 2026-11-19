@@ -1,23 +1,57 @@
-/* Hooks: --an-select-height | --an-select-bg | --an-select-fg | --an-select-border-color
-   | --an-select-radius | --an-select-font-size | --an-select-padding-x | --an-select-focus-ring.
+/* Hooks: --an-select-height | --an-select-bg | --an-select-fg
+   | --an-select-border-color | --an-select-radius | --an-select-font-size
+   | --an-select-padding-x | --an-select-focus-ring | --an-select-panel-bg
+   | --an-select-panel-max-height | --an-select-min-width.
    Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. */
 
 :host {
   display: inline-block;
   vertical-align: middle;
+  box-sizing: border-box;
+  border: 0 solid;
+  margin: 0;
+  line-height: 1.5;
   color-scheme: light dark;
+  font-family: inherit;
+  font-size: var(--an-select-font-size, var(--an-font-size-sm, 0.875rem));
+  --an-select-bg: var(--an-color-bg-1, #ffffff);
+  --an-select-fg: var(--an-color-fg-1, #18181b);
+  --an-select-border-color: var(--an-color-border-1, #d4d4d8);
+  --an-select-panel-bg: var(--an-color-bg-1, #ffffff);
 }
 
 :host([data-theme='dark']) {
   color-scheme: dark;
+  --an-select-bg: var(--an-color-bg-1, #18181b);
+  --an-select-fg: var(--an-color-fg-1, #f4f4f5);
+  --an-select-border-color: var(--an-color-border-1, #3f3f46);
+  --an-select-panel-bg: var(--an-color-bg-2, #27272a);
 }
 
 :host([data-theme='light']) {
   color-scheme: light;
+  --an-select-bg: var(--an-color-bg-1, #ffffff);
+  --an-select-fg: var(--an-color-fg-1, #18181b);
+  --an-select-border-color: var(--an-color-border-1, #d4d4d8);
+  --an-select-panel-bg: var(--an-color-bg-1, #ffffff);
 }
 
-/* The light-DOM <option> list feeds the inner <select>; it must never paint. */
+@media (prefers-color-scheme: dark) {
+  :host(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --an-select-bg: var(--an-color-bg-1, #18181b);
+    --an-select-fg: var(--an-color-fg-1, #f4f4f5);
+    --an-select-border-color: var(--an-color-border-1, #3f3f46);
+    --an-select-panel-bg: var(--an-color-bg-2, #27272a);
+  }
+}
+
+/* The light-DOM option list is data; it must never paint a second time. */
 ::slotted(option) {
+  display: none !important;
+}
+
+[hidden] {
   display: none !important;
 }
 
@@ -25,6 +59,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+  min-width: var(--an-select-min-width, 12rem);
   font-family: inherit;
 }
 
@@ -32,7 +67,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  color: var(--an-color-fg-1, #18181b);
+  color: var(--an-select-fg, var(--an-color-fg-1, #18181b));
   font-size: var(--an-font-size-sm, 0.875rem);
   line-height: 1.4;
 }
@@ -40,10 +75,14 @@
 .control {
   position: relative;
   display: block;
+  width: 100%;
 }
 
-.select {
+.trigger {
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   width: 100%;
   min-width: 0;
   height: var(--an-select-height, var(--an-space-9, 2.25rem));
@@ -54,26 +93,42 @@
   background: var(--an-select-bg, var(--an-color-bg-1, #ffffff));
   color: var(--an-select-fg, var(--an-color-fg-1, #18181b));
   font-family: inherit;
-  font-size: var(--an-select-font-size, var(--an-font-size-sm, 0.875rem));
+  font-size: inherit;
   line-height: 1.4;
+  text-align: left;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  user-select: none;
+  overflow: hidden;
 }
 
-.select:focus-visible {
+.trigger:focus-visible {
   outline: 2px solid var(--an-select-focus-ring, var(--an-color-accent-9, #2563eb));
   outline-offset: 1px;
   border-color: var(--an-select-focus-ring, var(--an-color-accent-9, #2563eb));
 }
 
-.select:disabled {
+.trigger[aria-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.select[aria-invalid='true'] {
+.trigger[aria-invalid='true'] {
   border-color: var(--an-color-danger-9, #dc2626);
+}
+
+.value,
+.placeholder {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placeholder {
+  color: var(--an-color-fg-3, #a1a1aa);
 }
 
 /* Self-drawn arrow: a border triangle, so no image asset is needed. */
@@ -91,7 +146,197 @@
   pointer-events: none;
 }
 
-:host([size='sm']) .select {
+.trigger.is-open .chevron {
+  transform: rotate(180deg);
+}
+
+.tags {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tag {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.125rem;
+  max-width: 9rem;
+  padding: 0.0625rem 0.25rem 0.0625rem 0.375rem;
+  border-radius: var(--an-radius-sm, 0.375rem);
+  background: var(--an-color-bg-2, #f4f4f5);
+  color: var(--an-select-fg, var(--an-color-fg-1, #18181b));
+  font-size: var(--an-font-size-xs, 0.8125rem);
+  line-height: 1.4;
+}
+
+.tag-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-remove {
+  padding: 0 0.125rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tag-remove:hover {
+  opacity: 1;
+}
+
+.tag-overflow {
+  flex: 0 0 auto;
+  color: var(--an-color-fg-3, #a1a1aa);
+  font-size: var(--an-font-size-xs, 0.8125rem);
+  white-space: nowrap;
+}
+
+.panel {
+  box-sizing: border-box;
+  min-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--an-select-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-select-radius, var(--an-radius-md, 0.5rem));
+  background: var(--an-select-panel-bg, var(--an-color-bg-1, #ffffff));
+  color: var(--an-select-fg, var(--an-color-fg-1, #18181b));
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%), 0 4px 6px -4px rgb(0 0 0 / 10%);
+  font-size: inherit;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0.375rem;
+  border-bottom: 1px solid var(--an-select-border-color, var(--an-color-border-1, #d4d4d8));
+}
+
+.search {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--an-space-8, 2rem);
+  padding: 0 0.5rem;
+  border: 1px solid var(--an-select-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-radius-sm, 0.375rem);
+  background: var(--an-select-bg, var(--an-color-bg-1, #ffffff));
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.search:focus-visible {
+  border-color: var(--an-select-focus-ring, var(--an-color-accent-9, #2563eb));
+}
+
+.listbox {
+  max-height: var(--an-select-panel-max-height, 20rem);
+  overflow-y: auto;
+  padding: 0.25rem;
+  overscroll-behavior: contain;
+}
+
+.option {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 0.5rem;
+  border-radius: var(--an-radius-sm, 0.375rem);
+  cursor: pointer;
+}
+
+.option[data-active='true'] {
+  background: var(--an-color-bg-2, #f4f4f5);
+}
+
+.option[aria-selected='true'] {
+  color: var(--an-color-accent-9, #2563eb);
+}
+
+.option[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.option-content {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-indicator {
+  flex: 0 0 auto;
+  width: 1rem;
+  text-align: center;
+  visibility: hidden;
+}
+
+.option[aria-selected='true'] .option-indicator {
+  visibility: visible;
+}
+
+.virtual-spacer {
+  position: relative;
+}
+
+.virtual-window,
+.virtual-active {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.empty,
+.loading {
+  padding: 0.75rem;
+  color: var(--an-color-fg-3, #a1a1aa);
+  text-align: center;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: an-select-spin 0.7s linear infinite;
+}
+
+@keyframes an-select-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+:host([size='sm']) .trigger {
   height: var(--an-select-height, var(--an-space-8, 2rem));
   padding: 0 calc(var(--an-select-padding-x, var(--an-space-2, 0.5rem)) + 1rem) 0
     var(--an-select-padding-x, var(--an-space-2, 0.5rem));
@@ -103,7 +348,7 @@
   right: var(--an-select-padding-x, var(--an-space-2, 0.5rem));
 }
 
-:host([size='lg']) .select {
+:host([size='lg']) .trigger {
   height: var(--an-select-height, var(--an-space-11, 2.75rem));
   padding: 0 calc(var(--an-select-padding-x, var(--an-space-4, 1rem)) + 1.25rem) 0
     var(--an-select-padding-x, var(--an-space-4, 1rem));

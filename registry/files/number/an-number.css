@@ -1,0 +1,131 @@
+/* Hooks: --an-number-height | --an-number-bg | --an-number-fg | --an-number-border-color
+   | --an-number-radius | --an-number-font-size | --an-number-padding-x
+   | --an-number-focus-ring | --an-number-stepper-width.
+   Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. Both theme
+   entries only switch `color-scheme`; the tokens resolve per scheme. */
+
+:host {
+  /* The four :host resets mirror src/internal/reset.css, which the base class adopts. */
+  box-sizing: border-box;
+  border: 0 solid;
+  margin: 0;
+  line-height: 1.5;
+  display: inline-block;
+  vertical-align: middle;
+  color-scheme: light dark;
+  font-family: inherit;
+  font-size: var(--an-number-font-size, var(--an-font-size-md, 1rem));
+  color: var(--an-number-fg, var(--an-color-fg-1, #18181b));
+}
+
+:host([data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:host([data-theme='light']) {
+  color-scheme: light;
+}
+
+.base {
+  display: inline-flex;
+  align-items: stretch;
+  font-family: inherit;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--an-number-height, var(--an-space-9, 2.25rem));
+  padding: 0 var(--an-number-padding-x, var(--an-space-3, 0.75rem));
+  border: 1px solid var(--an-number-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-number-radius, var(--an-radius-md, 0.5rem));
+  background: var(--an-number-bg, var(--an-color-bg-1, #ffffff));
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--an-number-font-size, var(--an-font-size-sm, 0.875rem));
+  line-height: 1;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--an-number-focus-ring, var(--an-color-accent-9, #2563eb));
+  outline-offset: 1px;
+  border-color: var(--an-number-focus-ring, var(--an-color-accent-9, #2563eb));
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--an-color-danger-9, #dc2626);
+}
+
+/* The stepper sits flush against the field, so the field's right corners go square. */
+:host([stepper]) .input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.stepper {
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  width: var(--an-number-stepper-width, var(--an-space-6, 1.5rem));
+}
+
+.spin {
+  display: inline-flex;
+  flex: 1 1 50%;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--an-number-border-color, var(--an-color-border-1, #d4d4d8));
+  border-left: 0;
+  background: var(--an-number-bg, var(--an-color-bg-1, #ffffff));
+  color: var(--an-number-fg, var(--an-color-fg-1, #18181b));
+  font-size: 0.625rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.spin-up {
+  border-radius: 0 var(--an-number-radius, var(--an-radius-md, 0.5rem)) 0 0;
+}
+
+.spin-down {
+  border-top: 0;
+  border-radius: 0 0 var(--an-number-radius, var(--an-radius-md, 0.5rem)) 0;
+}
+
+.spin:hover:not(:disabled) {
+  background: var(--an-color-bg-2, #f4f4f5);
+}
+
+.spin:focus-visible {
+  outline: 2px solid var(--an-number-focus-ring, var(--an-color-accent-9, #2563eb));
+  outline-offset: -2px;
+}
+
+.spin:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+:host([size='sm']) .input {
+  height: var(--an-number-height, var(--an-space-8, 2rem));
+  padding: 0 var(--an-number-padding-x, var(--an-space-2, 0.5rem));
+  border-radius: var(--an-number-radius, var(--an-radius-sm, 0.375rem));
+  font-size: var(--an-number-font-size, var(--an-font-size-xs, 0.8125rem));
+}
+
+:host([size='lg']) .input {
+  height: var(--an-number-height, var(--an-space-11, 2.75rem));
+  padding: 0 var(--an-number-padding-x, var(--an-space-4, 1rem));
+  border-radius: var(--an-number-radius, var(--an-radius-lg, 0.625rem));
+  font-size: var(--an-number-font-size, var(--an-font-size-md, 1rem));
+}

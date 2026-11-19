@@ -188,9 +188,464 @@ export async function runA11yChecks(
   return { ok: checks.every((check) => check.ok), checks, snapshot };
 }
 
+/** 任何带 `ok` + `checks` 的断言报告（button / 通用角色共用）。 */
+export interface A11yReportLike {
+  ok: boolean;
+  checks: A11yCheck[];
+  /** button 快照 / 通用角色快照，报告只用来打印，故只要求存在。 */
+  snapshot?: unknown;
+}
+
 /** 断言失败时打印用的可读摘要。 */
-export function formatA11yReport(report: A11yReport): string {
+export function formatA11yReport(report: A11yReportLike): string {
   return report.checks
     .map((check) => `${check.ok ? 'PASS' : 'FAIL'} ${check.id} — ${check.name} :: ${check.detail}`)
     .join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// 通用角色快照
+//
+// 表单族组件把真正的语义角色画在 Shadow DOM 里：`an-select` 的
+// combobox + listbox、`an-date` 的 dialog + grid、`an-number` 的 spinbutton、
+// `an-upload` 的可聚焦 dropzone、`an-checkbox-group` 的 group。这里只采集
+// 「带 role 或 part 的节点」作为事实，再按组件 profile 生成断言；不引入 axe-core。
+// ---------------------------------------------------------------------------
+
+/** Shadow DOM 里一个带角色/part 的节点事实。 */
+export interface A11yRoleNodeFact {
+  tagName: string;
+  role: string | null;
+  part: string | null;
+  text: string;
+  focusable: boolean | null;
+  tabIndex: string | null;
+  ariaLabel: string | null;
+  /** 解析 `aria-labelledby` 指向节点后的文本（Shadow DOM 内可见标签）。 */
+  labelledbyText: string;
+  ariaExpanded: string | null;
+  ariaHaspopup: string | null;
+  ariaMultiselectable: string | null;
+  ariaValuenow: string | null;
+  ariaValuemin: string | null;
+  ariaValuemax: string | null;
+  ariaRequired: string | null;
+  /** 自己或祖先带 `hidden`（面板收起时的状态）。 */
+  hidden: boolean;
+  disabled: boolean;
+}
+
+/** 一个宿主元素的通用无障碍快照。 */
+export interface A11yRoleSnapshot {
+  hostTag: string;
+  hasShadow: boolean;
+  hostFocusable: boolean | null;
+  hostTabIndex: string | null;
+  hostAriaLabel: string | null;
+  nodes: A11yRoleNodeFact[];
+}
+
+/** 通用角色断言的预期状态。 */
+export type A11yRoleProfile = 'select' | 'date' | 'upload' | 'number' | 'checkbox-group';
+
+export interface A11yRoleExpectation {
+  profile: A11yRoleProfile;
+  /** 组件当前应处于展开态（select / date）。 */
+  open?: boolean;
+  /** 多选 select 应暴露 aria-multiselectable。 */
+  multiple?: boolean;
+  /** inline 日期没有 combobox 触发器。 */
+  inline?: boolean;
+  /** spinbutton 的 aria-valuenow / min / max 期望。 */
+  value?: string;
+  min?: string;
+  max?: string;
+  /** number 是否应渲染步进按钮。 */
+  stepper?: boolean;
+  /** checkbox-group 是否 required。 */
+  required?: boolean;
+}
+
+/** 通用角色快照的 Playwright `Locator` 最小结构。 */
+export interface A11yRoleLocatorLike {
+  evaluate(snapshot: (element: Element) => A11yRoleSnapshot): Promise<A11yRoleSnapshot>;
+}
+
+/**
+ * 在浏览器上下文里采集角色事实。
+ * 注意：这个函数会被序列化进页面，不能引用模块作用域里的任何变量。
+ */
+export function snapshotA11yRoles(element: Element): A11yRoleSnapshot {
+  const host = element as HTMLElement;
+  const shadow = host.shadowRoot;
+  const root: ParentNode = shadow ?? host;
+  const active = (): Element | null => {
+    if (shadow) return shadow.activeElement;
+    return document.activeElement;
+  };
+
+  const readFocus = (node: Element): boolean | null => {
+    const html = node as HTMLElement;
+    if (html.hasAttribute('disabled') || html.closest('[hidden]') !== null) return null;
+    try {
+      html.focus();
+    } catch {
+      return null;
+    }
+    const focused = active() === html;
+    if (focused) html.blur();
+    return focused;
+  };
+
+  const read = (node: Element): A11yRoleNodeFact => {
+    const html = node as HTMLElement;
+    const tagName = node.tagName.toLowerCase();
+    const tabIndex = node.getAttribute('tabindex');
+    const focusable = tabIndex === '-1' ? null : readFocus(node);
+    const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    return {
+      tagName,
+      role: node.getAttribute('role'),
+      part: node.getAttribute('part'),
+      text,
+      focusable,
+      tabIndex,
+      ariaLabel: node.getAttribute('aria-label'),
+      labelledbyText: (() => {
+        const ids = (node.getAttribute('aria-labelledby') ?? '')
+          .split(/\s+/)
+          .filter((id) => id.length > 0);
+        return ids
+          .map((id) => {
+            const target = root.querySelector(`#${CSS.escape(id)}`);
+            return (target?.textContent ?? '').trim();
+          })
+          .join(' ')
+          .trim();
+      })(),
+      ariaExpanded: node.getAttribute('aria-expanded'),
+      ariaHaspopup: node.getAttribute('aria-haspopup'),
+      ariaMultiselectable: node.getAttribute('aria-multiselectable'),
+      ariaValuenow: node.getAttribute('aria-valuenow'),
+      ariaValuemin: node.getAttribute('aria-valuemin'),
+      ariaValuemax: node.getAttribute('aria-valuemax'),
+      ariaRequired: node.getAttribute('aria-required'),
+      hidden: html.closest('[hidden]') !== null,
+      disabled: html.hasAttribute('disabled') || html.getAttribute('aria-disabled') === 'true',
+    };
+  };
+
+  const seen = new Set<Element>();
+  const nodes: A11yRoleNodeFact[] = [];
+  const collect = (node: Element): void => {
+    if (seen.has(node)) return;
+    seen.add(node);
+    nodes.push(read(node));
+  };
+
+  if (host.hasAttribute('role') || host.hasAttribute('part')) collect(host);
+  for (const node of Array.from(root.querySelectorAll('[role], [part]'))) {
+    if (node === host) continue;
+    collect(node);
+  }
+
+  return {
+    hostTag: host.tagName.toLowerCase(),
+    hasShadow: shadow !== null,
+    hostFocusable: readFocus(host),
+    hostTabIndex: host.getAttribute('tabindex'),
+    hostAriaLabel: host.getAttribute('aria-label'),
+    nodes,
+  };
+}
+
+/** 把通用角色快照变成可读的断言结果（纯函数，Node 里跑）。 */
+export function evaluateRoleA11y(
+  snapshot: A11yRoleSnapshot,
+  expectation: A11yRoleExpectation,
+): A11yCheck[] {
+  const checks: A11yCheck[] = [];
+  const withRole = (role: string): A11yRoleNodeFact[] =>
+    snapshot.nodes.filter((node) => node.role === role);
+  const describe = (node: A11yRoleNodeFact | undefined): string =>
+    node === undefined
+      ? 'missing'
+      : `${node.tagName} part=${node.part ?? 'missing'} role=${node.role ?? 'missing'}`;
+
+  const push = (id: string, name: string, ok: boolean, detail: string): void => {
+    checks.push({ id, name, ok, detail });
+  };
+
+  const checkOneRole = (role: string, label: string): A11yRoleNodeFact | undefined => {
+    const found = withRole(role);
+    push(
+      `${role}-count`,
+      `${label}：恰好一个 role="${role}"`,
+      found.length === 1,
+      `count=${found.length} -> ${found.map(describe).join(' | ') || 'missing'}`,
+    );
+    return found[0];
+  };
+
+  switch (expectation.profile) {
+    case 'select': {
+      const combobox = checkOneRole('combobox', '触发器');
+      push(
+        'combobox-trigger-part',
+        'combobox 触发器带 part="trigger"',
+        combobox?.part === 'trigger',
+        describe(combobox),
+      );
+      push(
+        'combobox-focusable',
+        '启用状态下触发器可聚焦',
+        combobox?.focusable === true,
+        `focusable=${String(combobox?.focusable)} tabindex=${combobox?.tabIndex ?? 'missing'}`,
+      );
+      push(
+        'combobox-haspopup',
+        'combobox 声明 aria-haspopup="listbox"',
+        combobox?.ariaHaspopup === 'listbox',
+        `aria-haspopup=${combobox?.ariaHaspopup ?? 'missing'}`,
+      );
+      push(
+        'combobox-expanded',
+        'aria-expanded 与面板开合一致',
+        combobox?.ariaExpanded === String(expectation.open === true),
+        `aria-expanded=${combobox?.ariaExpanded ?? 'missing'} open=${String(expectation.open === true)}`,
+      );
+
+      const listbox = checkOneRole('listbox', '选项面板');
+      push(
+        'listbox-part',
+        'listbox 带 part="listbox"',
+        listbox?.part === 'listbox',
+        describe(listbox),
+      );
+      push(
+        'listbox-hidden-state',
+        '面板 hidden 与 open 状态一致',
+        listbox !== undefined && listbox.hidden === (expectation.open !== true),
+        `hidden=${String(listbox?.hidden)} open=${String(expectation.open === true)}`,
+      );
+      if (expectation.multiple) {
+        push(
+          'listbox-multiselectable',
+          '多选面板声明 aria-multiselectable="true"',
+          listbox?.ariaMultiselectable === 'true',
+          `aria-multiselectable=${listbox?.ariaMultiselectable ?? 'missing'}`,
+        );
+      }
+      if (expectation.open === true) {
+        const options = withRole('option');
+        const visibleOptions = options.filter((node) => !node.hidden);
+        push(
+          'option-count',
+          '展开时至少一个可见 option',
+          visibleOptions.length > 0,
+          `options=${options.length} visible=${visibleOptions.length}`,
+        );
+        push(
+          'option-accessible-name',
+          '可见 option 都有可访问名',
+          visibleOptions.length > 0 &&
+            visibleOptions.every((node) => (node.ariaLabel ?? node.text).length > 0),
+          `empty=${visibleOptions.filter((node) => (node.ariaLabel ?? node.text).length === 0).length}`,
+        );
+      }
+      break;
+    }
+
+    case 'date': {
+      const panel = checkOneRole('dialog', '日期面板');
+      push(
+        'date-panel-part',
+        '日期面板带 part="panel"',
+        panel?.part === 'panel',
+        describe(panel),
+      );
+      push(
+        'date-panel-hidden-state',
+        '面板 hidden 与 open 状态一致',
+        panel !== undefined && panel.hidden === (expectation.open !== true),
+        `hidden=${String(panel?.hidden)} open=${String(expectation.open === true)}`,
+      );
+      if (expectation.inline !== true) {
+        const combobox = checkOneRole('combobox', '日期输入框');
+        push(
+          'date-combobox-part',
+          '日期输入框带 part="input"',
+          combobox?.part === 'input',
+          describe(combobox),
+        );
+        push(
+          'date-combobox-focusable',
+          '日期输入框可聚焦',
+          combobox?.focusable === true,
+          `focusable=${String(combobox?.focusable)}`,
+        );
+        push(
+          'date-combobox-haspopup',
+          '日期输入框声明 aria-haspopup="dialog"',
+          combobox?.ariaHaspopup === 'dialog',
+          `aria-haspopup=${combobox?.ariaHaspopup ?? 'missing'}`,
+        );
+      }
+      if (expectation.open === true) {
+        const grid = checkOneRole('grid', '日历');
+        push(
+          'date-grid-part',
+          'grid 带 part="grid"',
+          grid?.part === 'grid',
+          describe(grid),
+        );
+        push(
+          'date-grid-accessible-name',
+          'grid 有可访问名',
+          grid?.ariaLabel !== null && (grid?.ariaLabel ?? '').trim().length > 0,
+          `aria-label=${JSON.stringify(grid?.ariaLabel)}`,
+        );
+        const cells = withRole('gridcell');
+        push(
+          'date-grid-cells',
+          'grid 含至少 28 个 gridcell',
+          cells.length >= 28,
+          `gridcell=${cells.length}`,
+        );
+        push(
+          'date-grid-cell-name',
+          'gridcell 有可访问名',
+          cells.length > 0 &&
+            cells.every((node) => (node.ariaLabel ?? node.text).length > 0),
+          `empty=${cells.filter((node) => (node.ariaLabel ?? node.text).length === 0).length}`,
+        );
+        const day = snapshot.nodes.find((node) => node.part === 'day');
+        push(
+          'date-day-roving-tabindex',
+          '日期按钮使用 roving tabindex（0 / -1）',
+          day !== undefined && (day.tabIndex === '0' || day.tabIndex === '-1'),
+          `part=day tabindex=${day?.tabIndex ?? 'missing'}`,
+        );
+      }
+      break;
+    }
+
+    case 'upload': {
+      const dropzone = checkOneRole('button', '上传触发区');
+      push(
+        'upload-dropzone-part',
+        '触发区带 part="dropzone"',
+        dropzone?.part === 'dropzone',
+        describe(dropzone),
+      );
+      push(
+        'upload-dropzone-focusable',
+        '启用状态下触发区可聚焦',
+        dropzone?.focusable === true,
+        `focusable=${String(dropzone?.focusable)} tabindex=${dropzone?.tabIndex ?? 'missing'}`,
+      );
+      push(
+        'upload-dropzone-name',
+        '触发区有可访问名',
+        dropzone?.ariaLabel !== null && (dropzone?.ariaLabel ?? '').trim().length > 0,
+        `aria-label=${JSON.stringify(dropzone?.ariaLabel)}`,
+      );
+      break;
+    }
+
+    case 'number': {
+      const spin = checkOneRole('spinbutton', '数字输入框');
+      push(
+        'number-input-part',
+        'spinbutton 带 part="input"',
+        spin?.part === 'input',
+        describe(spin),
+      );
+      push(
+        'number-input-focusable',
+        '启用状态下 spinbutton 可聚焦',
+        spin?.focusable === true,
+        `focusable=${String(spin?.focusable)}`,
+      );
+      if (expectation.value !== undefined) {
+        push(
+          'number-aria-valuenow',
+          'aria-valuenow 与当前值一致',
+          spin?.ariaValuenow === expectation.value,
+          `aria-valuenow=${spin?.ariaValuenow ?? 'missing'} expected=${expectation.value}`,
+        );
+      }
+      if (expectation.min !== undefined) {
+        push(
+          'number-aria-valuemin',
+          'aria-valuemin 与 min 一致',
+          spin?.ariaValuemin === expectation.min,
+          `aria-valuemin=${spin?.ariaValuemin ?? 'missing'} expected=${expectation.min}`,
+        );
+      }
+      if (expectation.max !== undefined) {
+        push(
+          'number-aria-valuemax',
+          'aria-valuemax 与 max 一致',
+          spin?.ariaValuemax === expectation.max,
+          `aria-valuemax=${spin?.ariaValuemax ?? 'missing'} expected=${expectation.max}`,
+        );
+      }
+      if (expectation.stepper === true) {
+        push(
+          'number-stepper-buttons',
+          '步进按钮带 aria-label 且可聚焦',
+          snapshot.nodes.filter(
+            (node) => (node.part === 'spin-up' || node.part === 'spin-down') && node.ariaLabel !== null,
+          ).length === 2,
+          `stepper=${snapshot.nodes.filter((node) => node.part === 'spin-up' || node.part === 'spin-down').length}`,
+        );
+      }
+      break;
+    }
+
+    case 'checkbox-group': {
+      const group = checkOneRole('group', '选项组');
+      push(
+        'group-part',
+        'group 带 part="group"',
+        group?.part === 'group',
+        describe(group),
+      );
+      push(
+        'group-accessible-name',
+        '选项组有可访问名',
+        group !== undefined &&
+          ((group.ariaLabel ?? group.labelledbyText ?? '').trim().length > 0 ||
+            group.text.length > 0),
+        `aria-label=${JSON.stringify(group?.ariaLabel)} text=${JSON.stringify(group?.text.slice(0, 40))}`,
+      );
+      push(
+        'group-required',
+        'aria-required 与 required 一致',
+        group?.ariaRequired === String(expectation.required === true),
+        `aria-required=${group?.ariaRequired ?? 'missing'} required=${String(expectation.required === true)}`,
+      );
+      break;
+    }
+  }
+
+  return checks;
+}
+
+/** 通用角色断言的一步到位入口。 */
+export async function runRoleA11yChecks(
+  locator: A11yRoleLocatorLike,
+  expectation: A11yRoleExpectation,
+): Promise<A11yRoleReport> {
+  const snapshot = await locator.evaluate(snapshotA11yRoles);
+  const checks = evaluateRoleA11y(snapshot, expectation);
+  return { ok: checks.every((check) => check.ok), checks, snapshot };
+}
+
+/** 通用角色的断言报告。 */
+export interface A11yRoleReport {
+  ok: boolean;
+  checks: A11yCheck[];
+  snapshot: A11yRoleSnapshot;
 }

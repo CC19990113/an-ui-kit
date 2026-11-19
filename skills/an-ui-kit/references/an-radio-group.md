@@ -12,7 +12,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 9 个组件
+import '@an-ui-kit/elements';            // 注册全部 16 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -175,10 +175,16 @@ function onChange(event: CustomEvent<{ value: string }>) {
 ## 反例
 
 ```html
-<!-- ❌ 找 an-form：没有这个组件，用原生 <form> -->
+<!-- ❌ 把 <an-form> 当 form owner：它不调 requestSubmit、不发请求 -->
 <an-form>
   <an-radio-group name="plan">...</an-radio-group>
 </an-form>
+
+<!-- ✅ 用原生 <form> 提交；<an-form> 只在没有原生 form 时做聚合 -->
+<form>
+  <an-radio-group name="plan">...</an-radio-group>
+  <an-button type="submit">保存</an-button>
+</form>
 
 <!-- ❌ 中间包一层 div：group 只认直接子元素 <an-radio> -->
 <an-radio-group name="plan">

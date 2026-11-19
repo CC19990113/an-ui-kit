@@ -6,6 +6,9 @@ export type Primitive = string | number | boolean;
 /** Defaults for attribute-backed properties; keys define the public API. */
 export type Defaults = Record<string, Primitive>;
 
+/** Defaults for list properties; an attribute holds the items comma-separated. */
+export type ArrayDefaults = Record<string, string[]>;
+
 /** `my-attr` -> `myAttr`, so an attribute can drive the camelCase property. */
 function toCamelCase(name: string): string {
   return name.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
@@ -14,6 +17,20 @@ function toCamelCase(name: string): string {
 /** `myAttr` -> `my-attr`, so a property can reflect to the attribute. */
 function toKebabCase(name: string): string {
   return name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+}
+
+/** `"a, b"` -> `['a', 'b']`; an absent attribute restores the fallback list. */
+function toList(value: string | null, fallback: readonly string[]): string[] {
+  if (value === null) return [...fallback];
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+/** Order-sensitive comparison, used to skip redundant writes and renders. */
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((part, index) => part === b[index]);
 }
 
 /**
@@ -36,6 +53,10 @@ function toKebabCase(name: string): string {
  *   and then gets `this.internals`, the platform lifecycle callbacks
  *   (`formAssociatedCallback`, `formResetCallback`, `formDisabledCallback`) and
  *   the protected `onFormReset` / `onFormDisabled` hooks.
+ * - `static arrayDefaults` opts an attribute into a comma-separated `string[]`
+ *   property. Elements that do not declare it keep a scalar-only API.
+ * - `checkValidity()` / `reportValidity()` / `reset()` / `getFormData()` wrap the
+ *   platform form surface so a subclass does not repeat it.
  */
 export abstract class AnElement extends HTMLElement {
   /** Shadow-DOM stylesheet source for this element. */
@@ -44,9 +65,18 @@ export abstract class AnElement extends HTMLElement {
   /** Attribute-backed properties and their defaults. */
   static defaults: Defaults = {};
 
+  /**
+   * Array-backed properties and their defaults. The attribute holds the items
+   * comma-separated (`items="a, b"`); the property is a `string[]`.
+   */
+  static arrayDefaults: ArrayDefaults = {};
+
   /** Attributes the browser reports to `attributeChangedCallback`. */
   static get observedAttributes(): string[] {
-    return Object.keys(this.defaults).map(toKebabCase);
+    return [
+      ...Object.keys(this.defaults).map(toKebabCase),
+      ...Object.keys(this.arrayDefaults).map(toKebabCase),
+    ];
   }
 
   /**
@@ -64,6 +94,8 @@ export abstract class AnElement extends HTMLElement {
 
   #defaults: Defaults = {};
   #values: Record<string, Primitive> = {};
+  #arrayDefaults: ArrayDefaults = {};
+  #arrays: Record<string, string[]> = {};
   #rendered = false;
   #reflecting = false;
   #fallbackStyle: HTMLStyleElement | null = null;
@@ -86,6 +118,11 @@ export abstract class AnElement extends HTMLElement {
 
     this.#defaults = ctor.defaults;
     this.#values = { ...ctor.defaults };
+    this.#arrayDefaults = ctor.arrayDefaults;
+    this.#arrays = {};
+    for (const key of Object.keys(ctor.arrayDefaults)) {
+      this.#arrays[key] = [...ctor.arrayDefaults[key]];
+    }
     this.#adoptStyles(root, `${resetStyles}\n${ctor.styles}`);
 
     for (const [key, fallback] of Object.entries(ctor.defaults)) {
@@ -95,6 +132,15 @@ export abstract class AnElement extends HTMLElement {
         enumerable: true,
         get: () => this.#values[key],
         set: (next: Primitive) => this.#assign(key, next, type),
+      });
+    }
+
+    for (const key of Object.keys(ctor.arrayDefaults)) {
+      Object.defineProperty(this, key, {
+        configurable: true,
+        enumerable: true,
+        get: () => [...(this.#arrays[key] ?? [])],
+        set: (next: string[] | string) => this.#assignList(key, next),
       });
     }
   }
@@ -137,6 +183,57 @@ export abstract class AnElement extends HTMLElement {
     this.onFormDisabled(disabled);
   }
 
+  /**
+   * Constraint validation in the owning form. Forwards to `ElementInternals`
+   * when available; without internals there is nothing to validate, so it
+   * reports `true`.
+   */
+  checkValidity(): boolean {
+    const internals = this.internals;
+    if (!internals || typeof internals.checkValidity !== 'function') return true;
+    return internals.checkValidity();
+  }
+
+  /** Like `checkValidity()`, but asks the platform to report the problem. */
+  reportValidity(): boolean {
+    const internals = this.internals;
+    if (!internals || typeof internals.reportValidity !== 'function') return true;
+    return internals.reportValidity();
+  }
+
+  /**
+   * Resets the control to the state it was mounted with and re-renders.
+   * Delegates to `formResetCallback()` so a subclass only overrides
+   * `onFormReset()`.
+   */
+  reset(): void {
+    this.formResetCallback();
+    this.requestUpdate();
+  }
+
+  /**
+   * Serializes this element the way `new FormData(form)` would: one row per
+   * `formEntries()` entry, or `null` when the element submits nothing.
+   */
+  getFormData(): FormData | null {
+    const entries = this.formEntries();
+    if (entries.length === 0) return null;
+    const data = new FormData();
+    for (const [name, value] of entries) data.append(name, value);
+    return data;
+  }
+
+  /**
+   * Rows this element contributes to `FormData`. Defaults to `name` + `value`
+   * when both are usable; subclasses with a richer payload override it.
+   */
+  protected formEntries(): Array<[string, string | File]> {
+    const { name, value } = this as unknown as { name?: unknown; value?: unknown };
+    if (typeof name !== 'string' || name.length === 0) return [];
+    if (typeof value !== 'string' && typeof value !== 'number') return [];
+    return [[name, String(value)]];
+  }
+
   /** Hook: connected and rendered; default no-op. */
   protected onConnect(): void {}
 
@@ -163,9 +260,36 @@ export abstract class AnElement extends HTMLElement {
   attributeChangedCallback(name: string, oldValue: string | null, value: string | null): void {
     if (oldValue === value) return;
     const key = toCamelCase(name);
+    if (key in this.#arrayDefaults) {
+      this.#arrays[key] = toList(value, this.#arrayDefaults[key]); // attribute -> list property
+      if (this.#rendered && !this.#reflecting) this.requestUpdate();
+      return;
+    }
     if (!(key in this.#defaults)) return;
     this.#values[key] = this.#coerce(key, value); // attribute -> camelCase property
     if (this.#rendered && !this.#reflecting) this.requestUpdate();
+  }
+
+  #assignList(key: string, next: string[] | string): void {
+    const value = Array.isArray(next)
+      ? next.map((part) => String(part).trim()).filter((part) => part.length > 0)
+      : toList(next, []);
+    if (sameList(this.#arrays[key] ?? [], value)) return;
+    this.#arrays[key] = value;
+    this.#reflectList(key, value);
+  }
+
+  #reflectList(key: string, value: string[]): void {
+    const attribute = toKebabCase(key);
+    const fallback = this.#arrayDefaults[key] ?? [];
+    this.#reflecting = true;
+    try {
+      if (value.length === 0 || sameList(value, fallback)) this.removeAttribute(attribute);
+      else this.setAttribute(attribute, value.join(','));
+    } finally {
+      this.#reflecting = false;
+    }
+    if (this.#rendered) this.requestUpdate();
   }
 
   #assign(key: string, next: Primitive, type: string): void {

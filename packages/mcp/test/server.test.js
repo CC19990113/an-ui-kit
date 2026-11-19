@@ -3,12 +3,27 @@
  * the official client, exactly the way an agent host would.
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * Expected components come from the same CEM the server reads, so adding a
+ * component never breaks this test as long as the manifest is rebuilt.
+ * Sorted the way the server sorts them (tagName.localeCompare).
+ */
+const expectedTagNames = [
+  ...new Set(
+    JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'))
+      .modules.flatMap((module) => module.declarations ?? [])
+      .filter((declaration) => declaration.customElement === true && typeof declaration.tagName === 'string')
+      .map((declaration) => declaration.tagName),
+  ),
+].sort((a, b) => a.localeCompare(b));
 
 let client;
 
@@ -43,23 +58,15 @@ test('tools/list exposes the three contract tools', async () => {
   assert.equal(byName.get('list_components').inputSchema.type, 'object');
 });
 
-test('list_components returns all nine components', async () => {
+test('list_components returns every component in the manifest', async () => {
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
 
+  assert.ok(expectedTagNames.length > 0, 'the generated manifest should declare at least one component');
   assert.deepEqual(
     components.map((component) => component.tagName),
-    [
-      'an-button',
-      'an-checkbox',
-      'an-field',
-      'an-input',
-      'an-radio',
-      'an-radio-group',
-      'an-select',
-      'an-switch',
-      'an-textarea',
-    ],
+    expectedTagNames,
   );
+  assert.equal(components.length, expectedTagNames.length);
   for (const component of components) {
     assert.equal(typeof component.name, 'string');
     assert.ok(component.name.length > 0, `${component.tagName}: declaration name should not be empty`);
@@ -164,12 +171,12 @@ test('unknown tagName returns a clear tool error, not a crash', async () => {
   assert.match(text, /Unknown component "an-nope"/);
   assert.match(
     text,
-    /Available components: an-button, an-checkbox, an-field, an-input, an-radio, an-radio-group, an-select, an-switch, an-textarea/,
+    new RegExp(`Available components: ${expectedTagNames.join(', ')}\\.`),
   );
 
   // The server must still answer after the error.
   const components = textPayload(await client.callTool({ name: 'list_components', arguments: {} }));
-  assert.equal(components.length, 9);
+  assert.equal(components.length, expectedTagNames.length);
 });
 
 test('search_components matches name, attribute, and miss', async () => {
@@ -180,10 +187,14 @@ test('search_components matches name, attribute, and miss', async () => {
   assert.equal(byAttribute.results[0].tagName, 'an-button');
   assert.ok(byAttribute.results[0].matches.includes('attribute:variant'));
 
+  // Case-insensitive class-name match: "ANBUTTON" only ever resolves to an-button
+  // ("button" alone also appears in an-form/an-number descriptions by design).
   const byName = textPayload(
-    await client.callTool({ name: 'search_components', arguments: { query: 'BUTTON' } }),
+    await client.callTool({ name: 'search_components', arguments: { query: 'ANBUTTON' } }),
   );
   assert.equal(byName.count, 1);
+  assert.equal(byName.results[0].tagName, 'an-button');
+  assert.ok(byName.results[0].matches.includes('name:AnButton'));
 
   const miss = textPayload(
     await client.callTool({ name: 'search_components', arguments: { query: 'nonexistent-widget' } }),

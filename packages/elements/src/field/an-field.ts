@@ -18,6 +18,11 @@ const CHANGE_EVENTS = [
   'an-radio-change',
   'an-select-change',
   'an-textarea-change',
+  'an-checkbox-group-change',
+  'an-number-change',
+  'an-date-change',
+  'an-date-range-change',
+  'an-upload-change',
 ] as const;
 
 /** Classic `<p id="x">` counter, so every field gets stable, unique ids. */

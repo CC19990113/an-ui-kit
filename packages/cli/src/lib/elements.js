@@ -7,7 +7,14 @@
  * `dist`，CLI 要给出「升级到带 src 的版本」这句人话，而不是抛栈。
  *
  * 标签与目录的对应关系沿用 CONTRACT.md §1：`src/<dir>/an-<tag>.ts` → `<tag>`；
- * 类名取该文件里 `export class <Name> extends AnElement`。
+ * 类名取该文件里 `export class <Name> extends (AnElement | HTMLElement)` 的
+ * `<Name>`，两条基类都合法，与仓库根 `scripts/lib/elements.mjs` 同一口径。
+ *
+ * 为什么也接受 `HTMLElement`：`AnElement` 是 shadow 组件的基类（自带
+ * `attachShadow` + 模板渲染）；无 shadow 的控制器/容器组件不需要 shadow root，
+ * 契约上直接 `extends HTMLElement` —— 例如 `<an-form>`：它作为透明容器用
+ * `display: contents` 留在 light DOM 里包住消费者自己的控件（shadow 会把外部
+ * 子节点挡在插槽另一侧，反而要额外转发）。标签推导规则完全相同，无需分叉。
  */
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -59,7 +66,8 @@ export function resolveElements() {
   const components = discoverComponents(srcDir);
   if (components.length === 0) {
     throw new CliError(
-      `在 ${srcDir} 里没有发现任何组件（约定：src/<dir>/an-<tag>.ts），这个版本的包可能是坏的。`,
+      `在 ${srcDir} 里没有发现任何组件（约定：src/<dir>/an-<tag>.ts 且导出 ` +
+        '`export class <Name> extends (AnElement | HTMLElement)`），这个版本的包可能是坏的。',
     );
   }
 
@@ -120,6 +128,9 @@ function resolvePackageJson() {
  * 扫描 `src/<dir>/an-<tag>.ts`。目录名不参与标签推导，但按目录名排序保证输出
  * 稳定（`list` 与产物里的注册顺序都可复现）。
  *
+ * 类名推导接受两条基类：shadow 组件 `extends AnElement`，无 shadow 控制器
+ * `extends HTMLElement`（如 `an-form`）；见文件头与 `scripts/lib/elements.mjs`。
+ *
  * @param {string} srcDir
  * @returns {Component[]}
  */
@@ -131,7 +142,9 @@ export function discoverComponents(srcDir) {
       if (!/^an-[a-z0-9]+(-[a-z0-9]+)*\.ts$/.test(file)) continue;
 
       const source = readFileSync(join(srcDir, dir, file), 'utf8');
-      const match = /export\s+class\s+([A-Za-z_$][\w$]*)\s+extends\s+AnElement\b/.exec(source);
+      const match = /export\s+class\s+([A-Za-z_$][\w$]*)\s+extends\s+(?:AnElement|HTMLElement)\b/.exec(
+        source,
+      );
       if (!match) continue;
 
       components.push({

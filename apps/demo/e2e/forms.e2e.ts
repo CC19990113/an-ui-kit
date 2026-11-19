@@ -111,7 +111,10 @@ function formEntries(page: Page): Promise<Record<string, string>> {
 async function fillTextControls(page: Page): Promise<void> {
   await page.locator(`${T('form-name')} input`).fill('Ada Lovelace');
   await page.locator(`${T('form-bio')} textarea`).fill('第一个程序员');
-  await page.locator(`${T('form-city')} select`).selectOption('bj');
+  // `<an-select>` 是自绘 listbox，不是原生 select：点触发器打开面板，再点选项。
+  const city = page.locator(T('form-city'));
+  await city.locator('[part="trigger"]').click();
+  await city.locator('[part="option"]', { hasText: '北京' }).click();
 }
 
 for (const framework of FRAMEWORKS) {
@@ -246,11 +249,10 @@ for (const framework of FRAMEWORKS) {
 
       await expect(name.locator('input')).toHaveValue('');
       await expect(bio.locator('textarea')).toHaveValue('');
-      await expect(city.locator('select')).toHaveValue('');
-      const placeholder = await city
-        .locator('select')
-        .evaluate((element) => (element as HTMLSelectElement).selectedOptions[0]?.textContent ?? '');
-      expect(placeholder, 'select 重置后应回到 placeholder').toBe('请选择');
+      // `<an-select>` 重置回空选择：value 清空、placeholder 重新可见。
+      await expect(city).toHaveJSProperty('value', '');
+      await expect(city.locator('[part="placeholder"]')).toBeVisible();
+      await expect(city.locator('[part="placeholder"]')).toHaveText('请选择');
 
       await expect(hobby).toHaveJSProperty('value', 'code');
       await expect(code).toHaveJSProperty('checked', true);
@@ -320,7 +322,9 @@ test.describe(`${TAILWIND.name} (${TAILWIND.path})`, () => {
 
     // 精简页只有 name / city / terms 三个控件（没有 bio textarea）。
     await page.locator(`${T('form-name')} input`).fill('Ada Lovelace');
-    await page.locator(`${T('form-city')} select`).selectOption('bj');
+    const city = page.locator(T('form-city'));
+    await city.locator('[part="trigger"]').click();
+    await city.locator('[part="option"]', { hasText: '北京' }).click();
     await control(page, 'form-terms').click();
     await submitButton(page).click();
     await expect.poll(async () => (await formState(page)).submit).toBe(1);
@@ -353,7 +357,8 @@ function snapshotControl(element: Element): FormControlSnapshot {
   const host = element as HTMLElement;
   const root = host.shadowRoot;
   const inner =
-    root?.querySelector('input, textarea, select, [role="radiogroup"], button') ?? null;
+    root?.querySelector('input, textarea, select, [role="radiogroup"], [role="combobox"], button') ??
+    null;
   const ariaLabel = (host.getAttribute('aria-label') ?? '').trim();
   const labelAttr = (host.getAttribute('label') ?? '').trim();
   const shadowLabelText = (root?.querySelector('label')?.textContent ?? '').trim();

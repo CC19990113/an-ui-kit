@@ -30,14 +30,26 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: BASE_URL,
-    channel: resolveChannel(),
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  /**
+   * 三个浏览器 project 跑同一套断言：Chromium / WebKit(Desktop Safari) / Firefox。
+   * `channel` 只给 chromium：本机没下 Playwright Chromium 时退回系统 Chrome；
+   * webkit / firefox 必须用 Playwright 自己的构建，不能套 channel。
+   */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel: resolveChannel() },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
     },
   ],
   webServer: {

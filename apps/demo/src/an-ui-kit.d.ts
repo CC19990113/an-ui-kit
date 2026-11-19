@@ -24,3 +24,84 @@ import type { GlobalComponents } from 'vue';
  */
 export type AnButtonVueComponent = GlobalComponents['AnButton'];
 export type AnInputVueComponent = GlobalComponents['AnInput'];
+
+/**
+ * 新增 7 个表单组件的 JSX intrinsics。
+ *
+ * 包内 `@an-ui-kit/elements/react` 目前只生成了 9 个旧标签的声明（在
+ * `packages/**`，本任务不改）。这里用 demo 本地 augmentation 补齐，避免
+ * `<an-form>` 等标签在 demo 的 typecheck 里报 TS2339；等包内类型跟上后
+ * 可以删掉这一段（改动只在 demo 侧，不影响运行时代码）。
+ */
+type FamilyElementAttributes = {
+  'data-testid'?: string;
+  class?: string;
+  className?: string;
+  name?: string;
+  label?: string;
+  value?: string | string[] | number;
+  values?: string;
+  placeholder?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+  precision?: string | number;
+  accept?: string;
+  action?: string;
+  method?: string;
+  'field-name'?: string;
+  'max-size'?: string | number;
+  'max-files'?: string | number;
+  'max-tags'?: string | number;
+  'auto-upload'?: string | boolean;
+  'end-name'?: string;
+  'first-day'?: string | number;
+  required?: boolean;
+  disabled?: boolean;
+  readonly?: boolean;
+  multiple?: boolean;
+  searchable?: boolean;
+  loading?: boolean;
+  stepper?: boolean;
+  inline?: boolean;
+  open?: boolean;
+  novalidate?: boolean;
+  virtual?: 'auto' | 'on' | 'off';
+  orientation?: 'vertical' | 'horizontal';
+  size?: 'sm' | 'md' | 'lg';
+  format?: string;
+  start?: string;
+  end?: string;
+  children?: import('react').ReactNode;
+};
+
+declare global {
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements {
+        'an-option': FamilyElementAttributes;
+        'an-upload': FamilyElementAttributes & {
+          'onan-upload-change'?: (event: CustomEvent) => void;
+          'onan-upload-reject'?: (event: CustomEvent) => void;
+        };
+        'an-number': FamilyElementAttributes & {
+          'onan-number-change'?: (event: CustomEvent) => void;
+        };
+        'an-date': FamilyElementAttributes & {
+          'onan-date-change'?: (event: CustomEvent) => void;
+        };
+        'an-date-range': FamilyElementAttributes & {
+          'onan-date-range-change'?: (event: CustomEvent) => void;
+        };
+        'an-checkbox-group': FamilyElementAttributes & {
+          'onan-checkbox-group-change'?: (event: CustomEvent) => void;
+        };
+        'an-form': FamilyElementAttributes & {
+          'onan-form-submit'?: (event: CustomEvent) => void;
+          'onan-form-invalid'?: (event: CustomEvent) => void;
+          'onan-form-reset'?: (event: CustomEvent) => void;
+        };
+      }
+    }
+  }
+}

@@ -3,221 +3,179 @@
 > 由 `packages/mcp/manifest.json`（仓库根 `custom-elements-manifest.json` 的拷贝）派生，表里的类型原文、事件名、CSS 变量、part 与 CEM 一致。
 > 改组件 JSDoc 后重新生成：仓库根 `pnpm cem`，再 `pnpm --filter @an-ui-kit/mcp build`。
 
-`<an-select>`：下拉选择。内部是 Shadow DOM 里的**真原生 `<select>`**，选项语义、键盘交互、移动端 picker 与读屏行为都来自平台；作者在 **light DOM** 里写 `<option>` 子元素，组件把它们镜像进 Shadow DOM 的 select（light DOM 的 option 用 `::slotted(option) { display: none }` 隐藏，`slotchange` 与 light DOM 变更都会重新同步）。
+`<an-select>`：自绘下拉选择器（不是原生 `<select>`）。作者把 `<an-option>`（或原生 `<option>`）写在 **light DOM**；select 通过 `MutationObserver` 读取并镜像到 shadow 内的 `role="listbox"` 面板。焦点始终留在 `role="combobox"` 的触发器上，用 `aria-activedescendant` 指向活动项，所以键盘操作能跨 shadow 重渲染存活。支持单选/多选、本地搜索、虚拟滚动与 tag 展示。
 
-宿主是 form-associated 自定义元素：`FormData`、`required` 约束校验、`form.reset()`、`<fieldset disabled>` 全部经 `ElementInternals` 走平台语义。`value` 只作**初始选择**：attribute 不随用户选择回写；没有有效选中时 `setFormValue(null)`。
+为什么不用原生 `<select>`：原生元素的选项渲染、多选交互与样式在跨浏览器/移动端不可控；这里只借平台的输入与可访问性语义，下拉本身自己画。
 
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 9 个组件
+import '@an-ui-kit/elements';            // 注册全部 16 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
-`@an-ui-kit/elements` 注册全部组件（根入口）。
-
-React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要配 `isCustomElement`（见 [../SKILL.md](../SKILL.md) 规则 9）。
+`@an-ui-kit/elements` 注册全部组件（根入口）。React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要配 `isCustomElement`（见 [../SKILL.md](../SKILL.md) 规则 9）。
 
 ## Attributes
 
 | 名称 | 类型（CEM 原文） | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `value` | `string` | `""` | 初始选择。attribute 只在挂载时 seed，用户选择**不回写** attribute |
-| `label` | `string` | `""` | 可见 `<label>` 文本；同时给控件提供可访问名称 |
-| `placeholder` | `string` | `""` | 非空时在最前面插入一个 `value=""` 的禁用占位项 |
-| `size` | `('sm'\|'md'\|'lg')` | `"md"` | 控件尺寸 |
-| `disabled` | `boolean` | `false` | 禁用内部 select；从 `FormData` 移除且不参与校验 |
-| `required` | `boolean` | `false` | 参与约束校验：`value === ""` 时 `valueMissing` |
-| `invalid` | `boolean` | `false` | 视觉无效态：加 `aria-invalid="true"` 与错误样式；不改变校验结果 |
-| `name` | `string` | `""` | `FormData` 字段名；空字符串表示不提交 |
+| `label` | `string` | `""` | 触发器上方的可见标签 |
+| `placeholder` | `string` | `""` | 未选择时的占位文本 |
+| `size` | `'sm' \| 'md' \| 'lg'` | `md` | 控件尺寸 |
+| `name` | `string` | `""` | 表单字段名 |
+| `disabled` | `boolean` | `false` | 禁用交互与表单提交 |
+| `required` | `boolean` | `false` | 无有效选择时 `valueMissing` |
+| `invalid` | `boolean` | `false` | 视觉错误态 + `aria-invalid`（不参与约束校验） |
+| `value` | `string` | `""` | 单选值；property setter 不回写 attribute |
+| `values` | `string` | `""` | 多选值的逗号分隔 attribute；property 为 `string[]` |
+| `multiple` | `boolean` | `false` | 多选模式 |
+| `searchable` | `boolean` | `false` | 面板内显示本地搜索框 |
+| `loading` | `boolean` | `false` | 面板显示加载行 |
+| `virtual` | `'auto' \| 'on' \| 'off'` | `auto` | 长列表虚拟滚动；`auto` 在超过阈值时开启 |
+| `max-tags` | `number` | — | 触发器最多展示几个 tag（多选） |
+| `open` | `boolean` | `false` | 受控开合状态；与 `open` property 双向反射 |
 
-布尔 attribute 只认「存在/不存在」：`required` 与 `required="false"` 都是必填。
+补充：
 
-补充（源码行为，不在上面这张表里）：
-
-- 没有 `value` attribute 时，按原生规则取「最后一个带 `selected` 的 option」，否则取第一项；有 `placeholder` 时占位项是首项且默认选中（`value=""`），但显式 `selected` 的 option 仍优先。
-- `value` 匹配不到任何选项时，内部 select 的原生赋值会落到空值（`value === ""`）——不会自动回落到第一项。
-- light DOM 里非 `<option>` 的子元素会被忽略；选项文本取 `option.textContent`，`disabled` 与 `selected` 会一起镜像。
+- `value` / `values` 只作初始 seed：用户选择**不回写** attribute；读当前值用 property。
+- 多选时 attribute `values="a,b"` 是逗号序列化，property 是 `string[]`；值本身含逗号时必须走 property（CONTRACT 附录 D.1）。
+- 选项从 light DOM 直接子元素读取（`this.children`）；非 option 子元素忽略，嵌套列表不读。
+- 布尔 attribute 只认「存在/不存在」。
 
 ## 事件
 
 | 名称 | detail | 触发条件 |
 | --- | --- | --- |
-| `an-select-change` | `CustomEvent<{ value: string, originalEvent: Event }>` | 用户选了另一个选项；`disabled` 时不派发 |
+| `an-select-change` | `{ value: string, values: string[], option: { value, label, disabled } \| null, originalEvent: Event }` | 用户改变选择 |
+| `an-select-open` | — | 面板打开 |
+| `an-select-close` | — | 面板关闭 |
+| `an-search` | `{ query: string }` | `searchable` 时输入防抖 150ms 后 |
 
-- 事件 `bubbles: true`、`composed: true`：跨 Shadow DOM 边界冒泡，监听时 `event.target` 是 `<an-select>` 本身。
-- 只在用户交互时派发；代码改 `value` 不发事件。
-- 原生：`el.addEventListener('an-select-change', (event) => event.detail.value)`。
-- Vue：`@an-select-change="handler"`。React 19：`onan-select-change={handler}`。
+- 全部 `bubbles: true`、`composed: true`，监听时 `event.target` 是 `<an-select>`。
+- 程序化 `selectAll()` / `clear()` / property 写入不发 `an-select-change`（与原生 `select` 一致：代码改值不触发用户事件）。
+- `an-search` 用本地过滤；要远程搜索就监听它并重建 `<an-option>` 列表。
+
+## 方法 / 公开 property
+
+| 名称 | 说明 |
+| --- | --- |
+| `get/set value` | 单选值；`''` 表示未选 |
+| `get/set values` | 多选值 `string[]`；setter 也接受逗号字符串 |
+| `get/set open` | 受控开合；布尔 attribute 反射 |
+| `get isOpen` | 只读，面板实际是否打开 |
+| `get options` | 当前选项快照 `{ value, label, disabled }[]` |
+| `show()` / `close()` / `toggle()` | 打开 / 关闭 / 切换面板；**没有 `open()` 方法**（CONTRACT 附录 D.2） |
+| `selectAll()` | 选中全部启用项；单选时只选第一个 |
+| `clear()` | 清空选择 |
+
+## Slots
+
+| 名称 | 说明 |
+| --- | --- |
+| （默认） | `<an-option>` 或原生 `<option>` 子项，留在 light DOM |
+
+## CSS Parts
+
+| 名称 | 说明 |
+| --- | --- |
+| `base` | label 与控件的列容器 |
+| `label` | 可见标签 |
+| `trigger` | `role="combobox"` 触发器 |
+| `placeholder` | 占位文本 |
+| `tags` | 多选 tag 的容器 |
+| `tag` | 多选 tag |
+| `tag-remove` | tag 上的移除按钮 |
+| `panel` | 浮层面板 |
+| `search` | 搜索输入框 |
+| `listbox` | `role="listbox"` 滚动容器 |
+| `option` | 单个列表项 |
+| `option-indicator` | 选中勾选标记 |
+| `empty` | 无结果行 |
+| `loading` | 加载行 |
 
 ## CSS 自定义属性
 
 | 名称 | 说明 |
 | --- | --- |
-| `--an-select-height` | 控件高度；默认 `2.25rem`（`sm` 2rem、`lg` 2.75rem） |
-| `--an-select-bg` | 背景色；默认 `--an-color-bg-1` |
-| `--an-select-fg` | 文本与箭头颜色；默认 `--an-color-fg-1` |
-| `--an-select-border-color` | 边框色；默认 `--an-color-border-1` |
-| `--an-select-radius` | 圆角；默认 `--an-radius-md` |
-| `--an-select-font-size` | 字号；默认 `--an-font-size-sm` |
-| `--an-select-padding-x` | 水平内边距；默认 `--an-space-3` |
-| `--an-select-focus-ring` | 聚焦描边颜色；默认 `--an-color-accent-9` |
+| `--an-select-height` | 触发器高度 |
+| `--an-select-bg` | 触发器背景 |
+| `--an-select-fg` | 触发器文本色 |
+| `--an-select-border-color` | 触发器边框色 |
+| `--an-select-radius` | 触发器圆角 |
+| `--an-select-font-size` | 触发器字号 |
+| `--an-select-padding-x` | 触发器水平内边距 |
+| `--an-select-focus-ring` | 聚焦轮廓色 |
+| `--an-select-panel-bg` | 面板背景 |
+| `--an-select-panel-max-height` | 列表最大高度 |
+| `--an-select-min-width` | 控件最小宽度 |
 
-## CSS Parts
+## 用法与注意事项
 
-| part | 说明 |
-| --- | --- |
-| `base` | 外层容器 |
-| `label` | 可见 `<label>`；`label` 非空时才渲染 |
-| `select` | 内部的原生 `<select>` 元素 |
-| `chevron` | 盖在 select 上的装饰箭头（`aria-hidden`） |
-
-## 主题
-
-- 显式：`<html data-theme="dark">`（或祖先元素），也可以在 `<an-select data-theme="dark">` 上局部设置；组件会同步 `color-scheme`。
-- 系统：`prefers-color-scheme` 自动跟随；显式 `data-theme="light"` 能击败系统暗色。
-- 颜色只来自 `--an-color-*` token，组件 CSS 内的 fallback 只用于没加载 tokens 的场景。
-
-## 示例
-
-### 原生 HTML
+### 单选与多选
 
 ```html
-<form id="address">
-  <an-select name="city" label="城市" placeholder="请选择城市" required>
-    <option value="bj">北京</option>
-    <option value="sh">上海</option>
-    <option value="gz" disabled>广州（暂不可选）</option>
-  </an-select>
-  <an-button type="submit" variant="primary">保存</an-button>
-</form>
+<!-- 单选 -->
+<an-select name="city" label="城市" placeholder="请选择" required>
+  <an-option value="bj">北京</an-option>
+  <an-option value="sh">上海</an-option>
+</an-select>
 
-<script type="module">
-  import '@an-ui-kit/elements';
-
-  const form = document.querySelector('#address');
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    console.log(new FormData(form).get('city')); // "bj" 或 null
-  });
-
-  form.addEventListener('an-select-change', (event) => {
-    console.log(event.detail.value);
-  });
-</script>
+<!-- 多选 -->
+<an-select name="tags" label="标签" multiple searchable max-tags="3">
+  <an-option value="a">A</an-option>
+  <an-option value="b">B</an-option>
+  <an-option value="c">C</an-option>
+</an-select>
 ```
 
-### React 19
-
-```tsx
-import '@an-ui-kit/elements';
-import '@an-ui-kit/tokens/tokens.css';
-import type {} from '@an-ui-kit/elements/react';
-
-import { useState } from 'react';
-
-export function CityPicker() {
-  // value 只做初始值：state 只存回显，不要把 value 当受控属性绑回去。
-  const [city, setCity] = useState('bj');
-
-  return (
-    <>
-      <an-select
-        name="city"
-        label="城市"
-        placeholder="请选择城市"
-        value="bj"
-        required
-        onan-select-change={(event) => setCity(event.detail.value)}
-      >
-        <option value="bj">北京</option>
-        <option value="sh">上海</option>
-      </an-select>
-      <p>已选：{city}</p>
-    </>
-  );
-}
+```js
+const tags = document.querySelector('an-select[multiple]');
+tags.values = ['a', 'b'];              // property：权威读写面
+console.log(tags.values);              // ['a','b']
+tags.addEventListener('an-select-change', (event) => {
+  console.log(event.detail.values);
+});
 ```
 
-### Vue 3
+### 多值与序列化
 
-```vue
-<script setup lang="ts">
-import '@an-ui-kit/elements';
-import '@an-ui-kit/tokens/tokens.css';
+- 读 `.values`（数组），不要 `split(',')` attribute。
+- 值里含逗号时只能走 property：`select.values = ['a,b']`；`values="a,b"` 会被解析成两个值。
+- `FormData` 每个选中值单独一条 `name` 记录；用 `getAll(name)` 取全部。
 
-import { ref } from 'vue';
+### 开合契约与浮层
 
-const city = ref('bj');
+- `open` 只做布尔 attribute；方法 `show()` / `close()` / `toggle()`；只读 `isOpen`；**没有 `open()` 方法**（CONTRACT 附录 D.2）。
+- 面板留在 shadow 内，有 Popover API 时用 `popover="manual"` 进 top-layer，否则回退 `position: fixed`；视口坐标 + flip/shift，不依赖 `offsetParent`（附录 D.3）。
+- Esc、点击外部、选中单项后关闭；多选模式选中后保持打开。
 
-function onChange(event: CustomEvent<{ value: string }>) {
-  city.value = event.detail.value;
-}
-</script>
+### 搜索与虚拟滚动
 
-<template>
-  <an-select name="city" label="城市" placeholder="请选择城市" value="bj" required @an-select-change="onChange">
-    <option value="bj">北京</option>
-    <option value="sh">上海</option>
-  </an-select>
-  <p>已选：{{ city }}</p>
-</template>
-```
+- `searchable` 的过滤是**本地**的：按选项文本匹配；`an-search` 只是把防抖后的 query 告诉你，组件不会替你请求远端。
+- `virtual="auto"` 在可见项超过阈值时启用；不要自己给 `listbox` 加固定高度覆盖虚拟窗口计算。
 
-### 表单语义
+### 表单与可访问性
 
-`<an-select>` 是 form-associated 自定义元素（`static formAssociated = true` + `ElementInternals`）。内部原生 select 在 Shadow DOM 里，不参与外层 `<form>`，所以提交值由宿主自己登记：
+- form-associated：`name` 有值时进 `FormData`；`disabled`（含祖先 `<fieldset disabled>`）时不提交、不校验。
+- `invalid` 只是视觉状态；真正的校验来自 `required` + `setValidity()`。
+- 触发器是 `role="combobox"`，面板是 `role="listbox"`，活动项用 `aria-activedescendant`；不要给内部节点加 `tabindex`。
 
-- 选中非空值：`setFormValue(value)` —— 提交 `name=value`。
-- 没有有效选中（`value === ""`，例如占位项被选中）：`setFormValue(null)`，不产生条目。
-- `required` + `value === ""`：`setValidity({ valueMissing: true }, …)`，`form.requestSubmit()` 被拦下。
-- `disabled`（自身或祖先 `<fieldset disabled>`）：`setFormValue(null)` + `setValidity({})`，不进 `FormData`、不参与校验。
-- `form.reset()`：回到挂载时的初始选择（`value` attribute，或 markup 里 `selected` / 第一项）。
-- `invalid` 只负责视觉，不改变 `validity`；`<an-field>` 捕获 `invalid` 后显示平台 `validationMessage`。
-- 运行时增删 light DOM 的 `<option>` 会自动镜像到内部 select，并被 `MutationObserver` 捕获。
-
-## a11y 注意事项
-
-- `label` 非空时用同 Shadow DOM 的 `<label>` 包裹内部 select（隐式关联）；没有可见 label 时，宿主 `aria-label` / `aria-labelledby` 会转发给内部 select。
-- 内部是真原生 `<select>`：方向键、Home/End、首字母跳转、移动端 picker 都是平台行为，不要用 `div role="listbox"` 重造。
-- `required` / `disabled` / `invalid` 会同步为 `aria-required` / `aria-disabled` / `aria-invalid`。
-- 用 `<an-field>` 包裹时，label/hint/error 由 field 负责；select 自己的 `label` 与 field 的 `label` 不要重复写。
-- 占位项是 `disabled` + `value=""`：它不会作为有效值提交，但仍会被读屏读成「未选择」的提示。
-
-## 反例
+### 反例 → 正例
 
 ```html
-<!-- ❌ 用 div/li 当选项：只有 light DOM 的 <option> 会被镜像 -->
-<an-select name="city" label="城市">
-  <div role="option" data-value="bj">北京</div>
-</an-select>
+<!-- ❌ 还按原生 select 写 option.selected 并期待回写 -->
+<an-select name="city"><option value="bj" selected>北京</option></an-select>
 
-<!-- ❌ 把 option 塞进组件内部的想象 slot：没有 slot，直接写子元素 -->
-<an-select name="city" label="城市">
-  <span slot="options"><option value="bj">北京</option></span>
-</an-select>
+<!-- ✅ 用 an-option；初始值用 value attribute 或 property -->
+<an-select name="city" value="bj"><an-option value="bj">北京</an-option></an-select>
 
-<!-- ❌ 布尔 attribute 不看值："false" 仍然算禁用 -->
-<an-select disabled="false">...</an-select>
+<!-- ❌ 嵌套一层容器再放选项 -->
+<an-select name="city"><div><an-option value="bj">北京</an-option></div></an-select>
 
-<!-- ❌ 指望 value attribute 跟着用户选择更新 -->
-<an-select value="bj">...</an-select>
-<!-- 用户改选上海后 getAttribute('value') 仍是 "bj" -->
-```
+<!-- ✅ 选项必须是直接子元素 -->
+<an-select name="city"><an-option value="bj">北京</an-option></an-select>
 
-```ts
-// ❌ 监听内部原生 select 的 change：它跨 shadow 边界不可达
-select.addEventListener('change', handler);
-
-// ✅ 监听组件自己的事件
-selectEl.addEventListener('an-select-change', (event) => console.log(event.detail.value));
-```
-
-```css
-/* ❌ Shadow DOM 内部选不到，静默失效 */
-an-select select { border: 2px solid red; }
-
-/* ✅ 公开 part / 变量 */
-an-select::part(select) { border-width: 2px; }
-an-select { --an-select-border-color: red; }
+<!-- ❌ 自己监听内部 option 的点击做业务 -->
+<!-- ✅ 监听 an-select-change -->
 ```
