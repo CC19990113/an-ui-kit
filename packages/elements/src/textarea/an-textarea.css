@@ -72,3 +72,33 @@
 .textarea[aria-invalid='true'] {
   border-color: var(--an-color-danger-9, #dc2626);
 }
+
+/* Character counter (`show-count`); sits under the control, right-aligned. */
+.count {
+  align-self: flex-end;
+  color: var(--an-color-fg-3, #a1a1aa);
+  font-size: var(--an-font-size-xs, 0.75rem);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Windows high-contrast: let the system palette drive borders, focus and text. */
+@media (forced-colors: active) {
+  .textarea {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .textarea:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .textarea:disabled {
+    color: GrayText;
+  }
+
+  .count {
+    color: CanvasText;
+  }
+}

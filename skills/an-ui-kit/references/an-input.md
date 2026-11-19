@@ -32,6 +32,14 @@ React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要�
 | `required` | `boolean` | 不设置 = `false` | 通过 `setValidity({ valueMissing })` 参与外层 form 的约束校验（空值时拦住提交） |
 | `invalid` | `boolean` | 不设置 = `false` | 外部错误态：映射成 `aria-invalid="true"` + 错误边框（不自己算校验结果） |
 | `name` | `string` | `""` | 表单字段名，即 `FormData` 的 key |
+| `maxlength` | `number` | `-1` | 最大字符数，转发给内部 input；`-1` 表示不限 |
+| `clearable` | `boolean` | 不设置 = `false` | 有值时显示清除按钮 |
+| `show-count` | `boolean` | 不设置 = `false` | 显示 `value.length/maxlength`（无 `maxlength` 时只显示长度） |
+| `prefix` | `string` | `""` | 输入框前缀文本；`slot="prefix"` 优先于它 |
+| `suffix` | `string` | `""` | 输入框后缀文本；`slot="suffix"` 优先于它 |
+| `autocomplete` | `string` | `""` | autocomplete 提示，转发给内部 input |
+| `spellcheck` | `boolean` | `true` | 是否启用平台拼写检查（默认 `true`，写 `spellcheck="false"` 关闭） |
+| `inputmode` | `string` | `""` | 虚拟键盘提示，转发给内部 input |
 
 布尔 attribute 只认「存在/不存在」：`disabled` 与 `disabled="false"` 都是禁用；要恢复就 `removeAttribute`。
 

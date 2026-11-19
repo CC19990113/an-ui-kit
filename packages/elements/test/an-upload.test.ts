@@ -348,7 +348,11 @@ describe('an-upload rendering', () => {
     const dropzone = inner<HTMLElement>(element, '.dropzone');
     expect(dropzone.getAttribute('role')).toBe('button');
     expect(dropzone.getAttribute('tabindex')).toBe('0');
-    expect(dropzone.getAttribute('aria-label')).toBe('选择文件');
+    expect(dropzone.hasAttribute('aria-label')).toBe(false);
+    expect(dropzone.hasAttribute('aria-labelledby')).toBe(false);
+    const trigger = inner<HTMLElement>(element, '[part~="trigger"]');
+    expect(trigger.textContent?.trim()).toBe('选择文件');
+    expect(trigger.closest('[aria-hidden="true"]')).toBeNull();
 
     const input = inner<HTMLInputElement>(element, 'input[type="file"]');
     expect(input.type).toBe('file');
@@ -356,6 +360,25 @@ describe('an-upload rendering', () => {
 
     expect(inner(element, '[part~="trigger"]').textContent).toContain('选择文件');
     expect(inner(element, '[part~="empty"]').textContent).toContain('未选择文件');
+  });
+
+  it('uses the visible custom trigger slot content for the dropzone name', () => {
+    const element = mount();
+    const trigger = document.createElement('span');
+    trigger.slot = 'trigger';
+    trigger.innerHTML = '<strong>上传附件</strong>，或拖放文件到此处';
+    element.append(trigger);
+
+    const dropzone = inner<HTMLElement>(element, '.dropzone');
+    const slot = inner<HTMLSlotElement>(element, 'slot[name="trigger"]');
+    expect(dropzone.getAttribute('role')).toBe('button');
+    expect(dropzone.hasAttribute('aria-label')).toBe(false);
+    expect(dropzone.hasAttribute('aria-labelledby')).toBe(false);
+    expect(slot.assignedElements()).toEqual([trigger]);
+    expect(slot.assignedNodes().map((node) => node.textContent).join('')).toBe(
+      '上传附件，或拖放文件到此处',
+    );
+    expect(trigger.closest('[aria-hidden="true"]')).toBeNull();
   });
 
   it('forwards accept, multiple and disabled to the inner input', () => {
@@ -439,15 +462,31 @@ describe('an-upload opening the picker', () => {
     expect(click).toHaveBeenCalledTimes(2);
   });
 
-  it('does not open the picker while disabled', () => {
+  it.each([false, true])('keeps its name readable without opening while disabled (custom trigger: %s)', (custom) => {
     const element = mount({ disabled: true });
+    if (custom) {
+      const trigger = document.createElement('span');
+      trigger.slot = 'trigger';
+      trigger.textContent = '上传附件';
+      element.append(trigger);
+    }
     const input = inner<HTMLInputElement>(element, 'input[type="file"]');
     const click = vi.spyOn(input, 'click').mockImplementation(() => {});
-    expect(element.open).toBeTypeOf('function');
+    const dropzone = inner<HTMLElement>(element, '.dropzone');
+    expect(dropzone.getAttribute('role')).toBe('button');
+    expect(dropzone.getAttribute('aria-disabled')).toBe('true');
+    expect(dropzone.getAttribute('tabindex')).toBe('-1');
+    expect(dropzone.hasAttribute('aria-label')).toBe(false);
+    expect(dropzone.hasAttribute('aria-labelledby')).toBe(false);
+    const slot = inner<HTMLSlotElement>(element, 'slot[name="trigger"]');
+    const content = custom ? slot.assignedElements()[0] : inner(element, '[part~="trigger"]');
+    expect(content.textContent?.trim()).toBe(custom ? '上传附件' : '选择文件');
+    expect(content.closest('[aria-hidden="true"]')).toBeNull();
     element.open();
-    inner<HTMLElement>(element, '.dropzone').dispatchEvent(
-      new MouseEvent('click', { bubbles: true, composed: true }),
-    );
+    dropzone.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    for (const key of ['Enter', ' ']) {
+      dropzone.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true }));
+    }
     expect(click).not.toHaveBeenCalled();
   });
 
@@ -1098,5 +1137,364 @@ describe('an-upload stylesheet contract', () => {
     expect(uploadCssSource).toContain('--an-color-border-1');
     expect(uploadCssSource).toContain('--an-color-accent-9');
     expect(uploadCssSource).toContain('--an-color-danger-9');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `list-type="picture"`: thumbnail grid for images, icon + extension otherwise.
+// ---------------------------------------------------------------------------
+
+/** Every queued row, in paint order. */
+function rows(element: AnUpload): HTMLElement[] {
+  return [...element.shadowRoot!.querySelectorAll<HTMLElement>('[part~="item"]')];
+}
+
+/** The queue list element. */
+function queue(element: AnUpload): HTMLElement {
+  return inner<HTMLElement>(element, '[part~="list"]');
+}
+
+/** Order of the file names as painted, which mirrors `files`. */
+function rowNames(element: AnUpload): string[] {
+  return rows(element).map(
+    (row) => row.querySelector('[part~="item-name"]')?.textContent?.trim() ?? '',
+  );
+}
+
+/** The thumbnail (image) or icon (everything else) node of one row. */
+function thumbOf(row: HTMLElement): Element | null {
+  return row.querySelector('[part~="item-thumb"],[part~="item-icon"],img');
+}
+
+describe('an-upload list-type="picture"', () => {
+  it('paints an <img> thumbnail for image files', () => {
+    const element = mount({ 'list-type': 'picture', multiple: true });
+    select(element, [file('photo.png', 'image/png')]);
+
+    const row = rows(element)[0];
+    const thumb = row.querySelector('[part~="item-thumb"]')!;
+    expect(thumb).not.toBeNull();
+    const image = thumb.querySelector('img');
+    expect(image).not.toBeNull();
+    // The preview URL comes from `URL.createObjectURL`.
+    expect(image!.getAttribute('src')).toBe('blob:preview');
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    // The thumbnail is decorative: the row's `item-name` carries the name.
+    expect(thumb.getAttribute('aria-hidden')).toBe('true');
+    expect(row.querySelector('[part~="item-name"]')!.textContent).toBe('photo.png');
+  });
+
+  it('shows the file name and its extension for a non-image file', () => {
+    const element = mount({ 'list-type': 'picture', multiple: true });
+    select(element, [file('report.pdf', 'application/pdf')]);
+
+    const row = rows(element)[0];
+    const thumb = row.querySelector('[part~="item-thumb"]')!;
+    expect(thumb).not.toBeNull();
+    // No thumbnail for a non-image; the extension stands in for it.
+    expect(thumb.querySelector('img')).toBeNull();
+    const ext = thumb.querySelector('[part~="item-ext"]') as HTMLElement;
+    expect(ext).not.toBeNull();
+    expect(ext.textContent?.trim()).toBe('PDF');
+    expect(row.querySelector('[part~="item-name"]')!.textContent).toBe('report.pdf');
+  });
+
+  it('falls back to FILE for a name without an extension', () => {
+    const element = mount({ 'list-type': 'picture', multiple: true });
+    select(element, [file('Makefile', 'application/octet-stream')]);
+
+    const ext = rows(element)[0].querySelector('[part~="item-ext"]') as HTMLElement;
+    expect(ext).not.toBeNull();
+    expect(ext.textContent?.trim()).toBe('FILE');
+  });
+
+  it('marks the grid layout on the list and on each row', () => {
+    const element = mount({ 'list-type': 'picture', multiple: true });
+    expect(queue(element).className).toContain('picture');
+
+    select(element, [file('a.png', 'image/png'), file('b.txt')]);
+    expect(queue(element).className).toContain('picture');
+    expect(rows(element)).toHaveLength(2);
+    for (const row of rows(element)) expect(row.className).toContain('item');
+    // Every row carries the unified thumb slot, image or not.
+    for (const row of rows(element)) {
+      expect(row.querySelector('[part~="item-thumb"]')).not.toBeNull();
+    }
+  });
+
+  it('defaults to the text list, which keeps the row preview slot', () => {
+    const element = mount({ multiple: true });
+    expect(element.listType).toBe('text');
+    expect(queue(element).className).not.toContain('picture');
+
+    select(element, [file('photo.png', 'image/png')]);
+    const row = rows(element)[0];
+    // `text` mode paints `item-preview` instead of the `item-thumb` grid slot.
+    expect(row.querySelector('[part~="item-preview"]')).not.toBeNull();
+    expect(row.querySelector('[part~="item-thumb"]')).toBeNull();
+    expect(rowNames(element)).toEqual(['photo.png']);
+  });
+
+  it('re-renders the queue when the mode is switched', () => {
+    const element = mount({ multiple: true });
+    select(element, [file('photo.png', 'image/png'), file('notes.txt')]);
+
+    expect(queue(element).className).not.toContain('picture');
+    expect(rows(element)[0].querySelector('[part~="item-thumb"]')).toBeNull();
+
+    element.listType = 'picture';
+    expect(element.getAttribute('list-type')).toBe('picture');
+    expect(queue(element).className).toContain('picture');
+    expect(rows(element)[0].querySelector('[part~="item-thumb"] img')).not.toBeNull();
+    // The non-image row shows its extension in the same switch.
+    expect(
+      (rows(element)[1].querySelector('[part~="item-ext"]') as HTMLElement).textContent?.trim(),
+    ).toBe('TXT');
+
+    element.listType = 'text';
+    expect(queue(element).className).not.toContain('picture');
+    expect(rows(element)[0].querySelector('[part~="item-thumb"]')).toBeNull();
+    // The queue itself is unchanged by the presentation switch.
+    expect(element.files.map((entry) => entry.name)).toEqual(['photo.png', 'notes.txt']);
+  });
+
+  it('ignores an unknown list-type instead of breaking the layout', () => {
+    const element = mount({ 'list-type': 'mosaic', multiple: true });
+    select(element, [file('a.txt')]);
+
+    expect(queue(element).className).not.toContain('picture');
+    expect(rows(element)).toHaveLength(1);
+  });
+
+  it('revokes the object URL when the file leaves the queue', () => {
+    const element = mount({ 'list-type': 'picture', multiple: true });
+    select(element, [file('photo.png', 'image/png')]);
+
+    const url = rows(element)[0].querySelector('img')!.getAttribute('src')!;
+    expect(url).toBe('blob:preview');
+
+    element.remove(0);
+    expect(rows(element)).toHaveLength(0);
+    expect(revokeObjectURL).toHaveBeenCalledWith(url);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `sortable`: drag one row onto another.
+// ---------------------------------------------------------------------------
+
+/** A drag event carrying a `dataTransfer` mock good enough for the reorder path. */
+function rowDragEvent(type: string): Event {
+  const event = new Event(type, { bubbles: true, composed: true, cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: {
+      files: [],
+      dropEffect: 'none',
+      effectAllowed: 'move',
+      setData: () => {},
+      getData: () => '',
+    },
+  });
+  return event;
+}
+
+describe('an-upload sortable', () => {
+  it('marks rows draggable only when sortable is set', () => {
+    const plain = mount({ multiple: true });
+    select(plain, [file('a.txt'), file('b.txt')]);
+    for (const row of rows(plain)) expect(row.hasAttribute('draggable')).toBe(false);
+
+    const sortable = mount({ multiple: true, sortable: true });
+    select(sortable, [file('a.txt'), file('b.txt')]);
+    for (const row of rows(sortable)) expect(row.getAttribute('draggable')).toBe('true');
+  });
+
+  it('keeps rows non-draggable while disabled', () => {
+    const element = mount({ multiple: true, sortable: true });
+    select(element, [file('a.txt'), file('b.txt')]);
+    expect(rows(element)[0].getAttribute('draggable')).toBe('true');
+
+    element.disabled = true;
+    for (const row of rows(element)) expect(row.hasAttribute('draggable')).toBe(false);
+  });
+
+  it('reorders the queue on drop and reflects it in `files`', () => {
+    const element = mount({ multiple: true, sortable: true });
+    select(element, [file('a.txt'), file('b.txt'), file('c.txt')]);
+    expect(element.files.map((entry) => entry.name)).toEqual(['a.txt', 'b.txt', 'c.txt']);
+
+    const [first, , third] = rows(element);
+    // Drag the first row onto the third one.
+    first.dispatchEvent(rowDragEvent('dragstart'));
+    third.dispatchEvent(rowDragEvent('drop'));
+
+    expect(element.files.map((entry) => entry.name)).toEqual(['b.txt', 'c.txt', 'a.txt']);
+    expect(rowNames(element)).toEqual(['b.txt', 'c.txt', 'a.txt']);
+  });
+
+  it('reflects the new order in FormData', () => {
+    const form = document.createElement('form');
+    document.body.append(form);
+    const element = mount({ multiple: true, sortable: true, name: 'docs' }, form);
+    select(element, [file('a.txt'), file('b.txt'), file('c.txt')]);
+
+    const [first, , third] = rows(element);
+    first.dispatchEvent(rowDragEvent('dragstart'));
+    third.dispatchEvent(rowDragEvent('drop'));
+
+    const names = (new FormData(form).getAll('docs') as File[]).map((entry) => entry.name);
+    expect(names).toEqual(['b.txt', 'c.txt', 'a.txt']);
+  });
+
+  it('emits `an-upload-change` with no added or removed files on a reorder', () => {
+    const element = mount({ multiple: true, sortable: true });
+    select(element, [file('a.txt'), file('b.txt')]);
+    const changes = capture<CustomEvent>(element, 'an-upload-change');
+
+    const [first, second] = rows(element);
+    first.dispatchEvent(rowDragEvent('dragstart'));
+    second.dispatchEvent(rowDragEvent('drop'));
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0].detail.added).toEqual([]);
+    expect(changes[0].detail.removed).toEqual([]);
+    expect(changes[0].detail.files.map((entry: File) => entry.name)).toEqual(['b.txt', 'a.txt']);
+  });
+
+  it('marks the dragged row and clears the mark after the drop', () => {
+    const element = mount({ multiple: true, sortable: true });
+    select(element, [file('a.txt'), file('b.txt')]);
+
+    const [first, second] = rows(element);
+    first.dispatchEvent(rowDragEvent('dragstart'));
+    expect(first.hasAttribute('data-dragging')).toBe(true);
+
+    second.dispatchEvent(rowDragEvent('drop'));
+    for (const row of rows(element)) expect(row.hasAttribute('data-dragging')).toBe(false);
+  });
+
+  it('ignores a drop that lands outside any row', () => {
+    const element = mount({ multiple: true, sortable: true });
+    select(element, [file('a.txt'), file('b.txt')]);
+
+    const [first] = rows(element);
+    first.dispatchEvent(rowDragEvent('dragstart'));
+    // Dropping on the dropzone goes through the "add files" path instead.
+    inner(element, '.dropzone').dispatchEvent(rowDragEvent('drop'));
+
+    expect(element.files.map((entry) => entry.name)).toEqual(['a.txt', 'b.txt']);
+    // The drag is cleared once the drop has been handled.
+    for (const row of rows(element)) expect(row.hasAttribute('data-dragging')).toBe(false);
+  });
+
+  it('does not reorder when sortable is off', () => {
+    const element = mount({ multiple: true });
+    select(element, [file('a.txt'), file('b.txt')]);
+
+    const [first, second] = rows(element);
+    first.dispatchEvent(rowDragEvent('dragstart'));
+    second.dispatchEvent(rowDragEvent('drop'));
+
+    expect(element.files.map((entry) => entry.name)).toEqual(['a.txt', 'b.txt']);
+    expect(first.hasAttribute('data-dragging')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Paste: clipboard files join the queue through the normal validation path.
+// ---------------------------------------------------------------------------
+
+/** A `paste` event carrying `clipboardData.files`. */
+function pasteEvent(files: File[]): Event {
+  const event = new Event('paste', { bubbles: true, composed: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', { value: { files } });
+  return event;
+}
+
+describe('an-upload paste', () => {
+  it('adds the pasted files to the queue', () => {
+    const element = mount({ multiple: true });
+    element.dispatchEvent(pasteEvent([file('pasted.png', 'image/png')]));
+
+    expect(element.files).toHaveLength(1);
+    expect(element.files[0].name).toBe('pasted.png');
+    expect(rowNames(element)).toEqual(['pasted.png']);
+  });
+
+  it('goes through the same validation: extension filter still applies', () => {
+    const element = mount({ multiple: true, accept: 'image/*' });
+    const rejected = capture<CustomEvent>(element, 'an-upload-reject');
+
+    element.dispatchEvent(
+      pasteEvent([file('ok.png', 'image/png'), file('bad.txt', 'text/plain')]),
+    );
+
+    // Only the accepted file lands in the queue.
+    expect(element.files.map((entry) => entry.name)).toEqual(['ok.png']);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].detail.file.name).toBe('bad.txt');
+    expect(rejected[0].detail.reason).toBe('type');
+  });
+
+  it('goes through the same validation: `max-size` still applies', () => {
+    const element = mount({ multiple: true, 'max-size': '8' });
+    const rejected = capture<CustomEvent>(element, 'an-upload-reject');
+
+    element.dispatchEvent(
+      pasteEvent([file('small.txt', 'text/plain', 4), file('big.txt', 'text/plain', 64)]),
+    );
+
+    expect(element.files.map((entry) => entry.name)).toEqual(['small.txt']);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].detail.file.name).toBe('big.txt');
+    expect(rejected[0].detail.reason).toBe('size');
+  });
+
+  it('emits one `an-upload-change` with the added files', () => {
+    const element = mount({ multiple: true });
+    const changes = capture<CustomEvent>(element, 'an-upload-change');
+
+    element.dispatchEvent(pasteEvent([file('a.txt'), file('b.txt')]));
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0].detail.added.map((entry: File) => entry.name)).toEqual(['a.txt', 'b.txt']);
+    expect(changes[0].detail.files).toHaveLength(2);
+  });
+
+  it('ignores a paste without files, e.g. plain text', () => {
+    const element = mount({ multiple: true });
+    const changes = capture<CustomEvent>(element, 'an-upload-change');
+
+    element.dispatchEvent(pasteEvent([]));
+
+    expect(element.files).toEqual([]);
+    expect(changes).toHaveLength(0);
+  });
+
+  it('ignores a paste while disabled', () => {
+    const element = mount({ multiple: true, disabled: true });
+    element.dispatchEvent(pasteEvent([file('a.txt')]));
+
+    expect(element.files).toEqual([]);
+  });
+
+  it('keeps every pasted file: paste appends like the picker does', () => {
+    // `multiple` gates the picker and the drop target. Paste goes straight
+    // through `#addFiles`, which appends to the queue, so two pastes stack.
+    const element = mount({ multiple: true });
+    element.dispatchEvent(pasteEvent([file('a.txt')]));
+    element.dispatchEvent(pasteEvent([file('b.txt')]));
+
+    expect(element.files.map((entry) => entry.name)).toEqual(['a.txt', 'b.txt']);
+  });
+
+  it('registers the pasted file in FormData', () => {
+    const form = document.createElement('form');
+    document.body.append(form);
+    const element = mount({ multiple: true, name: 'docs' }, form);
+
+    element.dispatchEvent(pasteEvent([file('pasted.txt')]));
+
+    expect((new FormData(form).get('docs') as File).name).toBe('pasted.txt');
   });
 });

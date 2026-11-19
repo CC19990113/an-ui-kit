@@ -119,6 +119,7 @@ componentSuite({
     orientation: 'vertical',
     min: 0,
     max: 0,
+    selectAll: false,
   },
   events: ['an-checkbox-group-change'],
   cssVars: CSS_VARS,
@@ -401,18 +402,34 @@ describe('an-checkbox-group — disabled and form semantics', () => {
     expect(new FormData(form).has('langs')).toBe(false);
 
     group.disabled = false;
-    expect(internalsState(group)!.value).toBe('html');
-    expect(new FormData(form).get('langs')).toBe('html');
+    const payload = internalsState(group)!.value;
+    expect(payload).toBeInstanceOf(FormData);
+    expect((payload as FormData).getAll('langs')).toEqual(['html']);
+    expect(new FormData(form).getAll('langs')).toEqual(['html']);
   });
 
-  it('submits one entry per selected value under the same name', () => {
-    const { group } = createGroup({
+  it('uses a native FormData payload with one same-name entry per selected option', () => {
+    const { group, boxes, form } = createGroup({
       attributes: { name: 'langs', value: 'html,css' },
     });
+    const payload = internalsState(group)!.value;
 
-    const data = group.getFormData();
-    expect(data).not.toBeNull();
-    expect(data!.getAll('langs')).toEqual(['html', 'css']);
+    expect(payload).toBeInstanceOf(FormData);
+    expect((payload as FormData).getAll('langs')).toEqual(['html', 'css']);
+    expect(group.getFormData()!.getAll('langs')).toEqual(['html', 'css']);
+    expect(new FormData(form).getAll('langs')).toEqual(['html', 'css']);
+    // Child checkboxes have no name and the group is the only form owner.
+    expect(new FormData(form).getAll('')).toEqual([]);
+
+    click(boxes[0]);
+    expect((internalsState(group)!.value as FormData).getAll('langs')).toEqual(['css']);
+    expect(new FormData(form).getAll('langs')).toEqual(['css']);
+
+    group.disabled = true;
+    expect(internalsState(group)!.value).toBeNull();
+    expect(new FormData(form).getAll('langs')).toEqual([]);
+    group.disabled = false;
+    expect(new FormData(form).getAll('langs')).toEqual(['css']);
   });
 
   it('submits nothing without a name or with the group disabled', () => {
@@ -504,5 +521,230 @@ describe('an-checkbox-group — disabled and form semantics', () => {
     click(boxes[2]);
 
     expect(seen).toEqual([['html'], ['html', 'js']]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `select-all`: the header checkbox that reflects and drives the whole group.
+// ---------------------------------------------------------------------------
+
+/** The select-all header input, or `null` when the attribute is off. */
+function selectAll(group: AnCheckboxGroup): HTMLInputElement | null {
+  return group.shadowRoot!.querySelector<HTMLInputElement>('[part~="select-all"]');
+}
+
+/** Clicks the header checkbox the way a pointer would. */
+function clickSelectAll(group: AnCheckboxGroup): void {
+  const input = selectAll(group);
+  if (!input) throw new Error('an-checkbox-group did not render the select-all input');
+  input.checked = !input.checked;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/** Collects `an-checkbox-group-change` payloads. */
+function groupChanges(group: AnCheckboxGroup): CustomEvent[] {
+  const seen: CustomEvent[] = [];
+  group.addEventListener('an-checkbox-group-change', (event) => seen.push(event as CustomEvent));
+  return seen;
+}
+
+describe('an-checkbox-group — select-all rendering', () => {
+  it('renders no header by default', () => {
+    const { group } = createGroup();
+    expect(group.selectAll).toBe(false);
+    expect(selectAll(group)).toBeNull();
+    expect(group.shadowRoot!.querySelector('[part~="select-all-label"]')).toBeNull();
+  });
+
+  it('renders a `part="select-all"` checkbox with its label when enabled', async () => {
+    const { group } = createGroup({ attributes: { 'select-all': '' } });
+    // `selectAll` is applied synchronously; the flush keeps the pattern uniform.
+    await flush();
+    expect(group.selectAll).toBe(true);
+    const input = selectAll(group);
+    expect(input).not.toBeNull();
+    expect(input!.type).toBe('checkbox');
+    expect(input!.getAttribute('part')).toBe('select-all');
+    expect(input!.closest('[part~="select-all-label"]')).not.toBeNull();
+    const text = group.shadowRoot!.querySelector('[part~="select-all-text"]');
+    expect(text!.textContent).toBe('全选');
+  });
+
+  it('starts unchecked and unpressed while nothing is selected', () => {
+    const { group } = createGroup({ attributes: { 'select-all': '' } });
+
+    const input = selectAll(group)!;
+    expect(input.checked).toBe(false);
+    expect(input.indeterminate).toBe(false);
+    expect(input.hasAttribute('aria-checked')).toBe(false);
+  });
+
+  it('is checked once every enabled option is selected', () => {
+    const { group } = createGroup({ attributes: { 'select-all': '', value: 'html,css,js' } });
+
+    const input = selectAll(group)!;
+    expect(input.checked).toBe(true);
+    expect(input.indeterminate).toBe(false);
+  });
+
+  it('is indeterminate with `aria-checked="mixed"` on a partial selection', () => {
+    const { group } = createGroup({ attributes: { 'select-all': '', value: 'html' } });
+
+    const input = selectAll(group)!;
+    expect(input.checked).toBe(false);
+    expect(input.indeterminate).toBe(true);
+    expect(input.getAttribute('aria-checked')).toBe('mixed');
+  });
+
+  it('renders no header when the attribute is removed again', () => {
+    const { group } = createGroup({ attributes: { 'select-all': '' } });
+    expect(selectAll(group)).not.toBeNull();
+
+    group.selectAll = false;
+
+    expect(group.hasAttribute('select-all')).toBe(false);
+    expect(selectAll(group)).toBeNull();
+  });
+});
+
+describe('an-checkbox-group — select-all interaction', () => {
+  it('selects every option when the header is clicked', async () => {
+    const { group, boxes } = createGroup({ attributes: { 'select-all': '' } });
+    await flush();
+    const changes = groupChanges(group);
+
+    clickSelectAll(group);
+    await flush();
+
+    expect(group.value).toEqual(['html', 'css', 'js']);
+    expect(boxes.map((box) => box.checked)).toEqual([true, true, true]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].detail.value).toEqual(['html', 'css', 'js']);
+  });
+
+  it('clears every option when the checked header is clicked again', async () => {
+    const { group, boxes } = createGroup({
+      attributes: { 'select-all': '', value: 'html,css,js' },
+    });
+    await flush();
+    const changes = groupChanges(group);
+
+    clickSelectAll(group);
+    await flush();
+
+    expect(group.value).toEqual([]);
+    expect(boxes.map((box) => box.checked)).toEqual([false, false, false]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].detail.value).toEqual([]);
+  });
+
+  it('completes a partial selection instead of clearing it', async () => {
+    const { group } = createGroup({ attributes: { 'select-all': '', value: 'html' } });
+    await flush();
+
+    clickSelectAll(group);
+    await flush();
+
+    expect(group.value).toEqual(['html', 'css', 'js']);
+    expect(selectAll(group)!.checked).toBe(true);
+    expect(selectAll(group)!.indeterminate).toBe(false);
+  });
+
+  it('reports the checkbox that started the change in `originalEvent`', async () => {
+    const { group } = createGroup({ attributes: { 'select-all': '' } });
+    await flush();
+    const changes = groupChanges(group);
+
+    clickSelectAll(group);
+    await flush();
+
+    expect(changes[0].detail.originalEvent).toBeInstanceOf(Event);
+  });
+
+  it('leaves a disabled option out of the selection', async () => {
+    const { group } = createGroup({
+      attributes: { 'select-all': '' },
+      values: [
+        { value: 'html', text: 'HTML' },
+        { value: 'css', text: 'CSS', attributes: { disabled: '' } },
+        { value: 'js', text: 'JavaScript' },
+      ],
+    });
+    await flush();
+
+    clickSelectAll(group);
+    await flush();
+
+    expect(group.value).toEqual(['html', 'js']);
+    expect(group.value).not.toContain('css');
+    // Every enabled option being selected still reads as "checked".
+    expect(selectAll(group)!.checked).toBe(true);
+    expect(selectAll(group)!.indeterminate).toBe(false);
+  });
+
+  it('keeps the header checked state in step after a single option changes', async () => {
+    const { group, boxes } = createGroup({ attributes: { 'select-all': '' } });
+    await flush();
+    expect(selectAll(group)!.checked).toBe(false);
+
+    click(boxes[0]);
+    await flush();
+
+    expect(selectAll(group)!.checked).toBe(false);
+    expect(selectAll(group)!.indeterminate).toBe(true);
+
+    click(boxes[1]);
+    click(boxes[2]);
+    await flush();
+
+    expect(selectAll(group)!.checked).toBe(true);
+    expect(selectAll(group)!.indeterminate).toBe(false);
+  });
+});
+
+describe('an-checkbox-group — select-all disabled cascade', () => {
+  it('disables the header while the group itself is disabled', () => {
+    const { group } = createGroup({ attributes: { 'select-all': '', disabled: '' } });
+
+    const input = selectAll(group)!;
+    expect(group.disabled).toBe(true);
+    expect(input.disabled).toBe(true);
+  });
+
+  it('disables the header when no option is enabled', () => {
+    const { group } = createGroup({
+      attributes: { 'select-all': '' },
+      values: [{ value: 'only', text: 'ONLY', attributes: { disabled: '' } }],
+    });
+
+    expect(selectAll(group)!.disabled).toBe(true);
+  });
+
+  it('re-enables the header once an option becomes available again', async () => {
+    const { group, boxes } = createGroup({ attributes: { 'select-all': '' } });
+    await flush();
+    expect(selectAll(group)!.disabled).toBe(false);
+
+    boxes[0].disabled = true;
+    await flush();
+    expect(selectAll(group)!.disabled).toBe(false);
+
+    boxes[1].disabled = true;
+    boxes[2].disabled = true;
+    await flush();
+    // Now nothing is selectable, so the header goes inert.
+    expect(selectAll(group)!.disabled).toBe(true);
+  });
+
+  it('does nothing when the header of a disabled group is clicked anyway', async () => {
+    const { group } = createGroup({ attributes: { 'select-all': '', disabled: '' } });
+    await flush();
+    const changes = groupChanges(group);
+
+    clickSelectAll(group);
+    await flush();
+
+    expect(group.value).toEqual([]);
+    expect(changes).toHaveLength(0);
   });
 });

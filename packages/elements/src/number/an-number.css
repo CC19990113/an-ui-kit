@@ -1,6 +1,7 @@
 /* Hooks: --an-number-height | --an-number-bg | --an-number-fg | --an-number-border-color
    | --an-number-radius | --an-number-font-size | --an-number-padding-x
-   | --an-number-focus-ring | --an-number-stepper-width.
+   | --an-number-focus-ring | --an-number-stepper-width | --an-number-unit-color
+   | --an-number-unit-width | --an-number-unit-gap.
    Colours and scales come from @an-ui-kit/tokens, each with a literal fallback. Both theme
    entries only switch `color-scheme`; the tokens resolve per scheme. */
 
@@ -28,8 +29,41 @@
 
 .base {
   display: inline-flex;
+  position: relative;
   align-items: stretch;
   font-family: inherit;
+}
+
+/* Unit text sits inside the field on the right; the input reserves room for it. */
+.unit {
+  position: absolute;
+  top: 50%;
+  right: var(--an-number-padding-x, var(--an-space-3, 0.75rem));
+  transform: translateY(-50%);
+  color: var(--an-number-unit-color, var(--an-color-fg-2, #52525b));
+  font-family: inherit;
+  font-size: var(--an-number-font-size, var(--an-font-size-sm, 0.875rem));
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.unit:empty {
+  display: none;
+}
+
+:host([unit]:not([unit=''])) .input {
+  padding-right: calc(
+    var(--an-number-padding-x, var(--an-space-3, 0.75rem)) +
+      var(--an-number-unit-width, 2rem) + var(--an-number-unit-gap, var(--an-space-1, 0.25rem))
+  );
+}
+
+:host([unit]:not([unit=''])[stepper]) .unit {
+  right: calc(
+    var(--an-number-stepper-width, var(--an-space-6, 1.5rem)) +
+      var(--an-number-padding-x, var(--an-space-3, 0.75rem))
+  );
 }
 
 .input {
@@ -128,4 +162,46 @@
   padding: 0 var(--an-number-padding-x, var(--an-space-4, 1rem));
   border-radius: var(--an-number-radius, var(--an-radius-lg, 0.625rem));
   font-size: var(--an-number-font-size, var(--an-font-size-md, 1rem));
+}
+
+:host([size='sm'][unit]:not([unit=''])) .input {
+  padding-right: calc(
+    var(--an-number-padding-x, var(--an-space-2, 0.5rem)) + var(--an-number-unit-width, 2rem) +
+      var(--an-number-unit-gap, var(--an-space-1, 0.25rem))
+  );
+}
+
+:host([size='lg'][unit]:not([unit=''])) .input {
+  padding-right: calc(
+    var(--an-number-padding-x, var(--an-space-4, 1rem)) + var(--an-number-unit-width, 2rem) +
+      var(--an-number-unit-gap, var(--an-space-1, 0.25rem))
+  );
+}
+
+/* Windows high-contrast: let the system palette drive borders, focus and text. */
+@media (forced-colors: active) {
+  .input,
+  .spin {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .input:focus-visible,
+  .spin:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .input:disabled,
+  .spin:disabled {
+    color: GrayText;
+  }
+
+  .spin:hover:not(:disabled) {
+    background: ButtonFace;
+  }
+
+  .unit {
+    color: GrayText;
+  }
 }

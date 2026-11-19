@@ -7,7 +7,10 @@ import { createRoot } from 'react-dom/client';
 import { installClickLog } from './src/click-log';
 import { installFormFamilyDemo } from './src/form-family-demo';
 import { installInputLog } from './src/input-log';
+import { installThemeToggle } from './src/theme-toggle';
 
+// 明暗开关：只改文档根上的 data-theme，组件 CSS 从 tokens 继承新颜色。
+installThemeToggle();
 // 页面级监听器：e2e 用它数 DOM 上真实发生的 an-button-click 次数。
 installClickLog('react');
 // 同一套思路记录 `<an-input>` / `<an-change>`，e2e 用它核对 detail.value。
@@ -19,17 +22,54 @@ window.__reactHandlerCalls = [];
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('react.html: #root not found');
 
-/**
- * 包内 `@an-ui-kit/elements/react` 的 `<an-select>` 类型还是旧的 9 标签版本
- * （`packages/**` 本任务不改），没有 `multiple` / `searchable` / `max-tags`。
- * 用一个精确类型别名去 spread，既保留 JSX 结构又不需要 `any`；
- * 包内类型补齐后删掉这段即可。
- */
-const multiSelectAttrs = {
-  multiple: true,
-  searchable: true,
-  'max-tags': '2',
-} as unknown as React.JSX.IntrinsicElements['an-select'];
+/** Consumer assertions intentionally live in .tsx, where skipLibCheck cannot hide a broken adapter. */
+type Assert<T extends true> = T;
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Detail<Handler> = NonNullable<Handler> extends (event: CustomEvent<infer D>) => void ? D : never;
+type Tags = 'an-button' | 'an-checkbox' | 'an-checkbox-group' | 'an-date' | 'an-date-range' | 'an-field' | 'an-form' | 'an-input' | 'an-number' | 'an-option' | 'an-option-group' | 'an-radio' | 'an-radio-group' | 'an-select' | 'an-switch' | 'an-textarea' | 'an-upload';
+type ReactProps<Tag extends Tags> = React.JSX.IntrinsicElements[Tag];
+type VueProps<Tag extends Tags> = import('@an-ui-kit/elements/vue').AnVueElementProps<Tag>;
+type VueComponentProps<Tag extends Tags> = InstanceType<import('vue').GlobalComponents[Tag]>['$props'];
+type Public = typeof import('@an-ui-kit/elements');
+
+// All imports go through package exports; these cannot pass by using demo-local JSX shims.
+export type FrameworkContractChecks = [
+  Assert<Equal<Extract<keyof React.JSX.IntrinsicElements, `an-${string}`>, Tags>>,
+  Assert<Equal<Extract<keyof import('vue').GlobalComponents, `an-${string}`>, Tags>>,
+  Assert<Equal<import('@an-ui-kit/elements').AnElementTagName, Tags>>,
+  Assert<Equal<IsAny<ReactProps<'an-select'>>, false>>,
+  Assert<Equal<IsAny<VueProps<'an-select'>>, false>>,
+  Assert<Equal<IsAny<VueComponentProps<'an-select'>>, false>>,
+  Assert<Equal<Detail<VueComponentProps<'an-upload'>['onAnUploadError']>, import('@an-ui-kit/elements').AnUploadErrorDetail>>,
+  Assert<Equal<Detail<ReactProps<'an-number'>['onan-number-change']>['value'], number | null>>,
+  Assert<Equal<import('vue').GlobalComponents['AnOptionGroup'], import('vue').GlobalComponents['an-option-group']>>,
+  Assert<Equal<Detail<ReactProps<'an-select'>['onan-select-change']>, import('@an-ui-kit/elements').AnSelectChangeDetail>>,
+  Assert<Equal<Detail<ReactProps<'an-select'>['onan-load-more']>, import('@an-ui-kit/elements').AnSelectLoadMoreDetail>>,
+  Assert<Equal<Detail<ReactProps<'an-upload'>['onan-upload-progress']>, import('@an-ui-kit/elements').AnUploadProgressDetail>>,
+  Assert<Equal<Detail<ReactProps<'an-form'>['onan-form-invalid']>, import('@an-ui-kit/elements').AnFormInvalidDetail>>,
+  Assert<Equal<Detail<ReactProps<'an-radio'>['onan-radio-select']>, import('@an-ui-kit/elements').AnRadioEventDetail>>,
+  Assert<Equal<Detail<ReactProps<'an-radio'>['onan-radio-connect']>, { value: string }>>,
+  Assert<Equal<Detail<VueProps<'an-select'>['onAnLoadMore']>, Detail<VueProps<'an-select'>['onAn-load-more']>>>,
+  Assert<Equal<Detail<VueProps<'an-upload'>['onAnUploadError']>, Detail<VueProps<'an-upload'>['onAn-upload-error']>>>,
+  Assert<Equal<NonNullable<ReactProps<'an-form'>['rules']>, import('@an-ui-kit/elements').AnFormRules>>,
+  Assert<Equal<NonNullable<ReactProps<'an-date-range'>['presets']>, import('@an-ui-kit/elements').AnDateRangePreset[] | string>>,
+  Assert<Equal<NonNullable<ReactProps<'an-upload'>['listType']>, import('@an-ui-kit/elements').AnUploadListType>>,
+  Assert<Equal<'onAnSelectChange' extends keyof ReactProps<'an-select'> ? true : false, false>>,
+  Assert<Equal<'showCout' extends keyof ReactProps<'an-input'> ? true : false, false>>,
+  Assert<Equal<'maxLength' extends keyof ReactProps<'an-input'> ? true : false, false>>,
+  Assert<Equal<'readOnly' extends keyof ReactProps<'an-input'> ? true : false, false>>,
+  Assert<Equal<'originalEvent' extends keyof Detail<ReactProps<'an-radio'>['onan-radio-connect']> ? true : false, false>>,
+  Assert<Equal<{ headers: { Authorization: string } } extends ReactProps<'an-upload'> ? true : false, true>>,
+  Assert<Equal<{ showCount: true; 'show-count': true; maxlength: 12 } extends ReactProps<'an-input'> ? true : false, true>>,
+  Assert<Equal<NonNullable<ReactProps<'an-input'>['spellcheck']>, boolean>>,
+  Assert<Equal<{ spellcheck: 'false' } extends ReactProps<'an-input'> ? true : false, false>>,
+  Assert<Equal<{ spellcheck: false } extends ReactProps<'an-input'> ? true : false, true>>,
+  Assert<Equal<{ autoSize: true; 'min-rows': 2; maxRows: 8 } extends ReactProps<'an-textarea'> ? true : false, true>>,
+  Assert<Equal<{ 'group-separator': true; unit: '%'; value: 3 } extends ReactProps<'an-number'> ? true : false, true>>,
+  Assert<Equal<{ 'end-name': 'to'; firstDay: 1 } extends ReactProps<'an-date-range'> ? true : false, true>>,
+  Assert<Equal<'AnForm' extends keyof Public ? true : false, true>>
+];
 
 function App(): React.JSX.Element {
   const [handlerCalls, setHandlerCalls] = useState(0);
@@ -202,7 +242,7 @@ function App(): React.JSX.Element {
         onReset={handleDemoReset}
       >
         <an-field data-testid="field-name" label="姓名" required>
-          <an-input data-testid="form-name" name="name" required placeholder="请输入" />
+          <an-input data-testid="form-name" name="name" required placeholder="请输入" spellcheck={false} />
         </an-field>
 
         <an-field data-testid="field-bio" label="简介" hint="最多 200 字">
@@ -275,7 +315,9 @@ function App(): React.JSX.Element {
             data-testid="family-select-multi"
             name="tags"
             placeholder="搜索标签（可多选）"
-            {...multiSelectAttrs}
+            multiple
+            searchable
+            max-tags={2}
           >
             <an-option value="react">
               <b>React</b>

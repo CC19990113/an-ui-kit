@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build `@an-ui-kit/elements` — **one entry**, optionally trimmed by JSON config.
+ * Build `@an-ui-kit/elements` — full mode bundles the public source entry; custom mode
+ * builds one trimmed entry from the component list.
  *
  * 为什么是「单入口 + 配置裁剪」而不是多入口：包的 `exports` 只有 `.`（以及
  * react/vue/package.json 三个适配入口）。需要更小产物的用户不换 import 路径，
@@ -25,8 +26,10 @@
  *   { "components": ["an-button"] }
  *
  * 两种模式的产物：
- *   all    → packages/elements/dist/index.js   （npm 发布产物，行为与之前一致）
- *   custom → packages/elements/dist/an-ui-kit.custom.js（或 --out 指定的路径）
+ *   all    → packages/elements/dist/index.js，由 packages/elements/src/index.ts 真实公共入口构建；
+ *            公开 exports 与注册顺序均由该入口定义。
+ *   custom → packages/elements/dist/an-ui-kit.custom.js（或 --out 指定的路径），
+ *            使用下方虚拟入口，只导出并注册选中的组件。
  *
  * 类型：
  *   all    由 `tsc -p tsconfig.build.json` 产出 `dist/index.d.ts`（package.json 的
@@ -276,13 +279,21 @@ async function main() {
 
   const esbuild = loadEsbuild();
   const startedAt = Date.now();
+  const entry =
+    options.mode === 'all'
+      ? {
+          entryPoints: [path.join(SRC_DIR, 'index.ts')],
+        }
+      : {
+          stdin: {
+            contents: renderEntry(selected),
+            resolveDir: SRC_DIR,
+            sourcefile: 'an-ui-kit.entry.ts',
+            loader: 'ts',
+          },
+        };
   const result = await esbuild.build({
-    stdin: {
-      contents: renderEntry(selected),
-      resolveDir: SRC_DIR,
-      sourcefile: 'an-ui-kit.entry.ts',
-      loader: 'ts',
-    },
+    ...entry,
     bundle: true,
     format: 'esm',
     minify: options.minify,

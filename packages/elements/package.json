@@ -46,10 +46,11 @@
     "build:custom": "node ../../scripts/build-elements.mjs --mode custom",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config test/vitest.config.ts",
+    "test:coverage": "vitest run --config test/vitest.config.ts --coverage",
     "test:watch": "vitest --config test/vitest.config.ts"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@vitest/coverage-v8": "5.1.1",
     "esbuild": "^0.28.2",
     "happy-dom": "^21.0.4",
     "typescript": "^6.0.3",

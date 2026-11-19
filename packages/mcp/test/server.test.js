@@ -120,10 +120,29 @@ test('get_component returns the full an-input contract', async () => {
     await client.callTool({ name: 'get_component', arguments: { tagName: 'an-input' } }),
   );
 
-  // 与 custom-elements-manifest.json 逐字一致：10 个 attribute、2 个事件、8 个 CSS 变量、3 个 part。
+  // 与 custom-elements-manifest.json 逐字一致：18 个 attribute、3 个事件、2 个 slot、8 个 CSS 变量、7 个 part。
   assert.deepEqual(
     component.attributes.map((attribute) => attribute.name),
-    ['value', 'type', 'placeholder', 'label', 'size', 'disabled', 'readonly', 'required', 'invalid', 'name'],
+    [
+      'value',
+      'type',
+      'placeholder',
+      'label',
+      'size',
+      'disabled',
+      'readonly',
+      'required',
+      'invalid',
+      'name',
+      'maxlength',
+      'clearable',
+      'show-count',
+      'prefix',
+      'suffix',
+      'autocomplete',
+      'spellcheck',
+      'inputmode',
+    ],
   );
   const value = component.attributes.find((attribute) => attribute.name === 'value');
   assert.equal(value.type, 'string');
@@ -133,9 +152,12 @@ test('get_component returns the full an-input contract', async () => {
 
   assert.deepEqual(
     component.events.map((event) => event.name),
-    ['an-input', 'an-change'],
+    ['an-input', 'an-change', 'an-input-clear'],
   );
-  assert.deepEqual(component.slots, []);
+  assert.deepEqual(
+    component.slots.map((slot) => slot.name),
+    ['prefix', 'suffix'],
+  );
   assert.deepEqual(
     component.cssProperties.map((property) => property.name),
     [
@@ -151,7 +173,7 @@ test('get_component returns the full an-input contract', async () => {
   );
   assert.deepEqual(
     component.cssParts.map((part) => part.name),
-    ['base', 'label', 'input'],
+    ['base', 'label', 'input', 'prefix', 'suffix', 'clear', 'count'],
   );
   assert.equal(component.description.length > 0, true);
 });

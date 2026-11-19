@@ -10,7 +10,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -26,6 +26,10 @@ React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要�
 | `placeholder` | `string` | `""` | 空值时显示的提示 |
 | `label` | `string` | `""` | 可见 `<label>` 文本；空字符串时不渲染标签 |
 | `rows` | `number` | `3` | 内部 textarea 的可见行数 |
+| `auto-size` | `boolean` | `false` | 高度随内容调整，达到 `max-rows` 上限后可在控件内滚动 |
+| `min-rows` | `number` | `0` | `auto-size` 的高度下限（行数）；`0` 表示无下限 |
+| `max-rows` | `number` | `0` | `auto-size` 的高度上限（行数）；超过后改为滚动；`0` 表示无上限 |
+| `show-count` | `boolean` | `false` | 渲染字符计数（`value.length`，有 `maxlength` 时显示 `value.length/maxlength`） |
 | `maxlength` | `number` | `-1` | 最大字符数，转发给内部 textarea；`-1` 表示不限 |
 | `resize` | `('none'\|'vertical'\|'both')` | `"vertical"` | 缩放把手：`none` 不可缩放、`vertical` 仅纵向、`both` 双向 |
 | `disabled` | `boolean` | `false` | 禁止交互，并从 `FormData` 中移除、跳过约束校验 |
@@ -33,6 +37,7 @@ React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要�
 | `required` | `boolean` | `false` | 参与约束校验；**trim 后为空**才算空 |
 | `invalid` | `boolean` | `false` | 视觉无效态：加 `aria-invalid="true"` 与错误样式；不改变校验结果 |
 | `name` | `string` | `""` | `FormData` 字段名；空字符串表示不提交 |
+| `autocomplete` | `string` | `""` | autocomplete 提示，转发给内部 textarea |
 
 布尔 attribute 只认「存在/不存在」：`disabled` 与 `disabled="false"` 都是禁用；要恢复就 `removeAttribute`。
 
@@ -67,6 +72,7 @@ React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要�
 | `base` | 外层容器 |
 | `label` | 可见 `<label>`（`label` 非空时才渲染） |
 | `textarea` | 内部的原生 `<textarea>` 元素 |
+| `count` | 字符计数，仅在 `show-count` 开启时渲染 |
 
 ## 主题
 
@@ -84,7 +90,10 @@ React 还要 `import type {} from '@an-ui-kit/elements/react';`；Vue 3 还要�
     name="comment"
     label="反馈内容"
     placeholder="写点什么…"
-    rows="5"
+    auto-size
+    min-rows="3"
+    max-rows="8"
+    show-count
     maxlength="500"
     required
   ></an-textarea>
@@ -180,7 +189,7 @@ function onInput(event: CustomEvent<{ value: string }>) {
 ## a11y 注意事项
 
 - `label` 非空时用同 Shadow DOM 的 `<label>` 包裹内部 textarea（隐式关联）；没有可见 label 时，宿主 `aria-label` / `aria-labelledby` 会转发给内部 textarea。
-- 用 `<an-field>` 包裹时，field 会补 `aria-describedby` / `aria-invalid`；不要在 textarea 上重复写一份。
+- 作为 `<an-field>` 的直接子控件时，宿主可接收 `aria-label`（标签文本）、`aria-description`（提示或错误文本）与 `aria-invalid`。作者提供的 `aria-describedby` 会保留，field 通过文本传递提示或错误。
 - `required` 会渲染 `aria-required`；`invalid` 会渲染 `aria-invalid`；`readonly` 会渲染 `aria-readonly`。
 - 缩放由 `resize` 控制；`resize="none"` 时不要用 CSS 强行 `resize: both`，那会绕开公开契约。
 - 字符上限用 `maxlength`（原生计数），不要自己在 `input` 里截断后 `set value`，那会丢 caret。

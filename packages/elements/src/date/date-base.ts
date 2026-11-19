@@ -103,10 +103,22 @@ export interface DateHost {
   onDayHover(iso: ISODate): void;
   /** Re-renders the owning element. */
   requestUpdate(): void;
+  /**
+   * Markup for the shortcut rail rendered at the bottom of the panel; omit it
+   * (or return `''`) when the control has no presets.
+   */
+  renderPresets?(): string;
+  /**
+   * Applies preset `index`; returns the day the calendar should show, or
+   * `undefined` when the preset is out of range / the control is blocked.
+   */
+  applyPreset?(index: number): ISODate | undefined;
 }
 
 /** Day-cell key used by the focus-restore map: `iso:2026-11-19`. */
 const ISO_PREFIX = 'iso:';
+
+let nextPanelId = 0;
 
 /**
  * `ShadowRoot#activeElement` walks the host chain and can throw while the tree
@@ -138,6 +150,7 @@ const CALENDAR_ICON =
  */
 export class DatePanelController {
   #host: DateHost;
+  #panelId: string;
   #viewYear = 1970;
   #viewMonth = 1;
   /** Roving-focus day; always a valid `YYYY-MM-DD` once `connect()` ran. */
@@ -154,6 +167,7 @@ export class DatePanelController {
 
   constructor(host: DateHost) {
     this.#host = host;
+    this.#panelId = `an-date-panel-${++nextPanelId}`;
   }
 
   /** Installs the delegated listeners on the shadow root; call after `super()`. */
@@ -247,7 +261,7 @@ export class DatePanelController {
       `${inactive ? ' data-disabled=""' : ''}>` +
       `<input class="input" part="input" data-focus="input" type="text" role="combobox"` +
       ` autocomplete="off" spellcheck="false" aria-haspopup="dialog"` +
-      ` aria-expanded="${host.open ? 'true' : 'false'}"` +
+      ` aria-expanded="${host.open ? 'true' : 'false'}" aria-controls="${this.#panelId}"` +
       `${nameAttribute}` +
       ` placeholder="${escapeHtml(host.placeholder)}"` +
       (display.length > 0 ? ` value="${escapeHtml(display)}"` : '') +
@@ -277,9 +291,10 @@ export class DatePanelController {
       clear: host.canClear,
     });
     return (
-      `<div class="panel" part="panel" role="dialog" aria-modal="false"` +
+      `<div class="panel" part="panel" role="dialog" id="${this.#panelId}" aria-modal="false"` +
       ` aria-label="${escapeHtml(host.panelLabel)}"${hidden ? ' hidden' : ''}>` +
       body +
+      (host.renderPresets?.() ?? '') +
       `</div>`
     );
   }
@@ -435,6 +450,20 @@ export class DatePanelController {
     if (trigger !== null) {
       this.focusTrigger();
       this.#host.show();
+      return;
+    }
+
+    // Shortcut buttons belong to the owning element (only `<an-date-range>` has
+    // them); the controller only moves the visible month to the new range.
+    const preset = target.closest('[data-preset-index]') as HTMLElement | null;
+    if (preset !== null) {
+      const index = Number(preset.dataset.presetIndex);
+      if (!Number.isInteger(index)) return;
+      const focusISO = this.#host.applyPreset?.(index);
+      if (focusISO !== undefined && isValidISO(focusISO)) {
+        this.#focusedISO = focusISO;
+        this.#syncView(focusISO);
+      }
       return;
     }
 

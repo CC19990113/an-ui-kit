@@ -73,7 +73,13 @@ test.describe('表单族 · 角色级 a11y 快照', () => {
   });
 
   test('upload：dropzone 是可聚焦的 role="button" 触发区', async ({ page }) => {
-    await expectRoles(host(page, 'family-upload'), { profile: 'upload' }, 'upload dropzone');
+    const upload = host(page, 'family-upload');
+    await expectRoles(upload, { profile: 'upload' }, 'upload dropzone');
+
+    const dropzone = upload.locator('[part="dropzone"]');
+    await expect(dropzone).toBeVisible();
+    await expect(dropzone).toContainText('选择文件');
+    await expect(upload.getByRole('button', { name: /选择文件/ })).toBeVisible();
   });
 
   test('number：spinbutton 暴露 aria-valuenow / min / max，步进按钮有名字', async ({ page }) => {

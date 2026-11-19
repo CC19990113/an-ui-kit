@@ -6,7 +6,10 @@ import { createApp, ref } from 'vue';
 import { installClickLog } from './src/click-log';
 import { installFormFamilyDemo } from './src/form-family-demo';
 import { installInputLog } from './src/input-log';
+import { installThemeToggle } from './src/theme-toggle';
 
+// 明暗开关：只改文档根上的 data-theme，组件 CSS 从 tokens 继承新颜色。
+installThemeToggle();
 // 页面级监听器：e2e 用它数 DOM 上真实发生的 an-button-click 次数。
 installClickLog('vue');
 // 同一套思路记录 `an-input` / `an-change`，e2e 用它核对 detail.value。

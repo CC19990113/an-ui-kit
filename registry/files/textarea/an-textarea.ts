@@ -7,6 +7,20 @@ export type AnTextareaResize = 'none' | 'vertical' | 'both';
 /** Shown to the owning form when `required` is set and the value is blank. */
 const REQUIRED_MESSAGE = '此字段为必填项。';
 
+/** Reads a computed length in px; `null` when it is missing or not numeric. */
+function parsePx(value: string | undefined): number | null {
+  const parsed = Number.parseFloat(value ?? '');
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Used line box height of the inner textarea, with a fallback for `normal`. */
+function resolveLineHeight(style: CSSStyleDeclaration): number {
+  const declared = parsePx(style.lineHeight);
+  if (declared !== null && declared > 0) return declared;
+  const fontSize = parsePx(style.fontSize);
+  return fontSize !== null && fontSize > 0 ? fontSize * 1.5 : 20;
+}
+
 /** Escapes text used inside an attribute value or element content. */
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
@@ -30,6 +44,10 @@ function escapeHtml(value: string): string {
  * @attr placeholder - Hint shown while empty.
  * @attr label - Visible `<label>` text; omitted when empty.
  * @attr rows - Visible row count of the inner textarea. Default `3`.
+ * @attr auto-size - Grows the height to fit the content instead of scrolling.
+ * @attr min-rows - Floor for `auto-size`, in rows. `0` means no floor.
+ * @attr max-rows - Ceiling for `auto-size`, in rows; content past it scrolls. `0` means no ceiling.
+ * @attr show-count - Renders the character counter (`value.length`, or `value.length/maxlength`).
  * @attr maxlength - Maximum character count, forwarded to the inner textarea. `-1` means unlimited.
  * @attr resize - Resize handles: `none`, `vertical` (default) or `both`.
  * @attr disabled - Bars interaction, constraint validation and form submission.
@@ -37,6 +55,7 @@ function escapeHtml(value: string): string {
  * @attr required - Marks the field as mandatory; blank (trimmed) values fail.
  * @attr invalid - Renders the invalid state (`aria-invalid`).
  * @attr name - Entry name used by the owning form's `FormData`.
+ * @attr autocomplete - Autocomplete hint forwarded to the inner textarea.
  * @fires an-textarea-input - On every input; `detail = { value, originalEvent }`.
  * @fires an-textarea-change - On the native `change`; `detail = { value, originalEvent }`.
  * @cssprop [--an-textarea-min-height] - Lowest height of the control.
@@ -50,6 +69,7 @@ function escapeHtml(value: string): string {
  * @csspart base - The wrapper around label and control.
  * @csspart label - The visible `<label>`; rendered only when `label` is non-empty.
  * @csspart textarea - The internal native `<textarea>` element.
+ * @csspart count - The character counter; rendered only with `show-count`.
  */
 export class AnTextarea extends AnElement {
   static override styles: string = textareaStyles;
@@ -66,6 +86,10 @@ export class AnTextarea extends AnElement {
     placeholder: '',
     label: '',
     rows: 3,
+    autoSize: false,
+    minRows: 0,
+    maxRows: 0,
+    showCount: false,
     maxlength: -1,
     resize: 'vertical',
     disabled: false,
@@ -73,11 +97,16 @@ export class AnTextarea extends AnElement {
     required: false,
     invalid: false,
     name: '',
+    autocomplete: '',
   };
 
   declare placeholder: string;
   declare label: string;
   declare rows: number;
+  declare autoSize: boolean;
+  declare minRows: number;
+  declare maxRows: number;
+  declare showCount: boolean;
   declare maxlength: number;
   declare resize: AnTextareaResize;
   declare disabled: boolean;
@@ -85,6 +114,7 @@ export class AnTextarea extends AnElement {
   declare required: boolean;
   declare invalid: boolean;
   declare name: string;
+  declare autocomplete: string;
 
   #value = '';
   #initialValue = '';
@@ -132,6 +162,7 @@ export class AnTextarea extends AnElement {
     const attrs =
       ` class="textarea" part="textarea" rows="${this.rows}"` +
       (this.placeholder ? ` placeholder="${escapeHtml(this.placeholder)}"` : '') +
+      (this.autocomplete ? ` autocomplete="${escapeHtml(this.autocomplete)}"` : '') +
       (this.maxlength >= 0 ? ` maxlength="${this.maxlength}"` : '') +
       (disabled ? ' disabled aria-disabled="true"' : '') +
       (this.readonly ? ' readonly aria-readonly="true"' : '') +
@@ -139,13 +170,18 @@ export class AnTextarea extends AnElement {
       (this.invalid ? ' aria-invalid="true"' : '') +
       (this.label ? '' : this.#forwardedName());
     const textarea = `<textarea${attrs}></textarea>`;
+    const count = this.showCount
+      ? `<span class="count" part="count" aria-live="polite">${escapeHtml(this.#countText())}</span>`
+      : '';
     return this.label
-      ? `<div class="base" part="base"><label class="label" part="label"><span class="label-text">${escapeHtml(this.label)}</span>${textarea}</label></div>`
-      : `<div class="base" part="base">${textarea}</div>`;
+      ? `<div class="base" part="base"><label class="label" part="label"><span class="label-text">${escapeHtml(this.label)}</span>${textarea}</label>${count}</div>`
+      : `<div class="base" part="base">${textarea}${count}</div>`;
   }
 
   protected override afterRender(): void {
     this.#applyValue();
+    this.#applyCount();
+    this.#resizeToContent();
     const internals = this.internals;
     if (!internals) return;
     const disabled = this.disabled || this.#formDisabled;
@@ -165,6 +201,7 @@ export class AnTextarea extends AnElement {
 
   protected override onFormReset(): void {
     this.#setValue(this.#initialValue);
+    this.#resizeToContent();
   }
 
   /** Mirrors a platform-level disable (e.g. ancestor `<fieldset disabled>`). */
@@ -178,6 +215,8 @@ export class AnTextarea extends AnElement {
     if (value === this.#value) return;
     this.#value = value;
     this.#applyValue();
+    this.#applyCount();
+    this.#resizeToContent();
     this.#syncForm();
   }
 
@@ -252,8 +291,71 @@ export class AnTextarea extends AnElement {
     const textarea = this.#textarea;
     if (!textarea || event.target !== textarea || this.disabled || this.readonly || this.#formDisabled) return;
     this.#value = textarea.value;
+    this.#applyCount();
+    this.#resizeToContent();
     this.#syncForm();
     this.emit(name, { value: this.#value, originalEvent: event });
+  }
+
+  /** `length` alone, or `length/maxlength` once a limit is set. */
+  #countText(): string {
+    return this.maxlength >= 0 ? `${this.#value.length}/${this.maxlength}` : `${this.#value.length}`;
+  }
+
+  /** Refreshes the rendered counter in place; a no-op without `show-count`. */
+  #applyCount(): void {
+    const count = this.shadowRoot?.querySelector<HTMLElement>('[part~="count"]');
+    if (!count) return;
+    count.textContent = this.#countText();
+  }
+
+  /** Fits the content's natural height, clamped by optional line-box bounds. */
+  #resizeToContent(): void {
+    const textarea = this.#textarea;
+    if (!textarea) return;
+    const { style } = textarea;
+    if (!this.autoSize) {
+      style.removeProperty('height');
+      style.removeProperty('overflow-y');
+      return;
+    }
+
+    const computed = getComputedStyle(textarea);
+    const padding = (parsePx(computed.paddingTop) ?? 0) + (parsePx(computed.paddingBottom) ?? 0);
+    const border = (parsePx(computed.borderTopWidth) ?? 0) + (parsePx(computed.borderBottomWidth) ?? 0);
+    const chrome = computed.boxSizing === 'border-box' ? padding + border : 0;
+    const lineHeight = resolveLineHeight(computed);
+    const minHeight = style.getPropertyValue('min-height');
+    const minHeightPriority = style.getPropertyPriority('min-height');
+    const scrollTop = textarea.scrollTop;
+    const scrollLeft = textarea.scrollLeft;
+
+    // The previous height and the CSS minimum both inflate scrollHeight. Hide
+    // the vertical scrollbar while measuring so it can't change text wrapping.
+    style.height = '0px';
+    style.setProperty('min-height', '0px', 'important');
+    style.overflowY = 'hidden';
+    const measured = textarea.scrollHeight;
+    style.setProperty('min-height', minHeight, minHeightPriority);
+    if (measured === 0) {
+      style.removeProperty('height');
+      style.removeProperty('overflow-y');
+      return;
+    }
+
+    // scrollHeight contains padding but not border. Clamp the content first,
+    // then convert it to the box described by the CSS height property.
+    const content = Math.max(lineHeight, measured - padding);
+    const minRows = Math.max(0, Math.trunc(this.minRows) || 0);
+    const maxRows = Math.max(0, Math.trunc(this.maxRows) || 0);
+    const floor = minRows * lineHeight;
+    const ceiling = maxRows > 0 ? maxRows * lineHeight : Number.POSITIVE_INFINITY;
+    const clamped = Math.min(Math.max(content, floor), ceiling);
+
+    style.height = `${clamped + chrome}px`;
+    style.overflowY = clamped < content ? 'auto' : '';
+    textarea.scrollTop = scrollTop;
+    textarea.scrollLeft = scrollLeft;
   }
 
   #onInput = (event: Event): void => {

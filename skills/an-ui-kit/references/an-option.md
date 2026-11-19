@@ -8,7 +8,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 

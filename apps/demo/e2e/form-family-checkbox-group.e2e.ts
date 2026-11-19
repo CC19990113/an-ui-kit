@@ -42,14 +42,50 @@ test.describe('an-checkbox-group · 表单族 demo', () => {
     await expect(group.locator('an-checkbox[value="perf"]')).toHaveJSProperty('checked', true);
   });
 
-  test('FormData：选中项作为同名多值提交', async ({ page }) => {
-    const group = host(page, 'family-checkbox-group');
-    await group.locator('an-checkbox[value="perf"]').click();
+  test('原生 form：同名多值、取消和禁用同步，子 checkbox 不重复提交', async ({ page }) => {
+    const form = await page.evaluate(async () => {
+      await customElements.whenDefined('an-checkbox-group');
+      await customElements.whenDefined('an-checkbox');
+      const form = document.createElement('form');
+      form.dataset.testid = 'native-checkbox-group-form';
+      const group = document.createElement('an-checkbox-group') as HTMLElement & {
+        value: string[];
+        disabled: boolean;
+      };
+      group.setAttribute('name', 'topics');
+      for (const value of ['one', 'two', 'three']) {
+        const checkbox = document.createElement('an-checkbox');
+        checkbox.setAttribute('value', value);
+        checkbox.textContent = value;
+        group.append(checkbox);
+      }
+      form.append(group);
+      document.body.append(form);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      return true;
+    });
+    expect(form).toBe(true);
 
-    await submitFamily(page);
+    const nativeForm = page.locator('[data-testid="native-checkbox-group-form"]');
+    const group = nativeForm.locator('an-checkbox-group');
+    const entries = () => nativeForm.evaluate((element) => new FormData(element as HTMLFormElement).getAll('topics'));
+    const childEntries = () => nativeForm.evaluate((element) => new FormData(element as HTMLFormElement).getAll('child'));
 
-    const state = await familyState(page);
-    expect(state.submit).toBe(1);
-    expect(state.values.topics).toEqual(['a11y', 'perf']);
+    await group.locator('an-checkbox[value="one"] input[type="checkbox"]').click({ force: true });
+    await group.locator('an-checkbox[value="two"] input[type="checkbox"]').click({ force: true });
+    await expect.poll(entries).toEqual(['one', 'two']);
+    await expect.poll(childEntries).toEqual([]);
+
+    await group.locator('an-checkbox[value="one"] input[type="checkbox"]').click({ force: true });
+    await expect.poll(entries).toEqual(['two']);
+
+    await group.evaluate((element) => {
+      (element as unknown as { disabled: boolean }).disabled = true;
+    });
+    await expect.poll(entries).toEqual([]);
+    await group.evaluate((element) => {
+      (element as unknown as { disabled: boolean }).disabled = false;
+    });
+    await expect.poll(entries).toEqual(['two']);
   });
 });

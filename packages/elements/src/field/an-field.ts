@@ -4,6 +4,9 @@ import { AnElement } from '../internal/base';
 /** Shown when a control reports `invalid` but carries no platform message. */
 const FALLBACK_ERROR = '请输入有效值';
 
+/** Native controls that can receive the field's accessible name and state. */
+const NATIVE_CONTROLS = new Set(['input', 'textarea', 'select', 'button']);
+
 /**
  * Events a slotted control dispatches after its value changed. Any of them
  * clears the error text captured from an earlier `invalid` event.
@@ -73,7 +76,7 @@ function readValidationMessage(target: EventTarget | null | undefined): string {
  * @attr error - Forces the error message and wins over the captured one.
  * @attr required - Marks the field as required for presentation (`aria-required`).
  *
- * @slot - The control the field wraps; every direct element child is treated as one.
+ * @slot - Direct native or form-associated custom controls receive the field's label and state.
  *
  * @cssprop --an-field-gap - Space between label, control, hint and error; defaults to `--an-space-2` (0.5rem).
  * @cssprop --an-field-label-font-size - Label text size; defaults to `--an-font-size-sm` (0.875rem).
@@ -149,18 +152,17 @@ export class AnField extends AnElement {
   };
 
   #linkAll(): void {
-    for (const control of Array.from(this.children)) this.#link(control);
+    for (const control of Array.from(this.children)) {
+      const ctor = customElements.get(control.localName) as
+        | (CustomElementConstructor & { formAssociated?: boolean })
+        | undefined;
+      // Layout containers (even named ones) must not inherit control-only ARIA.
+      if (!NATIVE_CONTROLS.has(control.localName) && ctor?.formAssociated !== true) continue;
+      this.#link(control);
+    }
   }
 
-  /**
-   * Mirrors the label/hint/error text onto one slotted control.
-   *
-   * IDREFs cannot cross a shadow boundary, so `aria-labelledby` /
-   * `aria-describedby` (which point at elements inside this shadow root) are
-   * only the declarative half of the link: wherever that resolution is not
-   * honoured, `aria-label` and `aria-description` carry the same text and keep
-   * the control named and described. Author-provided values win over both.
-   */
+  /** Mirrors label/hint/error text because IDREFs cannot cross a shadow boundary. */
   #link(control: Element): void {
     const error = this.#displayError;
     const target = this.#invalidTarget;
@@ -174,12 +176,11 @@ export class AnField extends AnElement {
       this.#external(control, 'aria-label') === null &&
       this.#external(control, 'aria-labelledby') === null;
     const hasText = this.hint !== '' || error !== '';
-    const ids = [this.hint ? this.#hintId : '', error ? this.#errorId : ''].filter(Boolean).join(' ');
     const text = [this.hint, error].filter(Boolean).join(' ');
 
-    this.#write(control, 'aria-labelledby', nameable ? this.#labelId : null);
+    this.#write(control, 'aria-labelledby', null);
     this.#write(control, 'aria-label', nameable ? this.label : null);
-    this.#write(control, 'aria-describedby', hasText && this.#external(control, 'aria-describedby') === null ? ids : null);
+    this.#write(control, 'aria-describedby', null);
     this.#write(control, 'aria-description', hasText && this.#external(control, 'aria-description') === null ? text : null);
     this.#write(control, 'aria-required', this.required ? 'true' : null);
     this.#write(control, 'aria-invalid', invalid);

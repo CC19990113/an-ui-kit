@@ -18,6 +18,24 @@ export interface AnSelectOption {
   disabled: boolean;
 }
 
+/** A public snapshot of one `<an-option-group>`. */
+export interface AnSelectGroup {
+  /** Accessible name of the group, rendered as the wrapper's `aria-label`. */
+  label: string;
+  /** Whether the whole group is disabled. */
+  disabled: boolean;
+}
+
+/** Payload of `an-load-more`. */
+export interface AnSelectLoadMoreDetail {
+  /** Current scroll offset of the listbox, in pixels. */
+  scrollTop: number;
+  /** Full scrollable height of the listbox, in pixels. */
+  scrollHeight: number;
+  /** Visible height of the listbox, in pixels. */
+  clientHeight: number;
+}
+
 const SIZES: readonly AnSelectSize[] = ['sm', 'md', 'lg'];
 const VIRTUAL_MODES: readonly AnSelectVirtual[] = ['auto', 'on', 'off'];
 
@@ -34,6 +52,8 @@ const VIRTUAL_VIEWPORT = 320;
 const SEARCH_DEBOUNCE = 150;
 /** How long single keystrokes accumulate into one typeahead query. */
 const TYPEAHEAD_TIMEOUT = 500;
+/** Minimum gap between two `an-load-more` events, in milliseconds. */
+const LOAD_MORE_INTERVAL = 200;
 
 /** Internal, richer view of one light-DOM option. */
 interface OptionRecord extends AnSelectOption {
@@ -45,6 +65,12 @@ interface OptionRecord extends AnSelectOption {
   html: string;
   /** Stable element id referenced by `aria-activedescendant`. */
   id: string;
+  /** Enclosing `<an-option-group>` metadata, `null` for a flat option. */
+  group: AnSelectGroup | null;
+  /** 1-based position inside `group`, recomputed after every filter pass. */
+  posInGroup: number;
+  /** Number of visible options inside `group`, recomputed after every filter pass. */
+  groupSize: number;
 }
 
 let selectUid = 0;
@@ -98,6 +124,26 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
   return left.every((value, index) => value === right[index]);
 }
 
+/** Whether a light-DOM child is an option source the select understands. */
+function isOptionNode(node: Element): boolean {
+  return node.localName === 'an-option' || node.localName === 'option';
+}
+
+/**
+ * Reads the `<an-option-group>` metadata. One object is shared by every option
+ * of the group, so a group can be used as a map key while rendering.
+ */
+function readGroup(node: Element): AnSelectGroup {
+  const element = node as Element & { label?: unknown };
+  const attribute = node.getAttribute('label');
+  const label =
+    typeof element.label === 'string' ? element.label : (attribute ?? '');
+  return {
+    label,
+    disabled: node.hasAttribute('disabled') || (element as { disabled?: unknown }).disabled === true,
+  };
+}
+
 /**
  * `<an-select>` — a self-drawn listbox with a light-DOM option source.
  *
@@ -121,14 +167,16 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
  * @attr {boolean} loading - Shows the loading row. Default: false.
  * @attr {'auto'|'on'|'off'} virtual - Virtualization mode. Default: `auto`.
  * @attr {number} max-tags - Tags shown on a multi-select trigger before `+N`. Default: 3.
+ * @attr {number} load-more-threshold - Distance from the list bottom, in pixels, at which `an-load-more` fires. Default: 80.
  * @attr {boolean} open - Whether the panel is open. Reflected by the property.
  *
  * @fires an-select-change - User changed the selection. Detail: `{ value, values, option, originalEvent }`.
  * @fires an-select-open - The panel opened.
  * @fires an-select-close - The panel closed.
  * @fires an-search - Debounced search query. Detail: `{ query }`.
+ * @fires an-load-more - The list scrolled within `load-more-threshold` of the bottom; throttled to one event per 200ms. Detail: `{ scrollTop, scrollHeight, clientHeight }`.
  *
- * @slot - `<an-option>` or native `<option>` children; they stay in the light DOM.
+ * @slot - `<an-option>` / `<option>` children, or `<an-option-group>` wrappers holding them; they stay in the light DOM.
  *
  * @csspart base - Column wrapper around the label and the control.
  * @csspart label - Visible label.
@@ -140,6 +188,7 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
  * @csspart panel - The floating panel.
  * @csspart search - The search input.
  * @csspart listbox - The `role="listbox"` scroller.
+ * @csspart group - One `role="group"` wrapper around the options of an `<an-option-group>`.
  * @csspart option - One list item.
  * @csspart option-indicator - The selected check mark.
  * @csspart empty - The no-results row.
@@ -175,6 +224,7 @@ export class AnSelect extends AnElement {
     loading: false,
     virtual: 'auto',
     maxTags: 3,
+    loadMoreThreshold: 80,
   };
 
   /**
@@ -205,6 +255,7 @@ export class AnSelect extends AnElement {
   declare loading: boolean;
   declare virtual: AnSelectVirtual;
   declare maxTags: number;
+  declare loadMoreThreshold: number;
 
   readonly #uid: string;
   readonly #triggerId: string;
@@ -229,6 +280,8 @@ export class AnSelect extends AnElement {
   #visible: OptionRecord[] = [];
   #activeIndex = -1;
   #scrollTop = 0;
+  /** `Date.now()` of the last `an-load-more` emission; throttles the event. */
+  #lastLoadMore = 0;
   #pendingScrollTop: number | null = null;
   #pendingFocus: 'trigger' | 'search' | null = null;
   #pendingCaret: number | null = null;
@@ -618,9 +671,18 @@ export class AnSelect extends AnElement {
     if (total === 0) return '';
     const window = this.#virtualWindow();
     let rows = '';
+    let openGroup: AnSelectGroup | null = null;
     for (let index = window.start; index < window.end; index += 1) {
+      const option = this.#visible[index];
+      if (option === undefined) continue;
+      if (option.group !== openGroup) {
+        if (openGroup !== null) rows += '</div>';
+        openGroup = option.group;
+        rows += this.#groupOpenMarkup(openGroup);
+      }
       rows += this.#optionMarkup(index);
     }
+    if (openGroup !== null) rows += '</div>';
     if (!this.#virtualEnabled()) return rows;
     // Keep the highlighted row in the DOM even when the user has scrolled the
     // viewport away from it, so `aria-activedescendant` still resolves.
@@ -639,17 +701,33 @@ export class AnSelect extends AnElement {
     );
   }
 
+  /** Opens one `role="group"` wrapper; an empty group has no wrapper at all. */
+  #groupOpenMarkup(group: AnSelectGroup | null): string {
+    if (group === null) return '';
+    const label =
+      group.label.trim().length === 0
+        ? ''
+        : ` aria-label="${escapeHtml(group.label.trim())}"`;
+    return (
+      `<div class="group" part="group" role="group"${label}` +
+      `${group.disabled ? ' data-disabled="true"' : ''}>`
+    );
+  }
+
   #optionMarkup(index: number): string {
     const option = this.#visible[index];
     if (option === undefined) return '';
     const selected = this.#values.includes(option.value);
     const active = index === this.#activeIndex;
+    // Grouped options count inside their group; flat options count in the list.
+    const setSize = option.group === null ? this.#visible.length : option.groupSize;
+    const posInSet = option.group === null ? index + 1 : option.posInGroup;
     return (
       `<div class="option" part="option" id="${option.id}" role="option"` +
       ` data-option-index="${index}"` +
       ` aria-selected="${selected ? 'true' : 'false'}"` +
       `${option.disabled ? ' aria-disabled="true"' : ''}` +
-      ` aria-posinset="${index + 1}" aria-setsize="${this.#visible.length}"` +
+      ` aria-posinset="${posInSet}" aria-setsize="${setSize}"` +
       `${active ? ' data-active="true"' : ''}>` +
       `<span class="option-content">${option.html}</span>` +
       `<span class="option-indicator" part="option-indicator" aria-hidden="true">✓</span>` +
@@ -661,48 +739,98 @@ export class AnSelect extends AnElement {
   // Options
   // ---------------------------------------------------------------------------
 
+  /**
+   * Reads the light-DOM option source in document order.
+   *
+   * `<an-option-group>` wrappers are flattened into the list: every one of their
+   * `<an-option>` children becomes a normal record that carries the group
+   * metadata, so keyboard navigation, filtering and the virtual window keep
+   * working on one flat index. A disabled group disables its options here, once,
+   * instead of at every render.
+   */
   #readOptions(): OptionRecord[] {
-    const options: OptionRecord[] = [];
+    const entries: Array<{ node: Element; group: AnSelectGroup | null }> = [];
     for (const child of Array.from(this.children)) {
-      if (child.localName === 'an-option') {
-        const element = child as Element & Partial<AnOption>;
-        const text = (child.textContent ?? '').trim();
-        const value =
-          typeof element.value === 'string'
-            ? element.value
-            : (child.getAttribute('value') ?? text);
-        const label =
-          typeof element.label === 'string' && element.label.trim() !== ''
-            ? element.label
-            : text || value;
-        const disabled = child.hasAttribute('disabled') || element.disabled === true;
-        const inner = child.innerHTML.trim();
-        options.push({
-          node: child,
-          value,
-          label,
-          text: text || value,
-          disabled,
-          html: inner.length > 0 ? child.innerHTML : escapeHtml(text || label),
-          id: this.#optionId(child),
-        });
-      } else if (child.localName === 'option') {
-        const element = child as HTMLOptionElement;
-        const text = (child.textContent ?? '').trim();
-        const value = child.getAttribute('value') ?? text;
-        const label = element.label || text || value;
-        options.push({
-          node: child,
-          value,
-          label,
-          text: text || value,
-          disabled: element.disabled === true || child.hasAttribute('disabled'),
-          html: escapeHtml(text || label),
-          id: this.#optionId(child),
-        });
+      if (child.localName === 'an-option-group') {
+        const group = readGroup(child);
+        for (const nested of Array.from(child.children)) {
+          entries.push({ node: nested, group });
+        }
+        continue;
       }
+      entries.push({ node: child, group: null });
+    }
+
+    const groupSizes = new Map<AnSelectGroup, number>();
+    for (const entry of entries) {
+      if (entry.group === null || !isOptionNode(entry.node)) continue;
+      groupSizes.set(entry.group, (groupSizes.get(entry.group) ?? 0) + 1);
+    }
+
+    const options: OptionRecord[] = [];
+    const groupPositions = new Map<AnSelectGroup, number>();
+    for (const entry of entries) {
+      const { node, group } = entry;
+      const position = group === null ? 0 : (groupPositions.get(group) ?? 0) + 1;
+      if (group !== null) groupPositions.set(group, position);
+      const size = group === null ? 0 : (groupSizes.get(group) ?? position);
+      const record = this.#readOption(node, group, position, size);
+      if (record !== null) options.push(record);
     }
     return options;
+  }
+
+  /** Builds the record for one light-DOM option node; `null` for anything else. */
+  #readOption(
+    node: Element,
+    group: AnSelectGroup | null,
+    posInGroup: number,
+    groupSize: number,
+  ): OptionRecord | null {
+    if (node.localName === 'an-option') {
+      const element = node as Element & Partial<AnOption>;
+      const text = (node.textContent ?? '').trim();
+      const value =
+        typeof element.value === 'string' ? element.value : (node.getAttribute('value') ?? text);
+      const label =
+        typeof element.label === 'string' && element.label.trim() !== ''
+          ? element.label
+          : text || value;
+      const ownDisabled = node.hasAttribute('disabled') || element.disabled === true;
+      const inner = node.innerHTML.trim();
+      return {
+        node,
+        value,
+        label,
+        text: text || value,
+        disabled: ownDisabled || (group?.disabled ?? false),
+        html: inner.length > 0 ? node.innerHTML : escapeHtml(text || label),
+        id: this.#optionId(node),
+        group,
+        posInGroup,
+        groupSize,
+      };
+    }
+    if (node.localName === 'option') {
+      const element = node as HTMLOptionElement;
+      const text = (node.textContent ?? '').trim();
+      const value = node.getAttribute('value') ?? text;
+      const label = element.label || text || value;
+      const ownDisabled = element.disabled === true || node.hasAttribute('disabled');
+      return {
+        node,
+        value,
+        label,
+        text: text || value,
+        disabled: ownDisabled || (group?.disabled ?? false),
+        html: escapeHtml(text || label),
+        id: this.#optionId(node),
+        group,
+        posInGroup,
+        groupSize,
+      };
+    }
+    return null;
   }
 
   #optionId(node: Element): string {
@@ -740,6 +868,30 @@ export class AnSelect extends AnElement {
         ? [...this.#allOptions]
         : this.#allOptions.filter((option) => this.#matches(option, query));
     if (this.#activeIndex >= this.#visible.length) this.#activeIndex = this.#visible.length - 1;
+    this.#reindexGroups();
+  }
+
+  /**
+   * Recomputes `aria-posinset` / `aria-setsize` for grouped options.
+   *
+   * A search can hide most of a group, so the group-relative position is only
+   * valid for the current `#visible` list — the group title itself never takes
+   * part in the filtering.
+   */
+  #reindexGroups(): void {
+    const sizes = new Map<AnSelectGroup, number>();
+    for (const option of this.#visible) {
+      if (option.group === null) continue;
+      sizes.set(option.group, (sizes.get(option.group) ?? 0) + 1);
+    }
+    const positions = new Map<AnSelectGroup, number>();
+    for (const option of this.#visible) {
+      if (option.group === null) continue;
+      const position = (positions.get(option.group) ?? 0) + 1;
+      positions.set(option.group, position);
+      option.posInGroup = position;
+      option.groupSize = sizes.get(option.group) ?? position;
+    }
   }
 
   #matches(option: OptionRecord, query: string): boolean {
@@ -908,7 +1060,33 @@ export class AnSelect extends AnElement {
     if (next === this.#scrollTop) return;
     this.#scrollTop = next;
     if (this.#virtualEnabled()) this.#paintList();
+    this.#maybeLoadMore(list);
   };
+
+  /**
+   * Fires `an-load-more` once the listbox is within `load-more-threshold` of its
+   * bottom. Throttled rather than debounced: a fast flick still produces one
+   * event per 200ms instead of only one after the scrolling stops.
+   *
+   * No "has more" bookkeeping lives here — the consumer simply stops appending
+   * options, so it must not fire the event twice in the same frame either.
+   */
+  #maybeLoadMore(list: HTMLElement): void {
+    if (!this.#open) return;
+    const scrollHeight = list.scrollHeight;
+    if (scrollHeight <= 0 || scrollHeight <= list.clientHeight) return;
+    const threshold = Math.max(0, this.loadMoreThreshold);
+    const distance = scrollHeight - list.scrollTop - list.clientHeight;
+    if (distance > threshold) return;
+    const now = Date.now();
+    if (now - this.#lastLoadMore < LOAD_MORE_INTERVAL) return;
+    this.#lastLoadMore = now;
+    this.emit<AnSelectLoadMoreDetail>('an-load-more', {
+      scrollTop: list.scrollTop,
+      scrollHeight,
+      clientHeight: list.clientHeight,
+    });
+  }
 
   #initActive(): void {
     const selected = this.#values[0];

@@ -21,8 +21,8 @@
 
 ## 核心特性
 
-- **零运行时依赖**：`packages/*/dependencies` 恒为空对象 `{}`，由 CI 脚本（`assert-empty-deps.mjs`）强制断言；构建产出不 `import` 任何第三方运行时库，`@an-ui-kit/elements` 的 `dist/index.js` 受 `gzip ≤ 4096B 基线 + 2048B × 16 个组件 = 36864B` 预算约束（当前实测 gzip 34649B，余量 2215B）。
-- **原生 Custom Elements + Shadow DOM**：组件内部使用真实原生语义元素与 `attachShadow({ mode: 'open' })`，状态与样式通过 attribute、property、冒泡事件、CSS 变量与 `::part()` 暴露。
+- **零运行时依赖**：`packages/*/dependencies` 恒为空对象 `{}`，由 CI 脚本（`assert-empty-deps.mjs`）强制断言；构建产出不 `import` 任何第三方运行时库，`@an-ui-kit/elements` 的 `dist/index.js` 受 `gzip ≤ 4096B 基线 + 2560B × 17 个组件 = 47616B` 预算约束。运行 `node scripts/ci/assert-bundle-size.mjs` 查看当前构建的实测体积与余量。
+- **原生 Custom Elements + Shadow DOM**：交互控件在开放的 Shadow DOM 中使用原生语义元素，通过 attribute、property、冒泡事件、CSS 变量与 `::part()` 暴露状态与样式。`<an-form>` 直接聚合 light DOM 后代。
 - **OKLCH Design Tokens 与双主题**：`@an-ui-kit/tokens` 在构建期生成 CSS 变量，支持显式 `data-theme="dark"` / `data-theme="light"` 与系统 `prefers-color-scheme`，并内建 WCAG 2.x 对比度校验。
 - **AI 原生三件套**：以根 [`custom-elements-manifest.json`](custom-elements-manifest.json)（CEM 2.1.0）为唯一真相源，派生 shadcn 兼容 [`registry/`](registry)、只读 MCP Server [`@an-ui-kit/mcp`](packages/mcp) 与 Agent Skill [`skills/an-ui-kit/`](skills/an-ui-kit)。
 - **契约先行**：所有组件严格遵守 [CONTRACT.md](CONTRACT.md) 中的 9 条硬规则。
@@ -185,11 +185,11 @@ app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 
 ### 表单：原生 `<form>` + `<an-field>`（可选 `<an-form>`）
 
-值控件全部是 form-associated custom element：它们用 `ElementInternals.setFormValue()` / `setValidity()` 参与原生表单，所以 `form.requestSubmit()`、`new FormData(form)`、`form.reset()` 与约束校验（`required` / `invalid` 事件）**不需要任何包装层**，直接走平台语义。
+值控件是 form-associated custom elements，经 `ElementInternals` 接入原生表单与约束校验。直接放在 `<form>` 内，即可使用 `form.requestSubmit()`、`new FormData(form)` 与 `form.reset()`。`<an-button>` 也关联表单，负责触发提交或重置，本身无字段值。
 
-`<an-form>` 是**校验 / 提交控制器，不是 form owner**：它没有 Shadow DOM（`display: contents`），通过 `checkValidity()` / `reportValidity()` / `reset()` / `getFormData()` 聚合后代控件，`submit()` 只做「校验 → 派发 `an-form-submit`」，不调用原生 `form.requestSubmit()`、也不发网络请求。已有原生 `<form>` 时不需要它；只有没有原生 `<form>`、又需要统一校验或一次拿到 `FormData` 时才用（它只扫描自己的 light DOM 后代，不穿透其他元素的 shadow root）。
+首选原生 `<form>` 管理提交、重置与校验，由 `<an-field>` 提供标签、提示与错误反馈。需要在独立容器内统一校验或聚合 `FormData` 时，可用 `<an-form>`。它通过 `checkValidity()`、`reportValidity()`、`reset()`、`getFormData()` 与自己的 light DOM 后代协作，并通过 `an-form-submit` 把数据交给应用提交。原生 `<form>` 保留 form owner 职责。
 
-典型组合：`<an-field>` 负责标签/提示/错误，原生 `<form>` 负责提交/重置/校验（跨边界聚合时再套 `<an-form>`）。
+`<an-form>` 的 `.rules` 按字段 `name` 定义规则。显式 `validate()` / `submit()` 只检查平台约束和内置规则。要执行 `validator` 回调（包括同步返回的回调），使用 `validateAsync()`、`submitAsync()` 或 `validateField(name)`。例如用 `type="button"` 的 `<an-button>` 监听 `an-button-click`，再调用 `await form.submitAsync()`。字段状态与操作包括 `isDirty`、`dirtyFields`、`resetField(name)` 和 `getFieldValue(name)`，`show-error-summary` 可显示可点击的错误列表。详见 [an-form 参考](skills/an-ui-kit/references/an-form.md)。
 
 ```html
 <form id="profile">
@@ -217,7 +217,7 @@ app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 </script>
 ```
 
-`<an-button type="submit">` 走 `form.requestSubmit()`（先跑约束校验，不合法时 `submit` 不触发）；`type="reset"` 走 `form.reset()`，各控件的 `formResetCallback` 恢复挂载时的初始值。
+`<an-button type="submit">` 走 `form.requestSubmit()`（先跑约束校验，不合法时 `submit` 不触发）；`type="reset"` 走 `form.reset()`，各控件的 `formResetCallback` 恢复挂载时的初始值。`<an-select multiple>` 和 `<an-checkbox-group>` 每个选中值提交一条同名记录；在原生 `<form>` 和 `<an-form>` 中都可以用 `formData.getAll(name)` 读取。
 
 **`required` / `disabled` / `readonly` 在各控件上的差异**
 
@@ -234,12 +234,12 @@ app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('an-');
 | `<an-date-range>` | 未选全两端 → `valueMissing` | 同上 | **不支持**（需要只读语义用 `disabled`） |
 | `<an-checkbox-group>` | 一个都没选 → `valueMissing` | 整组禁用，所有子项一起禁用 | **不支持**（用 `disabled`） |
 | `<an-upload>` | 队列为空 → `valueMissing` | 禁用选择 / 拖放 / 上传 | **不支持**（用 `disabled`） |
-| `<an-form>` | —（`novalidate` 可跳过 `submit()` 的校验） | **不级联**：禁用控件自身或祖先 `<fieldset disabled>` | — |
+| `<an-form>` | —（`novalidate` 可跳过 `submit()` / `submitAsync()` 的校验） | **不级联**：禁用控件自身或祖先 `<fieldset disabled>` | — |
 | `<an-button>` | — | 禁用，阻断点击与表单提交 | — |
 
 **校验错误怎么显示**
 
-`<an-field>` 在**捕获阶段**监听 `invalid`（`invalid` 不冒泡，捕获是唯一能在祖先收听到的方式），读出错控件自己的 `validationMessage` 作为错误文本，渲染 `part="error"`（`role="alert"`），并给该控件写 `aria-invalid="true"`、`aria-describedby` / `aria-description`。控件再次派发 `input` / `change` / `an-*` 变化事件时，错误自动清除。
+`<an-field>` 在**捕获阶段**监听 `invalid`（`invalid` 不冒泡，捕获是唯一能在祖先收听到的方式），读出错控件自己的 `validationMessage` 作为错误文本，渲染 `part="error"`（`role="alert"`），并给该控件写 `aria-label`（label 文本）、`aria-description`（hint/error 文本）及 `aria-invalid="true"`；`aria-required` / `aria-invalid` 由 field 管理。field 不生成指向自身 Shadow DOM 的 `aria-labelledby` / `aria-describedby`，作者已有的 IDREF 保留且不覆盖。控件再次派发 `input` / `change` / `an-*` 变化事件时，错误自动清除。
 
 - 错误文本按顺序取：`<an-field error="...">` 强制值 → 控件的 `validationMessage` → 兜底文案 `请输入有效值`。
 - 一个 `<an-field>` 里放多个控件时，`aria-invalid` 只落在最后派发 `invalid` 的那个控件上。
@@ -276,28 +276,29 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 ## 当前组件
 
-仓库当前包含 16 个 Custom Element（CEM 中同时包含内部基类 `AnElement`）：12 个 form-associated 值控件 + 3 个非表单控件（`<an-option>`、`<an-radio>`、`<an-field>`）+ 1 个校验/提交控制器 `<an-form>`。`<an-form>` 不是 form owner，`<an-field>` 只是标签/提示/错误包装器。
+仓库当前注册 17 个 Custom Elements，包括 11 个 form-associated 值控件、动作按钮 `<an-button>`、4 个结构或展示元素（`<an-option>`、`<an-option-group>`、`<an-radio>`、`<an-field>`），以及校验与提交控制器 `<an-form>`。CEM 还记录内部基类 `AnElement`。
 
 ### 组件一览
 
 | 元素 | 定位 | 主要 attributes / 事件 |
 |------|------|------------------------|
-| `<an-button>` | 按钮（Shadow DOM 内部是真实原生 `<button>`） | `variant`（`default` \| `primary` \| `danger` \| `ghost`）、`size`、`disabled`、`loading`、`type`（`button` \| `submit` \| `reset`）；事件 `an-button-click` |
-| `<an-input>` | 单行输入（form-associated，原生 `<input>`） | `type`、`placeholder`、`label`、`size`、`value`（仅初始值）、`disabled`、`readonly`、`required`、`invalid`、`name`；事件 `an-input` / `an-change` |
-| `<an-textarea>` | 多行文本（form-associated，原生 `<textarea>`） | `rows`、`maxlength`、`resize`（`none` \| `vertical` \| `both`）、`placeholder`、`label`、`disabled`、`readonly`、`required`、`invalid`、`name`；事件 `an-textarea-input` / `an-textarea-change` |
-| `<an-number>` | 数字输入（form-associated；内部 `<input type="text" inputmode="decimal" role="spinbutton">`，非原生 `type=number`） | `value`（仅初始文本）、`min`、`max`、`step`、`precision`、`stepper`、`placeholder`、`size`、`disabled`、`readonly`、`required`、`name`；事件 `an-number-change` |
-| `<an-select>` | 下拉选择（form-associated；选项写 light DOM，`<an-option>` 或原生 `<option>`） | `multiple`、`value` / `values`（多选为 `string[]`）、`searchable`、`virtual`、`max-tags`、`open`、`placeholder`、`size`、`label`、`disabled`、`required`、`invalid`、`name`；事件 `an-select-change` / `an-select-open` / `an-select-close` / `an-search` |
+| `<an-button>` | 按钮（Shadow DOM 内部是真实原生 `<button>`，支持提交与重置动作） | `variant`（`default` \| `primary` \| `danger` \| `ghost`）、`size`、`disabled`、`loading`、`type`（`button` \| `submit` \| `reset`）；事件 `an-button-click` |
+| `<an-input>` | 单行输入（form-associated，原生 `<input>`） | `type`、`placeholder`、`label`、`size`、`value`（仅初始值）、`disabled`、`readonly`、`required`、`invalid`、`name`、`maxlength`、`clearable`、`show-count`、`prefix` / `suffix`、`autocomplete`、`spellcheck`、`inputmode`；事件 `an-input` / `an-change` / `an-input-clear` |
+| `<an-textarea>` | 多行文本（form-associated，原生 `<textarea>`） | `rows`、`auto-size`、`min-rows` / `max-rows`、`show-count`、`maxlength`、`resize`（`none` \| `vertical` \| `both`）、`placeholder`、`label`、`disabled`、`readonly`、`required`、`invalid`、`name`、`autocomplete`；事件 `an-textarea-input` / `an-textarea-change` |
+| `<an-number>` | 数字输入（form-associated；内部 `<input type="text" inputmode="decimal" role="spinbutton">`，非原生 `type=number`） | `value`（仅初始文本）、`min`、`max`、`step`、`precision`、`stepper`、`group-separator`（千分位，仅显示）、`unit`（单位文字，仅显示）、`placeholder`、`size`、`disabled`、`readonly`、`required`、`name`；事件 `an-number-change` |
+| `<an-select>` | 下拉选择（form-associated，light DOM 支持 `<an-option>`、原生 `<option>` 与 `<an-option-group>`） | `multiple`、`value` / `values`（多选为 `string[]`）、`searchable`、`virtual`、`max-tags`、`open`、`placeholder`、`size`、`label`、`disabled`、`required`、`invalid`、`name`、`loading`、`load-more-threshold`；事件 `an-select-change` / `an-select-open` / `an-select-close` / `an-search` / `an-load-more` |
 | `<an-option>` | `<an-select>` 的选项（light DOM，不自带表单值） | `value`（缺省取文本内容）、`label`、`disabled`；无事件 |
+| `<an-option-group>` | `<an-select>` 的选项分组（light DOM 结构件） | `label`、`disabled`（禁用组内选项）；无事件 |
 | `<an-checkbox>` | 复选框（form-associated，原生 `<input type="checkbox">`） | `checked`、`indeterminate`、`disabled`、`required`、`name`、`value`；事件 `an-checkbox-change` |
-| `<an-checkbox-group>` | 复选组（form-associated，统一提交多值） | `name`、`value`（attribute 逗号分隔 / property `string[]`）、`label`、`orientation`、`min`、`max`、`disabled`、`required`；事件 `an-checkbox-group-change` |
+| `<an-checkbox-group>` | 复选组（form-associated，每个选中值提交一条同名记录） | `name`、`value`（attribute 逗号分隔 / property `string[]`）、`label`、`orientation`、`min`、`max`、`disabled`、`required`、`select-all`（全选与半选）；事件 `an-checkbox-group-change` |
 | `<an-radio>` | 单选项（不自带表单值，由 `<an-radio-group>` 统一提交） | `value`、`checked`（由 group 驱动）、`disabled`；事件 `an-radio-select` / `an-radio-connect` |
 | `<an-radio-group>` | 单选组（form-associated，键盘导航在组内） | `value`（初始值）、`label`、`disabled`、`required`、`name`；事件 `an-radio-change` |
 | `<an-switch>` | 开关（form-associated，开启时才进 `FormData`） | `checked`、`disabled`、`required`、`name`、`value`；事件 `an-switch-change` |
 | `<an-date>` | 单日期选择（form-associated，`YYYY-MM-DD`） | `value`、`min`、`max`、`format`、`first-day`、`inline`、`open`、`placeholder`、`size`、`disabled`、`readonly`、`required`、`name`；事件 `an-date-change` / `an-date-open` / `an-date-close` |
-| `<an-date-range>` | 日期范围（form-associated，提交 `name` 与 `end-name` 两个字段） | `start`、`end`、`end-name`、`min`、`max`、`first-day`、`inline`、`open`、`placeholder`、`size`、`disabled`、`required`、`name`；事件 `an-date-range-change` / `an-date-range-open` / `an-date-range-close` |
-| `<an-upload>` | 文件选择 / 拖放 + 上传队列（form-associated） | `accept`、`multiple`、`max-files`、`max-size`、`action`、`method`、`field-name`、`auto-upload`、`name`、`size`、`disabled`、`required`；事件 `an-upload-change` / `an-upload-reject` / `an-upload-progress` / `an-upload-success` / `an-upload-error` / `an-upload-abort` |
+| `<an-date-range>` | 日期范围（form-associated，提交 `name` 与 `end-name` 两个字段） | `start`、`end`、`end-name`、`min`、`max`、`first-day`、`inline`、`open`、`placeholder`、`size`、`disabled`、`required`、`name`、`presets`（快捷范围）；事件 `an-date-range-change` / `an-date-range-open` / `an-date-range-close` |
+| `<an-upload>` | 文件选择、拖放、粘贴与上传队列（form-associated） | `accept`、`multiple`、`max-files`、`max-size`、`action`、`method`、`field-name`、`auto-upload`、`name`、`size`、`disabled`、`required`、`list-type`（`text` \| `picture`）、`sortable`；事件 `an-upload-change` / `an-upload-reject` / `an-upload-progress` / `an-upload-success` / `an-upload-error` / `an-upload-abort` |
 | `<an-field>` | 标签 / 提示 / 错误的包装器（无值、不参与表单） | `label`、`hint`、`error`（强制错误文案）、`required`（展示星号与 `aria-required`） |
-| `<an-form>` | 校验 / 提交控制器（不拥有 `<form>`、无值、不级联 `disabled`） | `novalidate`、`loading`；事件 `an-form-submit` / `an-form-invalid` / `an-form-reset` |
+| `<an-form>` | 校验 / 提交控制器（不拥有 `<form>`、无值、不级联 `disabled`） | `novalidate`、`loading`、`show-error-summary`、`.rules`（property）；事件 `an-form-submit` / `an-form-invalid` / `an-form-reset` |
 
 ### `<an-button>`
 
@@ -313,11 +314,11 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 
 | 类别 | 说明 |
 |------|------|
-| **Attributes** | `value`（`string`，只作初始值）、`type`（`text` \| `email` \| `password` \| `search` \| `tel` \| `url` \| `number`）、`placeholder`（`string`）、`label`（`string`）、`size`（`sm` \| `md` \| `lg`）、`disabled`（`boolean`）、`readonly`（`boolean`）、`required`（`boolean`）、`invalid`（`boolean`）、`name`（`string`） |
-| **Events** | `an-input` / `an-change`（`CustomEvent<{ value: string, originalEvent }>`，`bubbles: true`、`composed: true`） |
-| **Slots** | 无（可见 label 由 `label` attribute 渲染） |
+| **Attributes** | `value`（`string`，只作初始值）、`type`（`text` \| `email` \| `password` \| `search` \| `tel` \| `url` \| `number`）、`placeholder`（`string`）、`label`（`string`）、`size`（`sm` \| `md` \| `lg`）、`disabled`（`boolean`）、`readonly`（`boolean`）、`required`（`boolean`）、`invalid`（`boolean`）、`name`（`string`）、`maxlength`（`number`）、`clearable` / `show-count` / `spellcheck`（`boolean`）、`prefix` / `suffix` / `autocomplete` / `inputmode`（`string`） |
+| **Events** | `an-input` / `an-change`（`detail = { value, originalEvent }`）、`an-input-clear`（`detail = { value: '' }`），均为 `bubbles: true`、`composed: true` |
+| **Slots** | `prefix` / `suffix`，优先于同名 attribute 的文本 |
 | **CSS 变量** | `--an-input-height`、`--an-input-bg`、`--an-input-fg`、`--an-input-border-color`、`--an-input-radius`、`--an-input-font-size`、`--an-input-padding-x`、`--an-input-focus-ring` |
-| **CSS Parts** | `base`、`label`、`input`（内部的原生 `<input>` 元素） |
+| **CSS Parts** | `base`、`label`、`input`（内部原生 `<input>`）、`prefix`、`suffix`、`clear`、`count` |
 
 完整 API 详见 [`packages/elements/README.md`](packages/elements/README.md) 与 [`custom-elements-manifest.json`](custom-elements-manifest.json)。
 
@@ -329,7 +330,7 @@ $('an-button').on('an-button-click', (event) => console.log(event.detail));
 |------|--------|------|
 | [`registry/`](registry) | shadcn CLI / 直接读 JSON 的 agent | 每组件一份**自包含、零 npm 依赖**的 registry item（各含完整源文件树）；`meta` 原样携带 CEM 的 `attributes` / `events` / `slots` / `cssProperties` / `cssParts`，总目录见 [`registry/index.json`](registry/index.json) |
 | [`packages/mcp/`](packages/mcp) | 支持 MCP 的 agent / IDE | `@an-ui-kit/mcp`（命令行入口 `an-ui-kit-mcp`）：stdio 只读 MCP Server，提供 `list_components`、`get_component`、`search_components` 3 个工具，数据源为根 CEM 逐字节拷贝的 [`manifest.json`](packages/mcp/manifest.json)，要求 Node.js `>=20` |
-| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent Skill 宿主（如 Claude Code） | 包含使用时机、契约查询流程、反例对照与自查清单，见 [`SKILL.md`](skills/an-ui-kit/SKILL.md) 与 [`references/`](skills/an-ui-kit/references)（16 个组件各一篇） |
+| [`skills/an-ui-kit/`](skills/an-ui-kit) | Agent Skill 宿主（如 Claude Code） | 包含使用时机、契约查询流程、反例对照与自查清单，见 [`SKILL.md`](skills/an-ui-kit/SKILL.md) 与 [`references/`](skills/an-ui-kit/references)（17 个组件各一篇） |
 
 ### 方式一：使用 shadcn CLI 安装源码
 
@@ -405,7 +406,7 @@ an-ui-kit/
 ├─ apps/
 │  └─ demo/              # 浏览器验证面：原生 HTML / React 19 / Vue 3 / Tailwind v4
 ├─ registry/             # CEM 派生的 shadcn registry（index.json、组件 JSON 与 files/）
-├─ skills/an-ui-kit/     # Agent Skill（SKILL.md + references/*.md，16 个组件各一篇）
+├─ skills/an-ui-kit/     # Agent Skill（SKILL.md + references/*.md，17 个组件各一篇）
 ├─ scripts/              # 零依赖脚本：a11y、CI 断言、registry 生成
 ├─ custom-elements-manifest.json  # CEM 2.1.0（唯一真相源）
 ├─ CONTRACT.md           # 9 条组件硬契约
@@ -425,7 +426,7 @@ pnpm install
 pnpm --filter @an-ui-kit/tokens build
 pnpm --filter @an-ui-kit/elements typecheck
 pnpm --filter @an-ui-kit/elements build
-pnpm --filter @an-ui-kit/elements test
+pnpm --filter @an-ui-kit/elements test:coverage
 pnpm --filter @an-ui-kit/mcp build
 pnpm --filter @an-ui-kit/mcp test
 ```
@@ -436,10 +437,14 @@ pnpm --filter @an-ui-kit/mcp test
 pnpm --filter demo dev        # http://localhost:5173
 pnpm --filter demo build      # Vite 生产构建
 pnpm --filter demo typecheck  # 含 React 事件名与 Vue augmentation 检查
-pnpm --filter demo e2e        # Playwright：native / react / vue + Tailwind preflight
+pnpm --filter demo exec playwright install chromium webkit firefox
+pnpm --filter demo e2e        # 三个浏览器执行同一套用例
 ```
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) 在每次推送到 `main` 或发起 PR 时执行：`tokens build` → `elements typecheck / build / test` → CEM 时效性、registry 同步、skill 同步、零 `dependencies`、git author 与 `dist/index.js` gzip（`≤ 4096B 基线 + 2048B × 16 个组件 = 36864B`，实测 34649B）断言 → `mcp build / test` → 原生 HTML、React 19、Vue 3 与 Tailwind preflight 的 Playwright Chromium E2E。
+推送到 `main` 或发起 PR 时，CI 并行运行 `verify` 和 `e2e` 两个任务。[CI 工作流](.github/workflows/ci.yml)
+
+- `verify` 构建 tokens 和 elements，运行类型检查与 Vitest V8 单测覆盖率门禁，并检查覆盖率汇总、CEM 时效性、registry 与 skill 同步、零运行时依赖、提交作者、gzip 体积预算和裁剪构建。随后构建并测试 MCP 与 CLI。[覆盖率阈值](packages/elements/test/vitest.config.ts)
+- `e2e` 在 Chromium、WebKit 和 Firefox 上运行同一套 Playwright 用例，覆盖原生 HTML、React 19、Vue 3、Tailwind v4 preflight、深色主题和 axe 无障碍扫描。[Playwright 配置](apps/demo/playwright.config.ts)
 
 ## 组件契约
 

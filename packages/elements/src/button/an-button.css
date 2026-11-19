@@ -73,13 +73,13 @@
 :host([variant='primary']) .base {
   border-color: var(--an-color-accent-9, #2563eb);
   background: var(--an-color-accent-9, #2563eb);
-  color: var(--an-color-bg-1, #ffffff);
+  color: var(--an-color-gray-1, #ffffff);
 }
 
 :host([variant='danger']) .base {
   border-color: var(--an-color-danger-9, #dc2626);
   background: var(--an-color-danger-9, #dc2626);
-  color: var(--an-color-bg-1, #ffffff);
+  color: var(--an-color-gray-1, #ffffff);
 }
 
 :host([variant='ghost']) .base {

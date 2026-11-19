@@ -221,6 +221,41 @@ describe('an-switch', () => {
   });
 
   describe('form semantics', () => {
+    it('returns direct form data only while on and named', () => {
+      const element = mount({ name: 'airplane', value: 'yes' });
+
+      expect(element.getFormData()).toBeNull();
+
+      element.checked = true;
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['airplane', 'yes']]);
+
+      element.checked = false;
+      expect(element.getFormData()).toBeNull();
+
+      element.checked = true;
+      element.value = '';
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['airplane', '']]);
+
+      element.name = '';
+      expect(element.getFormData()).toBeNull();
+    });
+
+    it('omits direct form data while disabled by the host or fieldset', () => {
+      const element = mount({ name: 'airplane', checked: '' });
+
+      element.disabled = true;
+      expect(element.getFormData()).toBeNull();
+
+      element.disabled = false;
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['airplane', 'on']]);
+
+      element.formDisabledCallback(true);
+      expect(element.getFormData()).toBeNull();
+
+      element.formDisabledCallback(false);
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['airplane', 'on']]);
+    });
+
     it('submits the value only while on', () => {
       document.body.innerHTML = '<form><an-switch name="airplane" value="yes"></an-switch></form>';
       const form = document.querySelector('form')!;

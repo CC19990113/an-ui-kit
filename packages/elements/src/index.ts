@@ -10,10 +10,10 @@
  * here, including their registration.
  *
  * **Registration order**: children before their composite parent, so
- * `<an-option>` upgrades before `<an-select>` reads its options, and
- * `<an-radio>` / `<an-checkbox>` upgrade before their groups look at them. All
- * 16 elements are registered here. The guard keeps a second import (or a
- * hand-written `customElements.define`) from throwing.
+ * `<an-option>` and `<an-option-group>` upgrade before `<an-select>` reads its
+ * options, and `<an-radio>` / `<an-checkbox>` upgrade before their groups look
+ * at them. All 17 elements are registered here. The guard keeps a second import
+ * (or a hand-written `customElements.define`) from throwing.
  */
 
 import { AnButton } from './button/an-button';
@@ -26,6 +26,7 @@ import { AnTextarea } from './textarea/an-textarea';
 import { AnSelect } from './select/an-select';
 import { AnField } from './field/an-field';
 import { AnOption } from './option/an-option';
+import { AnOptionGroup } from './option-group/an-option-group';
 import { AnUpload } from './upload/an-upload';
 import { createXhrUploader } from './upload/xhr-uploader';
 import { AnNumber } from './number/an-number';
@@ -35,7 +36,7 @@ import { AnCheckboxGroup } from './checkbox-group/an-checkbox-group';
 import { AnForm } from './form/an-form';
 
 export { AnElement } from './internal/base';
-export type { Defaults, Primitive } from './internal/base';
+export type { ArrayDefaults, Defaults, Primitive } from './internal/base';
 export { AnButton } from './button/an-button';
 export type { AnButtonSize, AnButtonType, AnButtonVariant } from './button/an-button';
 export { AnInput } from './input/an-input';
@@ -51,13 +52,21 @@ export type { AnRadioGroupEventDetail } from './radio-group/an-radio-group';
 export { AnTextarea } from './textarea/an-textarea';
 export type { AnTextareaResize } from './textarea/an-textarea';
 export { AnSelect } from './select/an-select';
-export type { AnSelectSize } from './select/an-select';
+export type {
+  AnSelectSize,
+  AnSelectVirtual,
+  AnSelectOption,
+  AnSelectGroup,
+  AnSelectLoadMoreDetail,
+} from './select/an-select';
 export { AnField } from './field/an-field';
 export { AnOption } from './option/an-option';
+export { AnOptionGroup } from './option-group/an-option-group';
 export { AnUpload, createXhrUploader } from './upload/an-upload';
 export type {
   AnUploader,
   AnUploadSize,
+  AnUploadListType,
   AnUploadStatus,
   AnUploadRejectReason,
   AnUploadContext,
@@ -74,11 +83,29 @@ export type { AnNumberSize, AnNumberChangeDetail } from './number/an-number';
 export { AnDate } from './date/an-date';
 export type { AnDateSize, AnDateChangeDetail } from './date/an-date';
 export { AnDateRange } from './date/an-date-range';
-export type { AnDateRangeChangeDetail } from './date/an-date-range';
+export type { AnDateRangeChangeDetail, AnDateRangePreset } from './date/an-date-range';
 export { AnCheckboxGroup } from './checkbox-group/an-checkbox-group';
 export type { AnCheckboxGroupEventDetail } from './checkbox-group/an-checkbox-group';
 export { AnForm } from './form/an-form';
-export type { AnFormFieldError, AnFormSubmitDetail, AnFormInvalidDetail } from './form/an-form';
+export type {
+  AnFormFieldError,
+  AnFormSubmitDetail,
+  AnFormInvalidDetail,
+  AnFormRule,
+  AnFormRules,
+} from './form/an-form';
+export type {
+  AnElementInputs,
+  AnElementInstances,
+  AnElementEventDetails,
+  AnElementTagName,
+  AnButtonClickDetail,
+  AnTextInputDetail,
+  AnInputClearDetail,
+  AnSelectChangeDetail,
+  AnSearchDetail,
+  AnRadioConnectDetail,
+} from './internal/framework-types';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -92,6 +119,7 @@ declare global {
     'an-select': AnSelect;
     'an-field': AnField;
     'an-option': AnOption;
+    'an-option-group': AnOptionGroup;
     'an-upload': AnUpload;
     'an-number': AnNumber;
     'an-date': AnDate;
@@ -140,6 +168,12 @@ if (typeof customElements !== 'undefined' && !customElements.get('an-textarea'))
 // `<an-select>` reads its option children on connect.
 if (typeof customElements !== 'undefined' && !customElements.get('an-option')) {
   customElements.define('an-option', AnOption);
+}
+
+// Children before composite parent: `<an-option-group>` must upgrade before
+// `<an-select>` collects its groups, same level as `<an-option>` above.
+if (typeof customElements !== 'undefined' && !customElements.get('an-option-group')) {
+  customElements.define('an-option-group', AnOptionGroup);
 }
 
 if (typeof customElements !== 'undefined' && !customElements.get('an-select')) {

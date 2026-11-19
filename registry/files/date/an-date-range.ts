@@ -1,6 +1,6 @@
 import { AnElement } from '../internal/base';
 import { ISODate, compareISO, isValidISO } from '../internal/calendar';
-import { PanelRange } from './calendar-panel';
+import { PanelRange, escapeHtml, isBlockedDay } from './calendar-panel';
 import { DateHost, DatePanelController, SHARED_DEFAULTS } from './date-base';
 import rangeStyles from './an-date-range.css?inline';
 import panelStyles from './panel.css?inline';
@@ -13,11 +13,54 @@ export interface AnDateRangeChangeDetail {
   end: ISODate;
 }
 
+/** One shortcut offered by the `presets` property. */
+export interface AnDateRangePreset {
+  /** Button text; also the accessible name of the preset button. */
+  label: string;
+  /** Range start in `YYYY-MM-DD`. */
+  start: ISODate;
+  /** Range end in `YYYY-MM-DD`. */
+  end: ISODate;
+}
+
 /** Shown to the owning form when `required` is set and the range is incomplete. */
 const REQUIRED_MESSAGE = '此字段为必填项。';
 
 /** Light-DOM attribute used to find the two hidden form fields again. */
 const FIELD_ATTRIBUTE = 'data-an-date-range-field';
+
+/**
+ * Parses the `presets` attribute (JSON) or an assigned array.
+ *
+ * Returns `null` when the input cannot be understood at all — the caller then
+ * keeps the previous presets instead of clearing them, so a malformed attribute
+ * never throws and never drops the UI. Individual entries with a missing or
+ * invalid `start` / `end` are dropped, and a reversed pair is sorted.
+ */
+function parsePresets(input: unknown): AnDateRangePreset[] | null {
+  let source: unknown = input;
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(source)) return null;
+  const presets: AnDateRangePreset[] = [];
+  for (const entry of source) {
+    if (entry === null || typeof entry !== 'object') continue;
+    const record = entry as Record<string, unknown>;
+    const start = typeof record.start === 'string' ? record.start : '';
+    const end = typeof record.end === 'string' ? record.end : '';
+    if (!isValidISO(start) || !isValidISO(end)) continue;
+    const first = compareISO(start, end) <= 0 ? start : end;
+    const last = compareISO(start, end) <= 0 ? end : start;
+    const label = typeof record.label === 'string' ? record.label.trim() : '';
+    presets.push({ label: label.length > 0 ? label : `${first} — ${last}`, start: first, end: last });
+  }
+  return presets;
+}
 
 /**
  * `<an-date-range>` — a form-associated date-range picker.
@@ -54,6 +97,7 @@ const FIELD_ATTRIBUTE = 'data-an-date-range-field';
  * @attr end-name - Field name submitted for the end day.
  * @attr size - `sm` | `md` | `lg`.
  * @attr first-day - Weekday column 0: `0` = Sunday, `1` = Monday (default).
+ * @attr presets - JSON array (`[{"label":"最近7天","start":"2026-11-01","end":"2026-11-07"}]`) rendered as shortcut buttons; invalid JSON is ignored.
  * @fires an-date-range-change - Fired when the range completes or clears; `detail: { start, end }`.
  * @fires an-date-range-open - Fired when the popover panel opens.
  * @fires an-date-range-close - Fired when the popover panel closes.
@@ -76,6 +120,8 @@ const FIELD_ATTRIBUTE = 'data-an-date-range-field';
  * @csspart footer - Bottom bar with the clear and today buttons.
  * @csspart clear - Clears the range.
  * @csspart today - Starts a range on today.
+ * @csspart presets - Bottom bar holding the shortcut buttons.
+ * @csspart preset - One shortcut button.
  * @cssprop --an-date-range-height - Trigger height; defaults to `--an-space-11`.
  * @cssprop --an-date-range-bg - Trigger background; defaults to `--an-color-bg-1`.
  * @cssprop --an-date-range-fg - Trigger text colour; defaults to `--an-color-fg-1`.
@@ -109,7 +155,14 @@ export class AnDateRange extends AnElement {
   };
 
   static override get observedAttributes(): string[] {
-    return [...super.observedAttributes, 'start', 'end', 'aria-label', 'aria-labelledby'];
+    return [
+      ...super.observedAttributes,
+      'start',
+      'end',
+      'aria-label',
+      'aria-labelledby',
+      'presets',
+    ];
   }
 
   /** Field name submitted for the end day; `name` carries the start day. */
@@ -138,6 +191,8 @@ export class AnDateRange extends AnElement {
   #pending = false;
   /** Hovered day used for the pending-range preview. */
   #hover: ISODate = '';
+  /** Shortcut ranges rendered at the bottom of the panel. */
+  #presets: AnDateRangePreset[] = [];
 
   constructor() {
     super();
@@ -166,6 +221,23 @@ export class AnDateRange extends AnElement {
   /** Read-only alias of the controlled `open` state. */
   get isOpen(): boolean {
     return this.open;
+  }
+
+  /**
+   * Shortcut ranges rendered as buttons at the bottom of the panel.
+   *
+   * Assigning copies the list. The `presets` attribute holds the same data as
+   * JSON. Entries with an unparsable `start` / `end` are dropped, and a
+   * reversed pair is sorted. Presets outside `min` / `max` are disabled.
+   * An empty list removes the preset bar entirely.
+   */
+  get presets(): AnDateRangePreset[] {
+    return this.#presets.map((preset) => ({ ...preset }));
+  }
+
+  set presets(next: AnDateRangePreset[] | string) {
+    this.#presets = parsePresets(next) ?? [];
+    this.requestUpdate();
   }
 
   /** Opens the panel; no-op when `inline` or `disabled`. */
@@ -205,6 +277,15 @@ export class AnDateRange extends AnElement {
       this.requestUpdate();
       return;
     }
+    if (name === 'presets') {
+      // A malformed attribute is ignored, so the previous list stays rendered.
+      if (oldValue === value) return;
+      const presets = parsePresets(value);
+      if (presets === null) return;
+      this.#presets = presets;
+      this.requestUpdate();
+      return;
+    }
     super.attributeChangedCallback(name, oldValue, value);
     this.#panel.attributeChanged(name, oldValue, value);
   }
@@ -222,6 +303,46 @@ export class AnDateRange extends AnElement {
       this.#panel.renderPanel() +
       `</div>`
     );
+  }
+
+  /**
+   * Shortcut rail handed to the shared panel markup; empty when there is
+   * nothing to offer, so no empty bar is ever rendered.
+   */
+  renderPresets(): string {
+    const presets = this.#presets;
+    if (presets.length === 0) return '';
+    const buttons = presets
+      .map(
+        (preset, index) =>
+          `<button class="preset" part="preset" type="button"` +
+          ` data-preset-index="${index}"${this.#isPresetBlocked(preset) ? ' disabled' : ''}>` +
+          `${escapeHtml(preset.label)}</button>`,
+      )
+      .join('');
+    return `<div class="presets" part="presets" role="group" aria-label="快捷预设">${buttons}</div>`;
+  }
+
+  /**
+   * Applies `presets[index]`: both endpoints are written in one step, the range
+   * is announced with `an-date-range-change` and the panel closes unless the
+   * element is `inline`. Returns the day the calendar should scroll to, or
+   * `undefined` when the preset cannot be selected.
+   */
+  applyPreset(index: number): ISODate | undefined {
+    const preset = this.#presets[index];
+    if (preset === undefined || this.#isPresetBlocked(preset)) return undefined;
+    this.#start = preset.start;
+    this.#end = preset.end;
+    this.#pending = false;
+    this.#hover = '';
+    this.requestUpdate();
+    this.emit<AnDateRangeChangeDetail>('an-date-range-change', {
+      start: preset.start,
+      end: preset.end,
+    });
+    if (!this.inline) this.close();
+    return preset.end;
   }
 
   protected override afterRender(): void {
@@ -269,6 +390,16 @@ export class AnDateRange extends AnElement {
 
   get #blocked(): boolean {
     return this.disabled || this.#formDisabled;
+  }
+
+  #isPresetBlocked({ start, end }: AnDateRangePreset): boolean {
+    const { min, max } = this;
+    const minISO = isValidISO(min) ? min : undefined;
+    const maxISO = isValidISO(max) ? max : undefined;
+    return (
+      isBlockedDay(start, minISO, maxISO, this.#blocked) ||
+      isBlockedDay(end, minISO, maxISO, this.#blocked)
+    );
   }
 
   get #complete(): boolean {
@@ -484,6 +615,8 @@ export class AnDateRange extends AnElement {
       },
       commitDay: (iso: ISODate, originalEvent: Event) => this.#commitDay(iso, originalEvent),
       clearSelection: (originalEvent: Event) => this.#clearSelection(originalEvent),
+      renderPresets: () => this.renderPresets(),
+      applyPreset: (index: number) => this.applyPreset(index),
       commitInput: () => {},
       onDayHover: (iso: ISODate) => this.#onDayHover(iso),
       requestUpdate: () => this.requestUpdate(),

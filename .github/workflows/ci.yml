@@ -46,9 +46,38 @@ jobs:
       - name: Build elements
         run: pnpm --filter @an-ui-kit/elements build
 
-      # 5. 单元测试。
-      - name: Test elements
-        run: pnpm --filter @an-ui-kit/elements test
+      # 5. 单元测试 + 覆盖率门禁。阈值写在 test/vitest.config.ts 的
+      #    coverage.thresholds 里（v8 统计 src/**/*.ts），低于任一项 vitest
+      #    直接非零退出，所以这一步同时是覆盖率断言。
+      - name: Test elements (coverage)
+        run: pnpm --filter @an-ui-kit/elements test:coverage
+
+      # 5b. 报告产物断言：上面写了 text + json-summary 两个 reporter，这里确认
+      #     json-summary 真的落盘并打印四项数字（阈值的判定仍在 5 的 vitest 里）。
+      - name: Assert coverage summary
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          const file = 'packages/elements/coverage/coverage-summary.json';
+          if (!fs.existsSync(file)) {
+            console.error('coverage-summary.json 缺失：coverage reporter 没生效');
+            process.exit(1);
+          }
+          const { total } = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const rows = ['lines', 'statements', 'functions', 'branches'];
+          const empty = rows.filter((key) => !(total[key] && Number(total[key].pct) > 0));
+          for (const key of rows) {
+            console.log(
+              key.padEnd(10),
+              String(total[key]?.pct ?? 'n/a').padStart(6),
+              '%  (' + total[key]?.covered + '/' + total[key]?.total + ')',
+            );
+          }
+          if (empty.length > 0) {
+            console.error('覆盖率报告里这些项为空: ' + empty.join(', '));
+            process.exit(1);
+          }
+          "
 
       # 6. CEM 是 AI 层（registry / MCP / skill）唯一的契约源。这一步重新扫描
       #    源码，与提交进仓库的 custom-elements-manifest.json 逐字节比对：改了组件
@@ -77,7 +106,7 @@ jobs:
       - name: Assert git author is not @shenshiads.com
         run: node scripts/ci/assert-author.mjs
 
-      # 11. 体积预算：全量单入口 dist/index.js 的 gzip ≤ 2048B × 组件数。
+      # 11. 体积预算：全量单入口 dist/index.js 的 gzip ≤ 4096B 基线 + 2560B × 组件数。
       #     组件数从源码扫描，加组件时预算自动跟着涨，衡量的是单个组件的成本。
       - name: Assert gzip budget
         run: node scripts/ci/assert-bundle-size.mjs
@@ -99,6 +128,9 @@ jobs:
       #     CLI 只读 @an-ui-kit/elements 的 src/，不依赖上一步的 dist。
       - name: Build CLI
         run: pnpm --filter @an-ui-kit/cli build
+
+      - name: Typecheck demo consumer contracts
+        run: pnpm --filter demo typecheck
 
       # 15. 契约工具的行为测试：读的正是 Build MCP 上一步 copy 的新鲜 manifest，全绿才算
       #     AI 层可用。放在 Build MCP 之后（测试依赖 dist/server.js 与 manifest.json）。
@@ -149,5 +181,7 @@ jobs:
 
       # playwright.config.ts 的 webServer 会先 build 再 vite preview；
       # 三个 project 重复跑同一套 native / react / vue / tailwind 断言。
-      - name: E2E (three frameworks x three browsers)
+      # 这里不点名 spec：testMatch = **/*.e2e.ts，所以 e2e/a11y-axe.e2e.ts
+      # （axe 全量扫描）与 e2e/theme-dark.e2e.ts（深色模式）自动包含在内。
+      - name: E2E (three frameworks x three browsers, incl. axe + dark mode)
         run: pnpm --filter demo e2e

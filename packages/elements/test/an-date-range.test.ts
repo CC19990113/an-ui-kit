@@ -166,6 +166,12 @@ describe('an-date-range — structure and a11y', () => {
     expect(day(element, START)!.classList.contains('range-start')).toBe(true);
     expect(day(element, END)!.classList.contains('range-end')).toBe(true);
     expect(day(element, MID)!.classList.contains('in-range')).toBe(true);
+    const outside = element.shadowRoot!.querySelector('[part~="day-outside"]')!;
+    expect(outside.classList.contains('day-outside')).toBe(true);
+    expect(AnDateRange.styles).toMatch(/\.day\.day-outside\s*\{[^}]*--an-date-muted-fg/);
+    expect(AnDateRange.styles).toMatch(
+      /:host\(an-date-range\)[^{]*\.day-outside[^{]*\{[^}]*--an-date-range-muted-fg/,
+    );
   });
 
   it('orders the endpoints coming from attributes', () => {
@@ -511,5 +517,296 @@ describe('an-date-range — inline mode', () => {
 
     expect(labels(monday)).toEqual(['一', '二', '三', '四', '五', '六', '日']);
     expect(labels(sunday)).toEqual(['日', '一', '二', '三', '四', '五', '六']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `presets`: the shortcut rail at the bottom of the panel.
+// ---------------------------------------------------------------------------
+
+const PRESETS = [
+  { label: '近 7 天', start: '2026-03-14', end: '2026-03-20' },
+  { label: '本月', start: '2026-03-01', end: '2026-03-31' },
+];
+
+function presetButtons(element: AnDateRange): HTMLButtonElement[] {
+  return [
+    ...element.shadowRoot!.querySelectorAll<HTMLButtonElement>('[part~="preset"]'),
+  ];
+}
+
+function presetBar(element: AnDateRange): HTMLElement | null {
+  return element.shadowRoot!.querySelector<HTMLElement>('[part~="presets"]');
+}
+
+function clickPreset(element: AnDateRange, index: number): void {
+  presetButtons(element)[index].click();
+}
+
+function changesOf(element: AnDateRange): CustomEvent[] {
+  const seen: CustomEvent[] = [];
+  element.addEventListener('an-date-range-change', (event) => seen.push(event as CustomEvent));
+  return seen;
+}
+
+describe('an-date-range — presets property', () => {
+  it('renders one `part="preset"` button per entry, in a labelled rail', () => {
+    const element = mount();
+    element.presets = PRESETS;
+    openPanel(element);
+
+    const rail = presetBar(element);
+    expect(rail).not.toBeNull();
+    expect(rail!.getAttribute('role')).toBe('group');
+    expect(rail!.getAttribute('aria-label')).toBe('快捷预设');
+
+    const buttons = presetButtons(element);
+    expect(buttons).toHaveLength(2);
+    expect(buttons.map((button) => button.textContent)).toEqual(['近 7 天', '本月']);
+    for (const button of buttons) {
+      expect(button.tagName).toBe('BUTTON');
+      expect(button.getAttribute('type')).toBe('button');
+      expect(button.getAttribute('part')).toBe('preset');
+    }
+    expect(buttons.map((button) => button.dataset.presetIndex)).toEqual(['0', '1']);
+  });
+
+  it('renders the presets inside the panel, after the calendar body', () => {
+    const element = mount();
+    element.presets = PRESETS;
+    openPanel(element);
+
+    const rail = presetBar(element);
+    expect(rail!.closest('[part~="panel"]')).toBe(panel(element));
+    // The rail is the panel's last child, i.e. paints below the calendar.
+    expect(panel(element).lastElementChild).toBe(rail);
+  });
+
+  it('renders nothing at all when the list is empty', () => {
+    const element = mount({ presets: '[]' });
+    openPanel(element);
+
+    expect(presetBar(element)).toBeNull();
+    expect(presetButtons(element)).toHaveLength(0);
+  });
+});
+
+describe('an-date-range — applying a preset', () => {
+  it('writes both endpoints, emits the range and keeps the change payload small', () => {
+    const element = mount();
+    element.presets = PRESETS;
+    const seen = changesOf(element);
+    openPanel(element);
+
+    clickPreset(element, 0);
+
+    expect(element.start).toBe('2026-03-14');
+    expect(element.end).toBe('2026-03-20');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].detail).toEqual({ start: '2026-03-14', end: '2026-03-20' });
+  });
+
+  it('closes the panel after applying a preset', () => {
+    const element = mount();
+    element.presets = PRESETS;
+    openPanel(element);
+    expect(element.open).toBe(true);
+
+    clickPreset(element, 1);
+
+    expect(element.open).toBe(false);
+    expect(element.hasAttribute('open')).toBe(false);
+    expect(panel(element).hasAttribute('hidden')).toBe(true);
+    // `aria-expanded` lives on the inner combobox input, not on the wrapper.
+    const input = element.shadowRoot!.querySelector('[part~="input"]')!;
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(element.end).toBe('2026-03-31');
+  });
+
+  it('keeps the panel in flow in inline mode', () => {
+    const element = document.createElement('an-date-range') as AnDateRange;
+    element.setAttribute('inline', '');
+    element.presets = PRESETS;
+    document.body.append(element);
+
+    // Inline panels are permanent: `show()` / `close()` are no-ops and the
+    // panel never carries `hidden`. That is the observable "stays open" state.
+    expect(panel(element).hasAttribute('hidden')).toBe(false);
+
+    clickPreset(element, 0);
+
+    expect(element.start).toBe('2026-03-14');
+    expect(element.end).toBe('2026-03-20');
+    expect(panel(element).hasAttribute('hidden')).toBe(false);
+    // `open` stays false in inline mode, and `close()` must not flip it.
+    expect(element.open).toBe(false);
+  });
+
+  it('paints the applied range as selected days', () => {
+    const element = mount();
+    element.presets = PRESETS;
+    openPanel(element);
+
+    clickPreset(element, 1);
+
+    // The panel closed, so reopen it to read the painted state.
+    openPanel(element);
+    // `aria-selected` lives on the `role="gridcell"` wrapper, the button is
+    // only its visual face.
+    const selected = (iso: string): string | null =>
+      day(element, iso)!.closest('[role="gridcell"]')!.getAttribute('aria-selected');
+    expect(selected('2026-03-01')).toBe('true');
+    expect(selected('2026-03-31')).toBe('true');
+    expect(selected('2026-03-15')).toBe('false');
+    expect(day(element, '2026-03-01')!.getAttribute('part')).toContain('day-selected');
+    expect(day(element, '2026-03-31')!.getAttribute('part')).toContain('day-selected');
+    expect(title(element)).toBe('2026年3月');
+  });
+
+  it('applies the endpoints in one step, never a half-open range', () => {
+    const element = mount();
+    element.presets = PRESETS;
+    const seen = changesOf(element);
+    openPanel(element);
+
+    clickPreset(element, 0);
+
+    // One event, not one per endpoint: a preset is a single committed range.
+    expect(seen).toHaveLength(1);
+    expect(element.start).not.toBe('');
+    expect(element.end).not.toBe('');
+  });
+});
+
+describe('an-date-range — preset bounds', () => {
+  it.each([
+    { start: '2026-10-01', end: '2026-10-31' },
+    { start: '2026-10-31', end: '2026-11-20' },
+    { start: '2026-11-10', end: '2026-12-01' },
+  ])('blocks selecting $start — $end and preserves the submitted range', (preset) => {
+    document.body.innerHTML =
+      '<form><an-date-range required name="from" end-name="to" ' +
+      'min="2026-11-01" max="2026-11-30" start="2026-11-10" end="2026-11-20">' +
+      '</an-date-range></form>';
+    const form = document.querySelector('form')!;
+    const element = document.querySelector('an-date-range') as AnDateRange;
+    element.presets = [{ label: '快捷区间', ...preset }];
+    const seen = changesOf(element);
+    openPanel(element);
+
+    clickPreset(element, 0);
+
+    expect(Object.fromEntries(new FormData(form))).toEqual({
+      from: '2026-11-10',
+      to: '2026-11-20',
+    });
+    expect(presetButtons(element)[0].disabled).toBe(true);
+    expect(element.applyPreset(0)).toBeUndefined();
+    expect(element.start).toBe('2026-11-10');
+    expect(element.end).toBe('2026-11-20');
+    expect(Object.fromEntries(new FormData(form))).toEqual({
+      from: '2026-11-10',
+      to: '2026-11-20',
+    });
+    expect(element.checkValidity()).toBe(true);
+    expect(element.open).toBe(true);
+    expect(seen).toHaveLength(0);
+  });
+
+  it('rechecks changed bounds and allows endpoints equal to min and max', () => {
+    const element = mount({ min: '2026-11-01', max: '2026-11-30' });
+    const preset = { label: '十一月', start: '2026-11-01', end: '2026-11-30' };
+    element.presets = [preset];
+    const seen = track(element);
+    openPanel(element);
+    expect(presetButtons(element)[0].disabled).toBe(false);
+
+    element.min = '2026-11-02';
+    expect(presetButtons(element)[0].disabled).toBe(true);
+    expect(element.applyPreset(0)).toBeUndefined();
+    element.min = preset.start;
+    expect(presetButtons(element)[0].disabled).toBe(false);
+
+    element.setAttribute('max', '2026-11-29');
+    expect(presetButtons(element)[0].disabled).toBe(true);
+    expect(element.applyPreset(0)).toBeUndefined();
+    expect(seen).toHaveLength(0);
+    expect(element.start).toBe('');
+    expect(element.end).toBe('');
+
+    element.setAttribute('max', preset.end);
+    expect(presetButtons(element)[0].disabled).toBe(false);
+    clickPreset(element, 0);
+    expect(seen).toEqual([{ start: preset.start, end: preset.end }]);
+  });
+
+  it('ignores invalid bounds just like the calendar grid', () => {
+    const element = mount({ inline: '', min: '2026-12-32', max: '2026-10-00' });
+    element.presets = [{ label: '十一月', start: '2026-11-01', end: '2026-11-30' }];
+
+    expect(presetButtons(element)[0].disabled).toBe(false);
+    clickPreset(element, 0);
+    expect(element.start).toBe('2026-11-01');
+    expect(element.end).toBe('2026-11-30');
+  });
+});
+
+describe('an-date-range — presets attribute', () => {
+  it('parses the JSON attribute into the same rail', () => {
+    const element = mount({ presets: JSON.stringify(PRESETS) });
+    openPanel(element);
+
+    const buttons = presetButtons(element);
+    expect(buttons).toHaveLength(2);
+    expect(buttons.map((button) => button.textContent)).toEqual(['近 7 天', '本月']);
+    expect(element.presets).toEqual([
+      { label: '近 7 天', start: '2026-03-14', end: '2026-03-20' },
+      { label: '本月', start: '2026-03-01', end: '2026-03-31' },
+    ]);
+  });
+
+  it('parses the attribute set before the element is connected', () => {
+    const element = document.createElement('an-date-range') as AnDateRange;
+    element.setAttribute('presets', JSON.stringify([PRESETS[0]]));
+    document.body.append(element);
+    openPanel(element);
+
+    expect(presetButtons(element)).toHaveLength(1);
+    expect(presetButtons(element)[0].textContent).toBe('近 7 天');
+  });
+
+  it('keeps malformed JSON from throwing and keeps the previous presets', () => {
+    const element = mount({ presets: JSON.stringify(PRESETS) });
+    openPanel(element);
+    expect(presetButtons(element)).toHaveLength(2);
+
+    expect(() => element.setAttribute('presets', '{not json')).not.toThrow();
+
+    // The malformed value is ignored instead of clearing the rail.
+    expect(element.getAttribute('presets')).toBe('{not json');
+    expect(element.presets).toHaveLength(2);
+    expect(presetButtons(element)).toHaveLength(2);
+  });
+
+  it('drops entries whose dates cannot be parsed and sorts a reversed pair', () => {
+    const element = mount({
+      presets: JSON.stringify([
+        { label: '坏的', start: 'not-a-date', end: '2026-03-20' },
+        { label: '倒序', start: '2026-03-20', end: '2026-03-10' },
+        { start: '2026-03-01', end: '2026-03-02' },
+      ]),
+    });
+    openPanel(element);
+
+    const labels = presetButtons(element).map((button) => button.textContent);
+    // The invalid entry is gone; the reversed one is sorted; the unlabelled one
+    // gets a generated "start — end" name.
+    expect(labels).toEqual(['倒序', '2026-03-01 — 2026-03-02']);
+    expect(element.presets[0]).toEqual({
+      label: '倒序',
+      start: '2026-03-10',
+      end: '2026-03-20',
+    });
   });
 });

@@ -1,0 +1,4 @@
+/* Groups are read from the light DOM of <an-select>; the select draws the list. */
+:host {
+  display: none;
+}

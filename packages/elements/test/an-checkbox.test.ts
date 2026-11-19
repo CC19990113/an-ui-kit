@@ -225,6 +225,41 @@ describe('an-checkbox', () => {
   });
 
   describe('form semantics', () => {
+    it('returns direct form data only while checked and named', () => {
+      const element = mount({ name: 'remember', value: 'yes' });
+
+      expect(element.getFormData()).toBeNull();
+
+      element.checked = true;
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['remember', 'yes']]);
+
+      element.checked = false;
+      expect(element.getFormData()).toBeNull();
+
+      element.checked = true;
+      element.value = '';
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['remember', '']]);
+
+      element.name = '';
+      expect(element.getFormData()).toBeNull();
+    });
+
+    it('omits direct form data while disabled by the host or fieldset', () => {
+      const element = mount({ name: 'remember', checked: '' });
+
+      element.disabled = true;
+      expect(element.getFormData()).toBeNull();
+
+      element.disabled = false;
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['remember', 'on']]);
+
+      element.formDisabledCallback(true);
+      expect(element.getFormData()).toBeNull();
+
+      element.formDisabledCallback(false);
+      expect(Array.from(element.getFormData()!.entries())).toEqual([['remember', 'on']]);
+    });
+
     it('submits the value only while checked', () => {
       document.body.innerHTML =
         '<form><an-checkbox name="remember" value="yes"></an-checkbox></form>';

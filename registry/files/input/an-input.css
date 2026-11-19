@@ -29,7 +29,27 @@
   line-height: 1.4;
 }
 
+/* Flex row: affixes, the input, the clear button and the counter share it. */
+.control {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--an-input-height, var(--an-space-9, 2.25rem));
+  padding: 0 var(--an-input-padding-x, var(--an-space-3, 0.75rem));
+  border: 1px solid var(--an-input-border-color, var(--an-color-border-1, #d4d4d8));
+  border-radius: var(--an-input-radius, var(--an-radius-md, 0.5rem));
+  background: var(--an-input-bg, var(--an-color-bg-1, #ffffff));
+  color: var(--an-input-fg, var(--an-color-fg-1, #18181b));
+  font-family: inherit;
+  font-size: var(--an-input-font-size, var(--an-font-size-sm, 0.875rem));
+  line-height: 1;
+}
+
 .input {
+  flex: 1 1 auto;
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -46,10 +66,28 @@
   -webkit-appearance: none;
 }
 
+/* Inside the flex row the wrapper owns the border, so the input sheds it. */
+.control > .input {
+  flex: 1 1 auto;
+  width: auto;
+  padding: 0 var(--an-space-1, 0.25rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .input:focus-visible {
   outline: 2px solid var(--an-input-focus-ring, var(--an-color-accent-9, #2563eb));
   outline-offset: 1px;
   border-color: var(--an-input-focus-ring, var(--an-color-accent-9, #2563eb));
+}
+
+.control:focus-within {
+  border-color: var(--an-input-focus-ring, var(--an-color-accent-9, #2563eb));
+}
+
+.control > .input:focus-visible {
+  outline: none;
 }
 
 .input:disabled {
@@ -57,8 +95,77 @@
   opacity: 0.55;
 }
 
-.input[aria-invalid='true'] {
+.input[aria-invalid='true'],
+.control:has(> .input[aria-invalid='true']) {
   border-color: var(--an-color-danger-9, #dc2626);
+}
+
+/* Prefix / suffix text or slotted content. */
+.affix {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--an-color-fg-2, #52525b);
+  white-space: nowrap;
+}
+
+.affix.prefix {
+  margin-inline-end: var(--an-space-1, 0.25rem);
+}
+
+.affix.suffix {
+  margin-inline-start: var(--an-space-1, 0.25rem);
+}
+
+/* Unpainted probes keep `slotchange` reachable while no affix is shown. */
+.probe {
+  display: none;
+}
+
+.clear,
+.count {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--an-color-fg-3, #a1a1aa);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.clear {
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-inline-start: var(--an-space-1, 0.25rem);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.clear:hover {
+  background: var(--an-color-bg-2, #f4f4f5);
+  color: var(--an-color-fg-1, #18181b);
+}
+
+.count {
+  margin-inline-start: var(--an-space-1, 0.25rem);
+  font-size: var(--an-font-size-xs, 0.8125rem);
+}
+
+:host([size='sm']) .control {
+  height: var(--an-input-height, var(--an-space-8, 2rem));
+  padding: 0 var(--an-input-padding-x, var(--an-space-2, 0.5rem));
+  border-radius: var(--an-input-radius, var(--an-radius-sm, 0.375rem));
+  font-size: var(--an-input-font-size, var(--an-font-size-xs, 0.8125rem));
+}
+
+:host([size='lg']) .control {
+  height: var(--an-input-height, var(--an-space-11, 2.75rem));
+  padding: 0 var(--an-input-padding-x, var(--an-space-4, 1rem));
+  border-radius: var(--an-input-radius, var(--an-radius-lg, 0.625rem));
+  font-size: var(--an-input-font-size, var(--an-font-size-md, 1rem));
 }
 
 :host([size='sm']) .input {
@@ -73,4 +180,31 @@
   padding: 0 var(--an-input-padding-x, var(--an-space-4, 1rem));
   border-radius: var(--an-input-radius, var(--an-radius-lg, 0.625rem));
   font-size: var(--an-input-font-size, var(--an-font-size-md, 1rem));
+}
+
+/* Forced colours: keep the frame and the controls visible without the fills. */
+@media (forced-colors: active) {
+  .control,
+  .input {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .control:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+    border-color: Highlight;
+  }
+
+  .affix,
+  .clear,
+  .count {
+    color: CanvasText;
+  }
+
+  .clear:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
 }

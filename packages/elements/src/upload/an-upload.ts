@@ -5,6 +5,9 @@ import { createXhrUploader } from './xhr-uploader';
 /** Sizes of `<an-upload>` and its dropzone. */
 export type AnUploadSize = 'sm' | 'md' | 'lg';
 
+/** Presentation of the queued files: rows of text, or a thumbnail grid. */
+export type AnUploadListType = 'text' | 'picture';
+
 /** Why the component refused a file. */
 export type AnUploadRejectReason = 'size' | 'type' | 'max-files';
 
@@ -137,6 +140,16 @@ function parseAccept(accept: string): string[] {
 }
 
 /**
+ * Short uppercase extension shown by `list-type="picture"` when the file has no
+ * thumbnail: `report.pdf` -> `PDF`, `Makefile` -> `FILE`.
+ */
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf('.');
+  const extension = dot > 0 && dot < name.length - 1 ? name.slice(dot + 1) : '';
+  return extension ? extension.toUpperCase().slice(0, 4) : 'FILE';
+}
+
+/**
  * `<an-upload>` — file picker, drop target and upload queue in one control.
  *
  * The component never sends anything unless `action` or the `uploader` property
@@ -157,8 +170,12 @@ function parseAccept(accept: string): string[] {
  * @attr field-name - Multipart field name; defaults to `name`.
  * @attr auto-upload - Starts uploading as soon as files are added; defaults to `true`.
  * @attr size - Control size: `sm`, `md` or `lg`.
+ * @attr list-type - Queue presentation: `text` (rows) or `picture` (thumbnail grid whose non-image files show a file icon with their extension). Defaults to `text`.
+ * @attr sortable - Lets the queue be reordered by dragging a row onto another one; the new order drives `files` and `FormData`. Defaults to `false`.
  *
- * @fires an-upload-change - Files were added, removed or cleared; detail is `AnUploadChangeDetail`.
+ * Pasting while the control has focus adds the clipboard's files through the same validation path as the picker.
+ *
+ * @fires an-upload-change - Files were added, removed, cleared or reordered; detail is `AnUploadChangeDetail`.
  * @fires an-upload-reject - A file failed validation; detail is `AnUploadRejectDetail`.
  * @fires an-upload-progress - Bytes were transferred; detail is `AnUploadProgressDetail`.
  * @fires an-upload-success - A file finished; detail is `AnUploadSuccessDetail`.
@@ -169,9 +186,11 @@ function parseAccept(accept: string): string[] {
  * @csspart base - Root wrapper.
  * @csspart dropzone - Clickable, keyboard-activatable drop area.
  * @csspart trigger - Default "choose file" button (absent when `trigger` is slotted).
- * @csspart list - `<ul>` that holds the queued files.
- * @csspart item - One `<li>` per queued file.
- * @csspart item-preview - Thumbnail slot of an item.
+ * @csspart list - `<ul>` that holds the queued files; a grid with `list-type="picture"`.
+ * @csspart item - One `<li>` per queued file; `draggable` with `sortable`.
+ * @csspart item-preview - Thumbnail slot of an item in `list-type="text"` mode.
+ * @csspart item-thumb - Thumbnail / file-icon tile of an item in `list-type="picture"` mode.
+ * @csspart item-ext - Uppercase file extension shown when a `picture` item has no image preview.
  * @csspart item-name - File name of an item.
  * @csspart item-size - Human-readable file size of an item.
  * @csspart item-progress - Progress bar track of an item.
@@ -206,6 +225,13 @@ function parseAccept(accept: string): string[] {
  * @cssproperty --an-upload-preview-size - Thumbnail edge length.
  * @cssproperty --an-upload-preview-radius - Thumbnail corner radius.
  * @cssproperty --an-upload-preview-bg - Thumbnail background.
+ * @cssproperty --an-upload-picture-column-width - Minimum column width of the `picture` grid.
+ * @cssproperty --an-upload-thumb-height - Height of a `picture` tile.
+ * @cssproperty --an-upload-thumb-radius - Corner radius of a `picture` tile.
+ * @cssproperty --an-upload-thumb-bg - Background of a `picture` tile.
+ * @cssproperty --an-upload-ext-color - Extension colour of a non-image `picture` tile.
+ * @cssproperty --an-upload-ext-font-size - Extension font size of a non-image `picture` tile.
+ * @cssproperty --an-upload-dragging-outline - Outline of the row being dragged with `sortable`.
  * @cssproperty --an-upload-name-font-size - File name font size.
  * @cssproperty --an-upload-size-color - File size colour.
  * @cssproperty --an-upload-size-font-size - File size font size.
@@ -238,6 +264,8 @@ export class AnUpload extends AnElement {
     method: 'POST',
     fieldName: '',
     size: 'md' as AnUploadSize,
+    listType: 'text' as AnUploadListType,
+    sortable: false,
   };
 
   /** `auto-upload` is a default-true boolean, so it is handled outside `defaults`. */
@@ -256,6 +284,8 @@ export class AnUpload extends AnElement {
   declare method: string;
   declare fieldName: string;
   declare size: AnUploadSize;
+  declare listType: AnUploadListType;
+  declare sortable: boolean;
 
   /** Extra request headers forwarded to the built-in XHR uploader. */
   headers: Record<string, string> = {};
@@ -277,6 +307,8 @@ export class AnUpload extends AnElement {
   #dragDepth = 0;
   /** Guards the recursive `dropzone -> input.click() -> dropzone` click path. */
   #opening = false;
+  /** Index of the queue row being dragged for `sortable`; `null` when idle. */
+  #dragFrom: number | null = null;
 
   constructor() {
     super();
@@ -288,6 +320,11 @@ export class AnUpload extends AnElement {
     this.shadowRoot!.addEventListener('dragover', this.#onDragOver as EventListener);
     this.shadowRoot!.addEventListener('dragleave', this.#onDragLeave as EventListener);
     this.shadowRoot!.addEventListener('drop', this.#onDrop as EventListener);
+    this.shadowRoot!.addEventListener('dragstart', this.#onDragStart as EventListener);
+    this.shadowRoot!.addEventListener('dragend', this.#onDragEnd as EventListener);
+    // `paste` targets the focused element (the dropzone inside the shadow root),
+    // so listening on the host catches it wherever focus sits inside the control.
+    this.addEventListener('paste', this.#onPaste as EventListener);
   }
 
   /** Snapshot of the queued files; mutating it never changes the queue. */
@@ -450,16 +487,17 @@ export class AnUpload extends AnElement {
     const dragover = this.#dragDepth > 0 ? ' data-dragover="true"' : '';
     const rows = this.#items.map((item, index) => this.#renderItem(item, index)).join('');
     const empty = this.#items.length === 0 ? '<p class="empty" part="empty">未选择文件</p>' : '';
+    const listClass = this.listType === 'picture' ? 'list list-picture' : 'list';
 
     return `<div class="base" part="base">
-  <div class="dropzone" part="dropzone" role="button" tabindex="${tabindex}" aria-label="选择文件"${ariaDisabled}${invalid}${dragover}>
+  <div class="dropzone" part="dropzone" role="button" tabindex="${tabindex}"${ariaDisabled}${invalid}${dragover}>
     <slot name="trigger">
-      <span class="trigger" part="trigger" aria-hidden="true">选择文件</span>
+      <span class="trigger" part="trigger">选择文件</span>
       <span class="hint">${escapeHtml(this.#hintText())}</span>
     </slot>
     <input class="input" type="file" hidden${accept}${multiple}${inputDisabled} aria-hidden="true" tabindex="-1">
   </div>
-  <ul class="list" part="list">${rows}</ul>
+  <ul class="${listClass}" part="list">${rows}</ul>
   ${empty}
 </div>`;
   }
@@ -468,7 +506,17 @@ export class AnUpload extends AnElement {
   #renderItem(item: UploadItem, index: number): string {
     const name = escapeHtml(item.file.name);
     const percent = item.status === 'success' ? 100 : item.percent;
-    const preview = item.previewUrl ? `<img src="${escapeHtml(item.previewUrl)}" alt="">` : '';
+    const picture = this.listType === 'picture';
+    // In `picture` mode the thumbnail grid shows the image itself, and a file
+    // icon with the extension for everything else; `text` mode keeps the row.
+    const thumb = picture
+      ? item.previewUrl
+        ? `<span class="item-thumb" part="item-thumb" aria-hidden="true"><img src="${escapeHtml(item.previewUrl)}" alt=""></span>`
+        : `<span class="item-thumb" part="item-thumb" aria-hidden="true"><span class="item-ext" part="item-ext">${escapeHtml(fileExtension(item.file.name))}</span></span>`
+      : `<span class="item-preview" part="item-preview" aria-hidden="true">${
+          item.previewUrl ? `<img src="${escapeHtml(item.previewUrl)}" alt="">` : ''
+        }</span>`;
+    const draggable = this.sortable && !this.#isDisabled ? ' draggable="true"' : '';
     const error =
       item.status === 'error'
         ? `<span class="item-error" part="item-error" role="alert">${escapeHtml(item.error ?? '上传失败')}</span>`
@@ -480,8 +528,8 @@ export class AnUpload extends AnElement {
         ? `<button type="button" class="item-cancel" part="item-cancel" data-action="cancel" data-index="${index}" aria-label="取消 ${name}">取消</button>`
         : '';
 
-    return `<li class="item" part="item" data-index="${index}" data-status="${item.status}">
-  <span class="item-preview" part="item-preview" aria-hidden="true">${preview}</span>
+    return `<li class="item" part="item" data-index="${index}" data-status="${item.status}"${draggable}>
+  ${thumb}
   <span class="item-body">
     <span class="item-head">
       <span class="item-name" part="item-name" title="${name}">${name}</span>
@@ -775,6 +823,8 @@ export class AnUpload extends AnElement {
   };
 
   #onDragEnter = (event: DragEvent): void => {
+    // A row dragged inside the list must not light up the dropzone.
+    if (this.#dragFrom !== null) return;
     if (!this.#inDropzone(event)) return;
     event.preventDefault();
     if (this.#isDisabled) return;
@@ -783,12 +833,19 @@ export class AnUpload extends AnElement {
   };
 
   #onDragOver = (event: DragEvent): void => {
+    if (this.#dragFrom !== null) {
+      if (this.#isDisabled || this.#itemIndexOf(event) < 0) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      return;
+    }
     if (!this.#inDropzone(event)) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = this.#isDisabled ? 'none' : 'copy';
   };
 
   #onDragLeave = (event: DragEvent): void => {
+    if (this.#dragFrom !== null) return;
     if (!this.#inDropzone(event)) return;
     if (this.#isDisabled) return;
     this.#dragDepth = Math.max(0, this.#dragDepth - 1);
@@ -796,6 +853,15 @@ export class AnUpload extends AnElement {
   };
 
   #onDrop = (event: DragEvent): void => {
+    if (this.#dragFrom !== null) {
+      event.preventDefault();
+      const from = this.#dragFrom;
+      this.#dragFrom = null;
+      const to = this.#itemIndexOf(event);
+      this.#clearDragging();
+      if (to >= 0) this.#moveItem(from, to);
+      return;
+    }
     if (!this.#inDropzone(event)) return;
     event.preventDefault();
     this.#dragDepth = 0;
@@ -804,6 +870,82 @@ export class AnUpload extends AnElement {
     const dropped = event.dataTransfer ? Array.from(event.dataTransfer.files) : [];
     this.#addFiles(dropped);
   };
+
+  /** Starts an internal reorder; only rows of a `sortable` list are draggable. */
+  #onDragStart = (event: DragEvent): void => {
+    if (!this.sortable || this.#isDisabled) return;
+    const index = this.#itemIndexOf(event);
+    if (index < 0) return;
+    this.#dragFrom = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      // Firefox requires payload data before a drag can start.
+      event.dataTransfer.setData('text/plain', String(index));
+    }
+    this.#rowOf(event)?.setAttribute('data-dragging', 'true');
+  };
+
+  /** Clears the drag state; `drop` already did it, so this only catches cancels. */
+  #onDragEnd = (): void => {
+    this.#dragFrom = null;
+    this.#clearDragging();
+  };
+
+  /**
+   * Adds files pasted while the control has focus: the clipboard files go
+   * through the same `#addFiles` validation as a picker selection.
+   */
+  #onPaste = (event: ClipboardEvent): void => {
+    if (this.#isDisabled) return;
+    const clipboard = event.clipboardData;
+    if (!clipboard) return;
+    const files = Array.from(clipboard.files ?? []);
+    if (files.length === 0) return;
+    event.preventDefault();
+    this.#addFiles(files);
+  };
+
+  /** Queue index of the row an event targets, or `-1`. */
+  #itemIndexOf(event: Event): number {
+    const row = this.#rowOf(event);
+    if (!row) return -1;
+    const index = Number(row.getAttribute('data-index'));
+    return Number.isInteger(index) && index >= 0 ? index : -1;
+  }
+
+  /** The `<li part="item">` inside an event's path, or `null`. */
+  #rowOf(event: Event): Element | null {
+    for (const node of event.composedPath()) {
+      if (node instanceof Element && node.classList.contains('item')) return node;
+    }
+    return null;
+  }
+
+  /** Removes the drag highlight from every row. */
+  #clearDragging(): void {
+    for (const row of this.shadowRoot?.querySelectorAll('[data-dragging]') ?? []) {
+      row.removeAttribute('data-dragging');
+    }
+  }
+
+  /**
+   * Moves one queued file to another position. The queue order is what `files`
+   * and `FormData` report, so both follow immediately; the reorder emits
+   * `an-upload-change` with empty `added` / `removed` lists.
+   */
+  #moveItem(from: number, to: number): void {
+    const length = this.#items.length;
+    if (from === to || from < 0 || to < 0 || from >= length || to >= length) return;
+    const [moved] = this.#items.splice(from, 1);
+    this.#items.splice(to, 0, moved);
+    this.emit('an-upload-change', {
+      files: this.files,
+      added: [],
+      removed: [],
+    } satisfies AnUploadChangeDetail);
+    this.#syncFormValue();
+    this.requestUpdate();
+  }
 }
 
 export { createXhrUploader } from './xhr-uploader';

@@ -51,11 +51,15 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
  * @attr {('vertical'|'horizontal')} orientation - Stacking direction of the options. Default: "vertical".
  * @attr {number} min - Minimum number of selected options; `0` disables the check.
  * @attr {number} max - Maximum number of selected options; `0` means unlimited.
+ * @attr {boolean} select-all - Shows the select-all checkbox; defaults to false and only counts enabled options.
  * @fires an-checkbox-group-change - Fired when the selection changes; `detail = { value, originalEvent }`.
  * @slot - The `<an-checkbox>` options.
  * @csspart base - Outer wrapper around the label and the options.
  * @csspart label - The visible group label; rendered only when `label` is non-empty.
  * @csspart group - The `role="group"` container holding the options.
+ * @csspart select-all-label - Label wrapper around the optional select-all checkbox.
+ * @csspart select-all - Native select-all checkbox; rendered only when `select-all` is enabled.
+ * @csspart select-all-text - Visible text beside the select-all checkbox.
  * @cssprop --an-checkbox-group-gap - Gap between options; defaults to `--an-space-2` (0.5rem).
  */
 export class AnCheckboxGroup extends AnElement {
@@ -71,6 +75,7 @@ export class AnCheckboxGroup extends AnElement {
     orientation: 'vertical',
     min: 0,
     max: 0,
+    selectAll: false,
   };
 
   static override arrayDefaults = {
@@ -91,6 +96,8 @@ export class AnCheckboxGroup extends AnElement {
   declare min: number;
   /** Maximum number of selected options; `0` means unlimited. */
   declare max: number;
+  /** Renders the "全选" checkbox above the options. */
+  declare selectAll: boolean;
   /** Selected values, comma-separated in the `value` attribute. */
   declare value: string[];
 
@@ -115,10 +122,16 @@ export class AnCheckboxGroup extends AnElement {
   /** The value this group last wrote to `checkbox.disabled`. */
   #appliedDisabled = new WeakMap<AnCheckbox, boolean>();
 
+  /** Watches child attribute edits that no event reports (e.g. `disabled`). */
+  #observer: MutationObserver | null = null;
+
   constructor() {
     super();
     const root = this.shadowRoot!;
     root.addEventListener('slotchange', this.#onSlotChange);
+    // The select-all checkbox is rendered by this component, so its `change`
+    // never leaves the shadow root; delegation keeps working across re-renders.
+    root.addEventListener('change', this.#onSelectAllChange as EventListener);
     // `keydown`, `focusin` and the checkbox's own event are composed, so they
     // reach the host; delegation keeps working across every re-render.
     this.addEventListener('keydown', this.#onKeydown);
@@ -136,10 +149,39 @@ export class AnCheckboxGroup extends AnElement {
       (label
         ? `<span class="label" part="label" id="group-label">${escapeHtml(label)}</span>`
         : '') +
+      (this.selectAll ? this.#renderSelectAll() : '') +
       `<div class="group" part="group" role="group"` +
       ` aria-required="${this.required}"${name}><slot></slot></div>` +
       `</div>`
     );
+  }
+
+  /** Header row with the group-wide "select all" checkbox. */
+  #renderSelectAll(): string {
+    const state = this.#selectAllState();
+    const disabled = this.disabled || this.#formDisabled || this.#enabled().length === 0;
+    return (
+      `<label class="select-all" part="select-all-label">` +
+      `<input class="select-all-input" part="select-all" type="checkbox"` +
+      `${state.checked ? ' checked' : ''}${disabled ? ' disabled' : ''}` +
+      `${state.indeterminate ? ' aria-checked="mixed"' : ''}>` +
+      `<span class="select-all-text" part="select-all-text">全选</span>` +
+      `</label>`
+    );
+  }
+
+  /**
+   * State of the select-all header: `checked` once every enabled option is
+   * selected, `indeterminate` for a partial selection.
+   */
+  #selectAllState(): { checked: boolean; indeterminate: boolean } {
+    const enabled = this.#enabled();
+    const selected = new Set(this.value);
+    const count = enabled.filter((checkbox) => selected.has(checkbox.value)).length;
+    return {
+      checked: enabled.length > 0 && count === enabled.length,
+      indeterminate: count > 0 && count < enabled.length,
+    };
   }
 
   protected override afterRender(): void {
@@ -148,6 +190,14 @@ export class AnCheckboxGroup extends AnElement {
       internals.ariaDisabled = this.disabled || this.#formDisabled ? 'true' : null;
       internals.ariaRequired = this.required ? 'true' : null;
     }
+    // `indeterminate` is a property, not an attribute, so it is written after
+    // every render rather than carried in the markup.
+    const selectAll = this.shadowRoot?.querySelector<HTMLInputElement>('.select-all-input');
+    if (selectAll) {
+      const state = this.#selectAllState();
+      selectAll.checked = state.checked;
+      selectAll.indeterminate = state.indeterminate;
+    }
     this.#syncChildren();
   }
 
@@ -155,12 +205,28 @@ export class AnCheckboxGroup extends AnElement {
     // Children created by the parser may not exist yet while this runs; the
     // deferred capture below sees them even when no `slotchange` is emitted.
     this.#syncChildren();
+    // A child's own `disabled` edit raises no event this group hears, yet it
+    // decides whether the header stays inert, so watch the light DOM for it.
+    if (!this.#observer && typeof MutationObserver !== 'undefined') {
+      this.#observer = new MutationObserver(this.#onMutations);
+      this.#observer.observe(this, {
+        attributes: true,
+        attributeFilter: ['disabled'],
+        childList: true,
+        subtree: true,
+      });
+    }
     // Children connect (and render their inner inputs) after this callback, so
     // re-assert once the whole tree is upgraded: the roving tabindex can only be
     // written when the shadow inputs exist.
     queueMicrotask(() => {
       if (this.isConnected) this.#syncChildren();
     });
+  }
+
+  protected override onDisconnect(): void {
+    this.#observer?.disconnect();
+    this.#observer = null;
   }
 
   protected override onFormReset(): void {
@@ -338,9 +404,10 @@ export class AnCheckboxGroup extends AnElement {
       return;
     }
     const values = this.#selectedValues();
-    // The platform entry list is a single slot; keep the attribute spelling and
-    // let `getFormData()` expose one entry per value for `<an-form>`.
-    internals.setFormValue(values.length > 0 ? values.join(',') : null);
+    // `ElementInternals.setFormValue()` accepts FormData as well as a scalar.
+    // Use the same one-row-per-value serialization as `getFormData()` so native
+    // `<form>` and `<an-form>` expose an identical entry list.
+    internals.setFormValue(this.getFormData());
 
     const anchor = this.#firstInput() ?? undefined;
     if (this.required && values.length === 0) {
@@ -425,6 +492,19 @@ export class AnCheckboxGroup extends AnElement {
     this.#syncChildren();
   };
 
+  /**
+   * A child's `disabled` edit changes whether the header is inert, but the
+   * group itself never re-renders for it, so repaint the header here.
+   */
+  #onMutations = (): void => {
+    if (!this.isConnected) return;
+    this.#syncChildren();
+    const header = this.shadowRoot?.querySelector<HTMLInputElement>('.select-all-input');
+    if (!header) return;
+    const disabled = this.disabled || this.#formDisabled || this.#enabled().length === 0;
+    if (header.disabled !== disabled) header.disabled = disabled;
+  };
+
   #onCheckboxChange = (event: Event): void => {
     const checkbox = this.#checkboxFromEvent(event);
     if (!checkbox || !isUpgraded(checkbox)) return;
@@ -439,6 +519,37 @@ export class AnCheckboxGroup extends AnElement {
     if (checked) selected.add(checkbox.value);
     else selected.delete(checkbox.value);
     this.#commit(selected, detail?.originalEvent ?? event);
+  };
+
+  /**
+   * The header checkbox drives every enabled option: a fully selected group
+   * clears, anything less completes the selection. The header is rendered by
+   * this component, so its `change` never leaves the shadow root.
+   */
+  #onSelectAllChange = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.classList.contains('select-all-input')) {
+      return;
+    }
+    if (this.disabled || this.#formDisabled) return;
+    const enabled = this.#enabled();
+    if (enabled.length === 0) return;
+    // A partially selected header reads as "not checked", so it completes.
+    const select = !this.#selectAllState().checked;
+    for (const checkbox of enabled) {
+      if (isUpgraded(checkbox) && checkbox.checked !== select) checkbox.checked = select;
+    }
+    const next = select ? enabled.map((checkbox) => checkbox.value) : [];
+    this.#commit(next, event);
+    // `#commit` repaints and re-syncs asynchronously; keep the form state and
+    // the header's `indeterminate` correct even before that render lands.
+    this.#syncForm();
+    const header = this.shadowRoot?.querySelector<HTMLInputElement>('.select-all-input');
+    if (header) {
+      const state = this.#selectAllState();
+      header.checked = state.checked;
+      header.indeterminate = state.indeterminate;
+    }
   };
 
   #onFocusIn = (event: Event): void => {

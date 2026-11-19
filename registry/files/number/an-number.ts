@@ -31,6 +31,12 @@ const BAD_INPUT_MESSAGE = '请输入有效的数字。';
  */
 const NUMBER_PATTERN = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$/;
 
+/**
+ * Shape of a draft that `group-separator` can rewrite. Anything else (an empty
+ * field, a lone `-`, an exponent) is left exactly as the user typed it.
+ */
+const GROUPABLE_PATTERN = /^([+-]?)(\d+)(\.\d*)?$/;
+
 /** Flags this element can raise; a subset of the platform `ValidityStateFlags`. */
 type NumberValidityFlags = Partial<
   Record<'valueMissing' | 'badInput' | 'rangeUnderflow' | 'rangeOverflow' | 'stepMismatch', boolean>
@@ -46,9 +52,26 @@ interface NumberValidation {
 /** Parses committed text; returns `null` when it is not a finite number. */
 function parseNumber(text: string): number | null {
   const trimmed = text.trim();
-  if (trimmed === '' || !NUMBER_PATTERN.test(trimmed)) return null;
-  const value = Number(trimmed);
+  if (trimmed === '') return null;
+  // `group-separator` writes commas into the visible text; they are display-only
+  // and never reach the parsed number, `value` or `FormData`.
+  const plain = trimmed.replace(/,/g, '');
+  if (!NUMBER_PATTERN.test(plain)) return null;
+  const value = Number(plain);
   return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Inserts display-only thousands separators into the integer part of a draft:
+ * `1234567` -> `1,234,567`, `-1234.5` -> `-1,234.5`. Text that cannot be
+ * grouped is returned unchanged, so a half-typed draft is never mangled.
+ */
+function groupDigits(text: string): string {
+  const plain = text.trim().replace(/,/g, '');
+  const match = GROUPABLE_PATTERN.exec(plain);
+  if (!match) return text;
+  const [, sign, integer, fraction = ''] = match;
+  return sign + integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + fraction;
 }
 
 /** Canonical text for a number: no exponent noise, no trailing zeros, no `-0`. */
@@ -109,10 +132,13 @@ function stepMessage(step: number): string {
  * @attr {string} name - Name of the `FormData` entry.
  * @attr {('sm'|'md'|'lg')} size - Control size. Default: "md".
  * @attr {boolean} stepper - Renders the up/down spin buttons, which also repeat while held.
+ * @attr {boolean} group-separator - Shows thousands separators in the committed text (`1234567` -> `1,234,567`). Display only: the `value` getter and `FormData` stay plain numeric strings, and the text is not rewritten while the user types. Default: false.
+ * @attr {string} unit - Unit text rendered to the right of the input (e.g. `%`, `元`). Never part of `value` or `FormData`. No default.
  * @fires {CustomEvent<AnNumberChangeDetail>} an-number-change - The parsed value changed, on commit, on a keyboard/stepper step, or when `stepUp()`/`stepDown()` move it. Never fires when the parsed value stays the same.
  * @slot - No slots are projected; the whole control is rendered in the shadow root.
- * @csspart base - The wrapper around the input and the optional stepper.
+ * @csspart base - The wrapper around the input, the unit and the optional stepper.
  * @csspart input - The internal text input.
+ * @csspart unit - The unit text on the right of the input; empty (and not painted) when `unit` is unset.
  * @csspart stepper - The stepper wrapper, rendered only with `stepper`.
  * @csspart spin-up - The increment button.
  * @csspart spin-down - The decrement button.
@@ -125,6 +151,8 @@ function stepMessage(step: number): string {
  * @cssprop --an-number-padding-x - Horizontal padding of the field.
  * @cssprop --an-number-focus-ring - Focus outline and border colour.
  * @cssprop --an-number-stepper-width - Width of the stepper column.
+ * @cssprop --an-number-unit-color - Colour of the unit text.
+ * @cssprop --an-number-unit-gap - Gap between the input and the unit text.
  */
 export class AnNumber extends AnElement {
   static override styles: string = numberStyles;
@@ -150,6 +178,8 @@ export class AnNumber extends AnElement {
     readonly: false,
     required: false,
     stepper: false,
+    groupSeparator: false,
+    unit: '',
     name: '',
   };
 
@@ -163,6 +193,8 @@ export class AnNumber extends AnElement {
   declare readonly: boolean;
   declare required: boolean;
   declare stepper: boolean;
+  declare groupSeparator: boolean;
+  declare unit: string;
   declare name: string;
 
   /** The text currently shown in the internal input (may be a draft). */
@@ -218,12 +250,12 @@ export class AnNumber extends AnElement {
     if (next == null) {
       this.#setText('');
     } else if (typeof next === 'number') {
-      this.#setText(Number.isFinite(next) ? canonical(next) : '');
+      this.#setText(Number.isFinite(next) ? canonical(next) : '', this.groupSeparator);
     } else if (next.trim() === '') {
       this.#setText('');
     } else {
       const numeric = Number(next.trim());
-      this.#setText(Number.isFinite(numeric) ? canonical(numeric) : '');
+      this.#setText(Number.isFinite(numeric) ? canonical(numeric) : '', this.groupSeparator);
     }
     this.#reported = this.#number();
   }
@@ -273,7 +305,8 @@ export class AnNumber extends AnElement {
       (this.#text !== '' ? ` aria-valuetext="${escapeHtml(this.#text)}"` : '') +
       this.#forwardedName();
     const stepper = this.stepper ? this.#renderStepper(disabled) : '';
-    return `<div class="base" part="base"><input${attrs}>${stepper}</div>`;
+    const unit = `<span class="unit" part="unit">${escapeHtml(this.unit)}</span>`;
+    return `<div class="base" part="base"><input${attrs}>${unit}${stepper}</div>`;
   }
 
   protected override afterRender(): void {
@@ -291,8 +324,12 @@ export class AnNumber extends AnElement {
   protected override onConnect(): void {
     if (this.#mounted) return;
     this.#mounted = true;
+    // The reset target keeps the text the element was mounted with, so
+    // `group-separator` never changes what a form reset restores.
     this.#initialText = this.#text;
     this.#reported = this.#number();
+    // Mounting leaves the field unfocused, so the initial text is shown grouped.
+    this.#formatDisplay();
   }
 
   protected override onDisconnect(): void {
@@ -300,7 +337,7 @@ export class AnNumber extends AnElement {
   }
 
   protected override onFormReset(): void {
-    this.#setText(this.#initialText);
+    this.#setText(this.#initialText, this.groupSeparator);
     this.#reported = this.#number();
     this.#syncForm();
   }
@@ -479,8 +516,8 @@ export class AnNumber extends AnElement {
   }
 
   /** Stores the draft text, writes it into the live input and re-publishes state. */
-  #setText(next: string): void {
-    this.#text = next;
+  #setText(next: string, format = false): void {
+    this.#text = format ? groupDigits(next) : next;
     this.#applyText();
     this.#syncForm();
   }
@@ -534,8 +571,23 @@ export class AnNumber extends AnElement {
   #commit(originalEvent: Event): void {
     if (this.disabled || this.readonly || this.#formDisabled) return;
     this.#normalize();
+    this.#formatDisplay();
     this.#syncForm();
     this.#announce(originalEvent);
+  }
+
+  /**
+   * Rewrites the committed draft with `group-separator`'s display-only commas.
+   * Runs on blur, Enter and mount — never while the user is typing, so the
+   * caret is not interrupted mid-edit. The parsed value, `value` and `FormData`
+   * stay untouched because `parseNumber` ignores the commas.
+   */
+  #formatDisplay(): void {
+    if (!this.groupSeparator || this.#text === '') return;
+    const next = groupDigits(this.#text);
+    if (next === this.#text) return;
+    this.#text = next;
+    this.#applyText();
   }
 
   /**
@@ -593,6 +645,9 @@ export class AnNumber extends AnElement {
   #onFocusOut = (event: Event): void => {
     if (event.target !== this.#input) return;
     this.#commit(event);
+    // Read-only and disabled fields never commit, yet they should still show
+    // the grouped form once the user leaves them.
+    this.#formatDisplay();
   };
 
   #onKeyDown = (event: Event): void => {

@@ -10,7 +10,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -34,6 +34,7 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 -
 | `loading` | `boolean` | `false` | 面板显示加载行 |
 | `virtual` | `'auto' \| 'on' \| 'off'` | `auto` | 长列表虚拟滚动；`auto` 在超过阈值时开启 |
 | `max-tags` | `number` | — | 触发器最多展示几个 tag（多选） |
+| `load-more-threshold` | `number` | `80` | 列表滚动到底部前多少像素时派发 `an-load-more` |
 | `open` | `boolean` | `false` | 受控开合状态；与 `open` property 双向反射 |
 
 补充：

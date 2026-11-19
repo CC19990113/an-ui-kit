@@ -10,7 +10,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -33,6 +33,7 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 -
 | `end-name` | `string` | 结束日期提交的字段名；默认空（不提交结束字段） |
 | `size` | `'sm' \| 'md' \| 'lg'` | 控件尺寸，默认 `md` |
 | `first-day` | `number` | 星期列起点：`0` = 周日，`1` = 周一（默认） |
+| `presets` | `string` | 快捷键按钮的 JSON 数组（`[{"label":"最近7天","start":"2026-11-01","end":"2026-11-07"}]`）；JSON 非法时忽略 |
 
 补充：
 

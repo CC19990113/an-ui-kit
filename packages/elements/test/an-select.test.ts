@@ -143,6 +143,8 @@ describe('structure and option source', () => {
 
     expect(placeholder.textContent).toBe('请选择');
     expect(placeholder.hidden).toBe(false);
+    expect(placeholder.classList.contains('placeholder')).toBe(true);
+    expect(selectCssSource).toMatch(/\.placeholder\s*\{[^}]*--an-color-fg-3/);
     expect(element.value).toBe('');
   });
 
@@ -1006,5 +1008,470 @@ describe('styles', () => {
     expect(height(small)).toBeGreaterThan(0);
     expect(height(small)).toBeLessThan(height(medium));
     expect(height(medium)).toBeLessThan(height(large));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Grouped options: `<an-option-group>`.
+// ---------------------------------------------------------------------------
+
+const GROUPED =
+  '<an-option-group label="华东"><an-option value="sh">上海</an-option>' +
+  '<an-option value="hz">杭州</an-option></an-option-group>' +
+  '<an-option-group label="华北" disabled><an-option value="bj">北京</an-option>' +
+  '<an-option value="tj">天津</an-option></an-option-group>' +
+  '<an-option-group label="华南"><an-option value="gz">广州</an-option></an-option-group>';
+
+/** The `role="group"` wrappers the select painted into its own listbox. */
+function groups(element: AnSelect): HTMLElement[] {
+  return Array.from(element.shadowRoot!.querySelectorAll('[part~="group"]'));
+}
+
+/**
+ * The visible option text. The painted row also carries a `✓` indicator, so
+ * only the `option-content` span holds the label.
+ */
+function optionLabels(element: AnSelect): string[] {
+  return options(element).map(
+    (option) => option.querySelector('.option-content')?.textContent?.trim() ?? '',
+  );
+}
+
+/**
+ * Labels of the painted rows inside one wrapper. The painted row also carries
+ * a `✓` indicator, so only the `option-content` span holds the label.
+ */
+function labelsIn(wrapper: Element): string[] {
+  return Array.from(wrapper.querySelectorAll('[part~="option"]')).map(
+    (option) => option.querySelector('.option-content')?.textContent?.trim() ?? '',
+  );
+}
+
+/** The painted row that renders one option label. */
+function rowByLabel(element: AnSelect, label: string): HTMLElement {
+  const row = options(element).find(
+    (option) => option.querySelector('.option-content')?.textContent?.trim() === label,
+  );
+  if (row === undefined) throw new Error(`no painted row for ${label}`);
+  return row;
+}
+
+describe('an-select — grouped options', () => {
+  it('paints one `role="group"` wrapper per `<an-option-group>` with its aria-label', () => {
+    const element = mount({}, GROUPED);
+    open(element);
+
+    const wrappers = groups(element);
+    expect(wrappers).toHaveLength(3);
+    expect(wrappers.map((wrapper) => wrapper.getAttribute('role'))).toEqual([
+      'group',
+      'group',
+      'group',
+    ]);
+    expect(wrappers.map((wrapper) => wrapper.getAttribute('aria-label'))).toEqual([
+      '华东',
+      '华北',
+      '华南',
+    ]);
+    expect(wrappers.map((wrapper) => wrapper.getAttribute('part'))).toEqual([
+      'group',
+      'group',
+      'group',
+    ]);
+  });
+
+  it('nests the group options inside their wrapper, in author order', () => {
+    const element = mount({}, GROUPED);
+    open(element);
+
+    const wrappers = groups(element);
+    // The painted rows carry no value attribute; their text is the option label,
+    // which is what author order shows.
+    expect(labelsIn(wrappers[0])).toEqual(['上海', '杭州']);
+    expect(labelsIn(wrappers[1])).toEqual(['北京', '天津']);
+    expect(labelsIn(wrappers[2])).toEqual(['广州']);
+    expect(optionLabels(element)).toEqual(['上海', '杭州', '北京', '天津', '广州']);
+
+    // Each wrapper holds exactly its own options, not its neighbours'.
+    for (const wrapper of wrappers) {
+      for (const row of Array.from(wrapper.querySelectorAll('[part~="option"]'))) {
+        expect(row.closest('[part~="group"]')).toBe(wrapper);
+      }
+    }
+  });
+
+  it('marks a disabled group and puts every option of it out of reach', () => {
+    const element = mount({}, GROUPED);
+    open(element);
+
+    const wrappers = groups(element);
+    expect(wrappers[1].getAttribute('data-disabled')).toBe('true');
+    expect(wrappers[0].hasAttribute('data-disabled')).toBe(false);
+    expect(wrappers[2].hasAttribute('data-disabled')).toBe(false);
+
+    // The group's `disabled` cascades onto each option it holds.
+    const blocked = Array.from(wrappers[1].querySelectorAll('[part~="option"]'));
+    expect(blocked).toHaveLength(2);
+    for (const option of blocked) {
+      expect(option.getAttribute('aria-disabled')).toBe('true');
+    }
+
+    // An enabled option carries no `aria-disabled` at all (implicit `false`).
+    const free = Array.from(wrappers[0].querySelectorAll('[part~="option"]'));
+    for (const option of free) {
+      expect(option.hasAttribute('aria-disabled')).toBe(false);
+    }
+  });
+
+  it('refuses to select an option of a disabled group', () => {
+    // `placeholder` keeps the mount from auto-seeding the first option, so the
+    // value starts empty and a blocked click would show up as a change.
+    const element = mount({ placeholder: '请选择' }, GROUPED);
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-select-change', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    expect(element.value).toBe('');
+
+    const blocked = rowByLabel(element, '北京');
+    expect(blocked.getAttribute('aria-disabled')).toBe('true');
+    click(blocked);
+
+    expect(element.value).toBe('');
+    expect(seen).toHaveLength(0);
+
+    // An enabled option in another group still selects, proving the block came
+    // from the group and not from a broken click path.
+    click(rowByLabel(element, '广州'));
+    expect(element.value).toBe('gz');
+    expect(seen).toHaveLength(1);
+  });
+
+  it('publishes ARIA sets that are relative to the group, not the whole list', () => {
+    const element = mount({}, GROUPED);
+    open(element);
+
+    const first = groups(element)[0].querySelectorAll('[part~="option"]');
+    expect(first[0].getAttribute('aria-posinset')).toBe('1');
+    expect(first[0].getAttribute('aria-setsize')).toBe('2');
+    expect(first[1].getAttribute('aria-posinset')).toBe('2');
+    expect(first[1].getAttribute('aria-setsize')).toBe('2');
+
+    // The second group is numbered from 1 again, not continuing the first.
+    const second = groups(element)[1].querySelectorAll('[part~="option"]');
+    expect(second[0].getAttribute('aria-posinset')).toBe('1');
+    expect(second[0].getAttribute('aria-setsize')).toBe('2');
+  });
+
+  it('counts a flat option against the whole list, not a group', () => {
+    const element = mount(
+      {},
+      '<an-option-group label="A"><an-option value="a">A</an-option></an-option-group>' +
+        '<option value="x">X</option>',
+    );
+    open(element);
+
+    // Index 1 of 2 options total; it belongs to no group, so it uses the list.
+    const flatOption = options(element)[1];
+    expect(flatOption.getAttribute('aria-posinset')).toBe('2');
+    expect(flatOption.getAttribute('aria-setsize')).toBe('2');
+  });
+
+  it('renders no group wrapper when the group label is blank', () => {
+    // A blank label still yields the wrapper (it holds the options) but without
+    // an accessible name, so `aria-label` is simply absent.
+    const element = mount(
+      {},
+      '<an-option-group label="   "><an-option value="sh">上海</an-option></an-option-group>',
+    );
+    open(element);
+    const wrapper = groups(element)[0];
+    expect(wrapper).toBeDefined();
+    expect(wrapper.getAttribute('role')).toBe('group');
+    expect(wrapper.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('hides every group whose options the search filtered out', async () => {
+    const element = mount({ searchable: '' }, GROUPED);
+    open(element);
+
+    typeSearch(element, '上海');
+    await settle();
+
+    const wrappers = groups(element);
+    // Only the group that still holds a match survives.
+    expect(wrappers).toHaveLength(1);
+    expect(wrappers[0].getAttribute('aria-label')).toBe('华东');
+    expect(optionLabels(element)).toEqual(['上海']);
+  });
+
+  it('never filters on the group title, only on the option text', async () => {
+    const element = mount({ searchable: '' }, GROUPED);
+    open(element);
+
+    // "华北" is a group title; no option contains it, so nothing matches.
+    typeSearch(element, '华北');
+    await settle();
+
+    expect(groups(element)).toHaveLength(0);
+    expect(options(element)).toHaveLength(0);
+    expect(
+      element.shadowRoot!.querySelector('[part~="empty"]')!.hasAttribute('hidden'),
+    ).toBe(false);
+  });
+
+  it('keeps the group relative positions valid after a filter pass', async () => {
+    const element = mount({ searchable: '' }, GROUPED);
+    open(element);
+
+    typeSearch(element, '杭州');
+    await settle();
+
+    const wrapper = groups(element)[0];
+    const visible = Array.from(wrapper.querySelectorAll('[part~="option"]'));
+    expect(visible).toHaveLength(1);
+    // Re-numbered for the filtered list, so it is both first and only.
+    expect(visible[0].getAttribute('aria-posinset')).toBe('1');
+    expect(visible[0].getAttribute('aria-setsize')).toBe('1');
+  });
+
+  it('walks across group boundaries with ArrowDown / ArrowUp', () => {
+    const element = mount({}, GROUPED);
+    open(element);
+
+    const activeLabel = (): string | null => {
+      const id = trigger(element).getAttribute('aria-activedescendant');
+      const row = options(element).find((option) => option.id === id);
+      return row?.querySelector('.option-content')?.textContent?.trim() ?? null;
+    };
+    // First enabled option is 上海 in the first group.
+    expect(activeLabel()).toBe('上海');
+
+    // 杭州 is the last option of group 1; the next step crosses into group 3
+    // because 北京 / 天津 are disabled by their group.
+    press(trigger(element), 'ArrowDown');
+    expect(activeLabel()).toBe('杭州');
+    press(trigger(element), 'ArrowDown');
+    expect(activeLabel()).toBe('广州');
+
+    // At the end the list wraps around to the first enabled option.
+    press(trigger(element), 'ArrowDown');
+    expect(activeLabel()).toBe('上海');
+
+    // Upwards wraps the other way, then hops back over the disabled group.
+    press(trigger(element), 'ArrowUp');
+    expect(activeLabel()).toBe('广州');
+    press(trigger(element), 'ArrowUp');
+    expect(activeLabel()).toBe('杭州');
+    press(trigger(element), 'ArrowUp');
+    expect(activeLabel()).toBe('上海');
+  });
+
+  it('jumps to the first and last enabled option across groups with Home / End', () => {
+    const element = mount({}, GROUPED);
+    open(element);
+
+    press(trigger(element), 'End');
+    expect(trigger(element).getAttribute('aria-activedescendant')).toBe(options(element)[4].id);
+
+    press(trigger(element), 'Home');
+    expect(trigger(element).getAttribute('aria-activedescendant')).toBe(options(element)[0].id);
+  });
+
+  it('selects across groups and reports the option it came from', () => {
+    const element = mount({ multiple: '', name: 'city' }, GROUPED);
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-select-change', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    click(options(element)[0]);
+    click(options(element)[4]);
+
+    expect(element.values).toEqual(['sh', 'gz']);
+    expect(seen.map((event) => event.detail.option.value)).toEqual(['sh', 'gz']);
+    expect(seen[1].detail.values).toEqual(['sh', 'gz']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `an-load-more`: scroll position -> event, throttled.
+// ---------------------------------------------------------------------------
+
+/** Fakes the geometry happy-dom does not lay out. */
+function setGeometry(
+  list: HTMLElement,
+  geometry: { scrollTop: number; scrollHeight: number; clientHeight: number },
+): void {
+  Object.defineProperty(list, 'scrollHeight', {
+    configurable: true,
+    get: () => geometry.scrollHeight,
+  });
+  Object.defineProperty(list, 'clientHeight', {
+    configurable: true,
+    get: () => geometry.clientHeight,
+  });
+  list.scrollTop = geometry.scrollTop;
+}
+
+function scroll(list: HTMLElement, top: number): void {
+  list.scrollTop = top;
+  list.dispatchEvent(new Event('scroll'));
+}
+
+describe('an-select — load more', () => {
+  it('fires `an-load-more` once the list is inside the threshold', () => {
+    const element = mount({ virtual: 'off' });
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 0, scrollHeight: 1000, clientHeight: 300 });
+
+    // 700px from the bottom: outside the default 80px threshold.
+    scroll(list, 600);
+    expect(seen).toHaveLength(0);
+
+    // 80px from the bottom: exactly on the edge, so it fires.
+    scroll(list, 620);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].detail).toEqual({ scrollTop: 620, scrollHeight: 1000, clientHeight: 300 });
+  });
+
+  it('does not fire while the list is not scrollable', () => {
+    const element = mount({ virtual: 'off' });
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 0, scrollHeight: 300, clientHeight: 300 });
+    scroll(list, 0);
+
+    expect(seen).toHaveLength(0);
+  });
+
+  it('does not fire while the panel is closed', () => {
+    const element = mount({ virtual: 'off' });
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 620, scrollHeight: 1000, clientHeight: 300 });
+    scroll(list, 700);
+
+    expect(element.open).toBe(false);
+    expect(seen).toHaveLength(0);
+  });
+
+  it('throttles to one event per 200ms', () => {
+    vi.useFakeTimers();
+    const element = mount({ virtual: 'off' });
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 0, scrollHeight: 1000, clientHeight: 300 });
+    vi.setSystemTime(1_000);
+
+    scroll(list, 650);
+    expect(seen).toHaveLength(1);
+
+    // Well inside the window: dropped.
+    vi.setSystemTime(1_100);
+    scroll(list, 660);
+    scroll(list, 670);
+    expect(seen).toHaveLength(1);
+
+    // Just before the boundary: still dropped.
+    vi.setSystemTime(1_199);
+    scroll(list, 680);
+    expect(seen).toHaveLength(1);
+
+    // Past 200ms: fires again.
+    vi.setSystemTime(1_200);
+    scroll(list, 690);
+    expect(seen).toHaveLength(2);
+    expect(seen[1].detail.scrollTop).toBe(690);
+    vi.useRealTimers();
+  });
+
+  it('honours `load-more-threshold`', () => {
+    const element = mount({ virtual: 'off', 'load-more-threshold': '0' });
+    expect(element.loadMoreThreshold).toBe(0);
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 0, scrollHeight: 1000, clientHeight: 300 });
+
+    // 60px from the bottom: inside the default 80px window, outside a 0px one.
+    scroll(list, 640);
+    expect(seen).toHaveLength(0);
+
+    // Exactly at the bottom: distance 0, so a 0px threshold fires.
+    scroll(list, 700);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('widens the window with a larger threshold', () => {
+    const element = mount({ virtual: 'off', 'load-more-threshold': '400' });
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 0, scrollHeight: 1000, clientHeight: 300 });
+
+    // 350px from the bottom: still inside a 400px window.
+    scroll(list, 350);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('clamps a negative threshold to zero instead of firing everywhere', () => {
+    const element = mount({ virtual: 'off', 'load-more-threshold': '-100' });
+    const seen: CustomEvent[] = [];
+    element.addEventListener('an-load-more', (event) => seen.push(event as CustomEvent));
+    open(element);
+
+    const list = listbox(element);
+    setGeometry(list, { scrollTop: 0, scrollHeight: 1000, clientHeight: 300 });
+
+    scroll(list, 690);
+    expect(seen).toHaveLength(0);
+
+    scroll(list, 700);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('renders a `part="loading"` row only while `loading` is set', () => {
+    const element = mount();
+    const loading = (): HTMLElement =>
+      element.shadowRoot!.querySelector('[part~="loading"]') as HTMLElement;
+
+    expect(loading().hasAttribute('hidden')).toBe(true);
+    expect(loading().textContent).toContain('加载中');
+
+    element.loading = true;
+    expect(loading().hasAttribute('hidden')).toBe(false);
+
+    element.loading = false;
+    expect(loading().hasAttribute('hidden')).toBe(true);
+  });
+
+  it('hides the empty row while loading, even with no visible option', () => {
+    const element = mount({ loading: '' }, '');
+    const empty = (): HTMLElement =>
+      element.shadowRoot!.querySelector('[part~="empty"]') as HTMLElement;
+
+    expect(element.loading).toBe(true);
+    expect(empty().hasAttribute('hidden')).toBe(true);
+    expect(
+      (element.shadowRoot!.querySelector('[part~="loading"]') as HTMLElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(false);
   });
 });

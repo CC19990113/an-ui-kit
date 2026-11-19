@@ -338,6 +338,70 @@ describe('an-radio-group — disabled', () => {
 });
 
 describe('an-radio-group — form semantics', () => {
+  it('returns exactly one direct form entry for the current selection when named', () => {
+    const { group } = createGroup({ attributes: { name: 'plan', value: 'pro' } });
+
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'pro']]);
+
+    group.value = 'free';
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'free']]);
+
+    group.name = '';
+    expect(group.getFormData()).toBeNull();
+  });
+
+  it('omits direct form data for empty or unmatched values', () => {
+    const { group } = createGroup({ attributes: { name: 'plan' } });
+
+    expect(group.getFormData()).toBeNull();
+
+    group.value = 'missing';
+    expect(group.getFormData()).toBeNull();
+
+    group.value = 'pro';
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'pro']]);
+
+    group.value = '';
+    expect(group.getFormData()).toBeNull();
+  });
+
+  it('omits direct form data while disabled by the host or fieldset', () => {
+    const { group } = createGroup({ attributes: { name: 'plan', value: 'pro' } });
+
+    group.disabled = true;
+    expect(group.getFormData()).toBeNull();
+
+    group.disabled = false;
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'pro']]);
+
+    group.formDisabledCallback(true);
+    expect(group.getFormData()).toBeNull();
+
+    group.formDisabledCallback(false);
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'pro']]);
+  });
+
+  it('omits direct form data when the matching option is disabled', () => {
+    const { group, radios } = createGroup({
+      attributes: { name: 'plan', value: 'pro' },
+      values: [
+        { value: 'free' },
+        { value: 'pro', attributes: { disabled: '' } },
+      ],
+    });
+
+    expect(group.getFormData()).toBeNull();
+
+    radios[1].disabled = false;
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'pro']]);
+
+    radios[1].disabled = true;
+    expect(group.getFormData()).toBeNull();
+
+    group.value = 'free';
+    expect(Array.from(group.getFormData()!.entries())).toEqual([['plan', 'free']]);
+  });
+
   it('registers the selected value with the owning form', () => {
     const { group, form } = createGroup({
       attributes: { name: 'plan', value: 'pro' },

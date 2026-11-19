@@ -16,7 +16,7 @@
  */
 export interface InternalsState {
   readonly element: HTMLElement;
-  value: string | null;
+  value: string | FormData | null;
   flags: Record<string, boolean>;
   message: string;
   anchor: Element | null;
@@ -80,7 +80,7 @@ if (typeof proto.attachInternals !== 'function') {
         get form() {
           return formOf(record.element);
         },
-        setFormValue(next: string | null) {
+        setFormValue(next: string | FormData | null) {
           record.value = next;
         },
         setValidity(
@@ -128,6 +128,10 @@ class ShimFormData extends NativeFormData {
     if (!form) return;
     for (const record of records) {
       if (record.value === null || !belongsTo(record.element, form)) continue;
+      if (record.value instanceof NativeFormData) {
+        for (const [name, value] of record.value.entries()) this.append(name, value);
+        continue;
+      }
       const name = (record.element as FormAssociatedElement).name;
       if (name) this.append(name, record.value);
     }

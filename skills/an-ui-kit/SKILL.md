@@ -20,7 +20,7 @@ description: 用 AN UI Kit（Custom Elements 组件库）构建 UI 时使用。�
 - 没配：读 `references/<tagName>.md`。
 - attribute 名、事件名、CSS 变量名只能来自契约。契约里没有就是没有，不要写“看起来应该有”的 `color`、`icon`、`loading-text`（`label` 只属于 `an-input` / `an-textarea` / `an-select` / `an-field` 等，`an-button` 没有）。
 
-当前组件（16 个）：
+当前组件（17 个）：
 
 - `an-button`（见 [references/an-button.md](references/an-button.md)）—— 动作元素，真原生 `<button>`；`type="submit|reset"` 直接参与外层表单。
 - `an-input`（见 [references/an-input.md](references/an-input.md)）—— 单行输入框，真原生 `<input>` + form-associated。
@@ -28,6 +28,7 @@ description: 用 AN UI Kit（Custom Elements 组件库）构建 UI 时使用。�
 - `an-number`（见 [references/an-number.md](references/an-number.md)）—— 数字输入，内部 `<input type="text" inputmode="decimal" role="spinbutton">`（非原生 `type=number`）；`value` 只作初始文本，读 property 拿 `number | null`。
 - `an-select`（见 [references/an-select.md](references/an-select.md)）—— 下拉选择（可多选/搜索/虚拟滚动）；选项写成 light DOM 的 `<an-option>` 或原生 `<option>`。
 - `an-option`（见 [references/an-option.md](references/an-option.md)）—— `<an-select>` 的选项；不自带表单值，`value` 缺省取文本。
+- `an-option-group`（见 [references/an-option-group.md](references/an-option-group.md)）—— `<an-select>` 的分组容器；`label` 渲染成 `role="group"` 的 `aria-label`（缺省回退到自身文本节点），`disabled` 级联到组内选项。
 - `an-checkbox`（见 [references/an-checkbox.md](references/an-checkbox.md)）—— 布尔勾选框，真原生 `<input type="checkbox">`；标签文本走默认 slot。
 - `an-checkbox-group`（见 [references/an-checkbox-group.md](references/an-checkbox-group.md)）—— 复选组的表单半边；`value` property 是 `string[]`，attribute 逗号分隔。
 - `an-radio`（见 [references/an-radio.md](references/an-radio.md)）—— 单选组里的一个选项；不参与表单，由 group 托管。

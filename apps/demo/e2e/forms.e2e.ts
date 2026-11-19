@@ -302,18 +302,36 @@ test.describe(`${TAILWIND.name} (${TAILWIND.path})`, () => {
   test('preflight 下精简表单：Shadow DOM 内输入框样式不塌，校验与提交照常', async ({ page }) => {
     await openPage(page, TAILWIND.path);
 
-    // Tailwind preflight 的 `input { border: 0 }` 只能作用于文档，不能打穿 Shadow DOM。
-    const inner = await page.locator(`${T('form-name')} input`).evaluate((element) => {
-      const style = getComputedStyle(element);
+    // Tailwind preflight 不应影响 Shadow DOM；边框、背景与主要内边距由 .control 持有。
+    const styles = await page.locator(T('form-name')).evaluate((host) => {
+      const root = host.shadowRoot;
+      const control = root?.querySelector<HTMLElement>('.control');
+      const input = root?.querySelector<HTMLInputElement>('.input');
+      if (!control || !input) throw new Error('an-input shadow controls not found');
+
+      const controlStyle = getComputedStyle(control);
+      const inputStyle = getComputedStyle(input);
       return {
-        height: Number.parseFloat(style.height),
-        borderTopWidth: Number.parseFloat(style.borderTopWidth),
-        paddingInlineStart: Number.parseFloat(style.paddingInlineStart),
+        control: {
+          height: Number.parseFloat(controlStyle.height),
+          borderTopWidth: Number.parseFloat(controlStyle.borderTopWidth),
+          paddingInlineStart: Number.parseFloat(controlStyle.paddingInlineStart),
+          backgroundColor: controlStyle.backgroundColor,
+        },
+        input: {
+          height: Number.parseFloat(inputStyle.height),
+          borderTopWidth: Number.parseFloat(inputStyle.borderTopWidth),
+          backgroundColor: inputStyle.backgroundColor,
+        },
       };
     });
-    expect(inner.height, '输入框高度应来自组件自己的 CSS').toBeGreaterThan(20);
-    expect(inner.borderTopWidth, '输入框边框不应被 preflight 清零').toBeGreaterThan(0);
-    expect(inner.paddingInlineStart, '输入框内边距不应被 preflight 清零').toBeGreaterThan(0);
+    expect(styles.control.height, '.control 高度应来自组件自己的 CSS').toBeGreaterThan(20);
+    expect(styles.control.borderTopWidth, '.control 应保留边框').toBeGreaterThan(0);
+    expect(styles.control.paddingInlineStart, '.control 应保留内边距').toBeGreaterThan(0);
+    expect(styles.control.backgroundColor, '.control 应有不透明背景').not.toBe('rgba(0, 0, 0, 0)');
+    expect(styles.input.height, '内部输入框高度应可用').toBeGreaterThan(20);
+    expect(styles.input.borderTopWidth, '内部输入框边框为零是预期样式').toBe(0);
+    expect(styles.input.backgroundColor, '内部输入框透明背景是预期样式').toBe('rgba(0, 0, 0, 0)');
 
     await installFormRecorder(page);
     await submitButton(page).click();

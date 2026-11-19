@@ -789,3 +789,194 @@ describe('an-number — form and validation', () => {
     expect(readonly.value).toBe(5);
   });
 });
+
+// ---------------------------------------------------------------------------
+// `group-separator`: display-only thousands separators.
+// ---------------------------------------------------------------------------
+
+/** The unit span, when the element painted one. */
+function unit(element: AnNumber): HTMLElement | null {
+  return element.shadowRoot!.querySelector<HTMLElement>('[part~="unit"]');
+}
+
+/** Mounts a number field inside a real form so `FormData` can be read. */
+function inForm(
+  attributes: Record<string, string> = {},
+  value = '',
+): { element: AnNumber; form: HTMLFormElement } {
+  const form = document.createElement('form');
+  const element = document.createElement('an-number') as AnNumber;
+  for (const [name, entry] of Object.entries(attributes)) element.setAttribute(name, entry);
+  if (value.length > 0) element.setAttribute('value', value);
+  form.append(element);
+  document.body.append(form);
+  return { element, form };
+}
+
+describe('an-number — group separator', () => {
+  it('paints thousands separators in the committed text', () => {
+    // The attribute seeds the value, so the text is formatted right away.
+    const element = mount({ 'group-separator': '', value: '1234567' });
+
+    expect(inner(element).value).toBe('1,234,567');
+    expect(element.value).toBe(1234567);
+  });
+
+  it('formats on blur, not while the user types', () => {
+    const element = mount({ 'group-separator': '' });
+
+    type(element, '1234567');
+    // Mid-typing the raw digits stay: rewriting them would move the caret.
+    expect(inner(element).value).toBe('1234567');
+    expect(element.value).toBe(1234567);
+
+    commit(element);
+    expect(inner(element).value).toBe('1,234,567');
+    expect(element.value).toBe(1234567);
+  });
+
+  it('leaves the text alone without the attribute', () => {
+    const element = mount({ value: '1234567' });
+
+    expect(element.groupSeparator).toBe(false);
+    expect(inner(element).value).toBe('1234567');
+    type(element, '7654321');
+    commit(element);
+    expect(inner(element).value).toBe('7654321');
+  });
+
+  it('keeps `value` a plain number, never the formatted string', () => {
+    const element = mount({ 'group-separator': '', value: '1234567' });
+
+    expect(element.value).toBe(1234567);
+    expect(typeof element.value).toBe('number');
+    // The separators are display only: the raw attribute is untouched.
+    expect(element.getAttribute('value')).toBe('1234567');
+  });
+
+  it('submits the plain digits to `FormData`', () => {
+    const { form } = inForm({ 'group-separator': '', name: 'amount' }, '1234567');
+
+    expect(inner(document.querySelector('an-number') as AnNumber).value).toBe('1,234,567');
+    expect(new FormData(form).get('amount')).toBe('1234567');
+    expect(String(new FormData(form).get('amount'))).not.toContain(',');
+  });
+
+  it('reformats a typed value on blur and submits it unformatted', () => {
+    const { element, form } = inForm({ 'group-separator': '', name: 'amount' });
+
+    type(element, '9876543');
+    expect(new FormData(form).get('amount')).toBe('9876543');
+
+    commit(element);
+    expect(inner(element).value).toBe('9,876,543');
+    expect(new FormData(form).get('amount')).toBe('9876543');
+  });
+
+  it('formats decimals and negatives without touching the fraction', () => {
+    const negative = mount({ 'group-separator': '', value: '-1234567.89' });
+    expect(inner(negative).value).toBe('-1,234,567.89');
+    expect(negative.value).toBe(-1234567.89);
+
+    const decimal = mount({ 'group-separator': '', value: '1234.5678' });
+    expect(inner(decimal).value).toBe('1,234.5678');
+    expect(decimal.value).toBe(1234.5678);
+  });
+
+  it('leaves a short number ungrouped', () => {
+    const element = mount({ 'group-separator': '', value: '999' });
+    expect(inner(element).value).toBe('999');
+
+    element.value = 1000;
+    expect(inner(element).value).toBe('1,000');
+  });
+
+  it('restores the unformatted draft on form reset', () => {
+    const { element, form } = inForm({ 'group-separator': '', name: 'amount' }, '1000');
+    expect(inner(element).value).toBe('1,000');
+
+    element.value = 2500;
+    expect(inner(element).value).toBe('2,500');
+
+    form.reset();
+    // The value the element was mounted with comes back, still formatted.
+    expect(element.value).toBe(1000);
+    expect(inner(element).value).toBe('1,000');
+  });
+});
+
+describe('an-number — unit suffix', () => {
+  it('renders a `part="unit"` span with the unit text', () => {
+    const element = mount({ unit: '%' });
+    const span = unit(element);
+
+    expect(span).not.toBeNull();
+    expect(span!.getAttribute('part')).toBe('unit');
+    expect(span!.textContent).toBe('%');
+    expect(span!.closest('[part~="base"]')).not.toBeNull();
+  });
+
+  it('renders no *visible* unit when the attribute is unset', () => {
+    const element = mount();
+
+    expect(element.unit).toBe('');
+    // The span is always part of the markup so the layout does not shift, but
+    // it is empty and `.unit:empty { display: none }` takes it out of flow.
+    const span = unit(element);
+    expect(span).not.toBeNull();
+    expect(span!.textContent).toBe('');
+    expect(getComputedStyle(span!).display).toBe('none');
+  });
+
+  it('ships the `:empty` rule that hides the blank unit', () => {
+    const element = mount();
+    expect(adoptedStyles(element)).toMatch(/\.unit:empty\s*\{[^}]*display:\s*none/);
+  });
+
+  it('keeps the unit out of `value` and out of `FormData`', () => {
+    const { element, form } = inForm({ unit: '元', name: 'price' });
+
+    type(element, '42');
+    commit(element);
+
+    expect(element.value).toBe(42);
+    expect(unit(element)!.textContent).toBe('元');
+    expect(new FormData(form).get('price')).toBe('42');
+    expect(String(new FormData(form).get('price'))).not.toContain('元');
+  });
+
+  it('keeps the unit visible while disabled and while readonly', () => {
+    const disabled = mount({ unit: '%', disabled: '', value: '10' });
+    expect(disabled.disabled).toBe(true);
+    expect(disabled.shadowRoot!.querySelector('[part~="unit"]')).not.toBeNull();
+    expect(unit(disabled)!.textContent).toBe('%');
+
+    const readonly = mount({ unit: '%', readonly: '', value: '10' });
+    expect(readonly.readonly).toBe(true);
+    expect(readonly.shadowRoot!.querySelector('[part~="unit"]')).not.toBeNull();
+    expect(unit(readonly)!.textContent).toBe('%');
+    expect(readonly.value).toBe(10);
+  });
+
+  it('updates the unit when the property changes', () => {
+    const element = mount({ unit: '%' });
+    expect(unit(element)!.textContent).toBe('%');
+
+    element.unit = 'kg';
+    expect(unit(element)!.textContent).toBe('kg');
+    expect(element.getAttribute('unit')).toBe('kg');
+
+    element.unit = '';
+    // Clearing the unit empties the span and the `:empty` rule hides it again.
+    expect(unit(element)!.textContent).toBe('');
+    expect(getComputedStyle(unit(element)!).display).toBe('none');
+  });
+
+  it('combines with `group-separator` without leaking either into the value', () => {
+    const element = mount({ unit: '万元', 'group-separator': '', value: '1234567' });
+
+    expect(inner(element).value).toBe('1,234,567');
+    expect(unit(element)!.textContent).toBe('万元');
+    expect(element.value).toBe(1234567);
+  });
+});

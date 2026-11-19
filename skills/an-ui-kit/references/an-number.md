@@ -10,7 +10,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -32,6 +32,8 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 -
 | `name` | `string` | `""` | 提交到 `FormData` 的字段名 |
 | `size` | `'sm' \| 'md' \| 'lg'` | `md` | 控件尺寸 |
 | `stepper` | `boolean` | `false` | 渲染上/下步进按钮（按住会连续步进） |
+| `group-separator` | `boolean` | `false` | 提交文本里显示千分位（`1234567` → `1,234,567`）。仅展示：`value` 与 `FormData` 仍是纯数字串，键入过程中不改写文本 |
+| `unit` | `string` | `""` | 输入框右侧单位文本（如 `%`、`元`）；不进 `value`、不进 `FormData` |
 
 补充：
 

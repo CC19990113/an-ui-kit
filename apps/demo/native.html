@@ -253,6 +253,10 @@
       import '@an-ui-kit/tokens/tokens.css';
       import '@an-ui-kit/elements';
       import { installFormFamilyDemo } from './src/form-family-demo';
+      import { installThemeToggle } from './src/theme-toggle';
+
+      // 明暗开关：只改文档根上的 data-theme，组件 CSS 从 tokens 继承新颜色。
+      installThemeToggle();
 
       // 表单族：事件记录 + an-form 提交/校验回显（与 React/Vue 页共用同一模块）。
       installFormFamilyDemo();

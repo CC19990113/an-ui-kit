@@ -178,6 +178,14 @@ export class AnRadioGroup extends AnElement {
     this.#syncChildren();
   }
 
+  protected override formEntries(): Array<[string, string]> {
+    if (this.disabled || this.#formDisabled || !this.name || this.#value === '') return [];
+    const selected = this.#radios().some(
+      (radio) => radio.value === this.#value && !radio.disabled,
+    );
+    return selected ? [[this.name, this.#value]] : [];
+  }
+
   /** Mirrors a platform-level disable (e.g. ancestor `<fieldset disabled>`). */
   protected override onFormDisabled(disabled: boolean): void {
     this.#formDisabled = disabled;

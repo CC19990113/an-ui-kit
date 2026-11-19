@@ -3,7 +3,7 @@
 > 由 `packages/mcp/manifest.json`（仓库根 `custom-elements-manifest.json` 的拷贝）派生，表里的类型原文、事件名、CSS 变量、part 与 CEM 一致。
 > 改组件 JSDoc 后重新生成：仓库根 `pnpm cem`，再 `pnpm --filter @an-ui-kit/mcp build`。
 
-`<an-field>`：一个表单控件的**布局与错误展示**外壳。它渲染 `label` / 必填星号 / `hint` / `error` 的固定版式，并把默认 slot 里的**直接子控件**用 `aria-labelledby` / `aria-describedby` / `aria-invalid` 关联起来。
+`<an-field>`：一个表单控件的**布局与错误展示**外壳。它渲染 `label` / 必填星号 / `hint` / `error` 的固定版式，并为默认 slot 里的**直接子控件**设置文本型 `aria-label` / `aria-description`，以及管理 `aria-required` / `aria-invalid`。它不生成指向自身 Shadow DOM 的 `aria-labelledby` / `aria-describedby` IDREF，避免跨 Shadow DOM 边界失效；作者已有的 IDREF 会保留且不覆盖。
 
 它**不参与表单值**：没有 `formAssociated`、没有 `name` / `value`、不进 `FormData`、不做约束校验。它真正的价值是两件事：
 
@@ -13,7 +13,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -139,14 +139,14 @@ import '@an-ui-kit/tokens/tokens.css';
 - 控件（含直接放入的原生 `<input required>`）在 `form.requestSubmit()` / 提交时触发 `invalid`，`<an-field>` 捕获后显示该控件的 `validationMessage`；控件没有平台消息时回退为「请输入有效值」。
 - `error` attribute 优先于捕获到的消息；清掉 `error` 后回到自动消息（若仍无效）或隐藏。
 - 控件值一变化（`input` / `change` / `an-*-change`），自动错误会被清除；平台约束仍由控件自己决定。
-- `aria-labelledby` / `aria-describedby` 只写给**直接子控件**；`invalid` 捕获接受本 field 拥有的后代控件（嵌套 `<an-field>` 的事件不会泄漏到外层）。
+- 文本型 `aria-label` / `aria-description` 只设置给**直接子控件**；不生成指向 field 自身 Shadow DOM 的 `aria-labelledby` / `aria-describedby` IDREF，避免跨 Shadow DOM 边界失效。`invalid` 捕获接受本 field 拥有的后代控件（嵌套 `<an-field>` 的事件不会泄漏到外层）。
 
 ## a11y 注意事项
 
-- `label` 通过 `aria-labelledby` 指向内部 label，同时用 `aria-label` 兜底（跨 Shadow DOM 的 IDREF 不总是被解析）；hint/error 用 `aria-describedby` + `aria-description` 兜底。
+- `label` 文本通过 `aria-label` 设置；hint/error 文本通过 `aria-description` 设置。不生成指向 field 自身 Shadow DOM 的 IDREF，避免跨边界后无法解析。
 - 错误 `<p>` 是 `role="alert"`，出现时会被读屏播报；不要重复在控件上写一份错误文本。
-- 有 `error` 时控件的 `aria-invalid="true"` 由 field 写入并在错误清除后移除；控件上的 `aria-required` / `aria-invalid` 归 field 管理，作者自己写的 `aria-label` / `aria-labelledby` / `aria-describedby` / `aria-description` 优先，field 不会覆盖。
-- 被包裹的控件若自带 `label` attribute，field 不会再写 aria-label/labelledby —— 此时用控件的 label 命名，field 的 `label` 只剩视觉作用，建议二选一。
+- 有 `error` 时控件的 `aria-invalid="true"` 由 field 写入并在错误清除后移除；控件上的 `aria-required` / `aria-invalid` 归 field 管理。作者自带的 `aria-labelledby` / `aria-describedby` 会保留且不被覆盖；作者设置的 ARIA 属性优先。
+- 被包裹的控件若自带 `label` attribute，field 不会再写 `aria-label`；此时用控件的 label 命名，field 的 `label` 只剩视觉作用，建议二选一。
 - 只支持一个控件语义：一个 `<an-field>` 包一个控件；多个控件共享一个错误会互相覆盖 `aria-invalid`。
 
 ## 反例

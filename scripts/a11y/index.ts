@@ -217,7 +217,12 @@ export interface A11yRoleNodeFact {
   tagName: string;
   role: string | null;
   part: string | null;
+  /** 节点的文本内容（规范化）。 */
   text: string;
+  /** 浏览器渲染的可见文本（规范化）。 */
+  visibleText: string;
+  /** 近似计算的可访问名：aria-label、aria-labelledby、可见文本。 */
+  accessibleName: string;
   focusable: boolean | null;
   tabIndex: string | null;
   ariaLabel: string | null;
@@ -297,32 +302,47 @@ export function snapshotA11yRoles(element: Element): A11yRoleSnapshot {
     return focused;
   };
 
+  const readVisibleText = (node: Element): string => {
+    const html = node as HTMLElement;
+    const text = typeof html.innerText === 'string' ? html.innerText : node.textContent ?? '';
+    return text.replace(/\s+/g, ' ').trim();
+  };
+
   const read = (node: Element): A11yRoleNodeFact => {
     const html = node as HTMLElement;
     const tagName = node.tagName.toLowerCase();
     const tabIndex = node.getAttribute('tabindex');
     const focusable = tabIndex === '-1' ? null : readFocus(node);
     const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const visibleText = readVisibleText(node);
+    const ariaLabel = node.getAttribute('aria-label');
+    const labelledbyText = (() => {
+      const ids = (node.getAttribute('aria-labelledby') ?? '')
+        .split(/\s+/)
+        .filter((id) => id.length > 0);
+      return ids
+        .map((id) => {
+          const target = root.querySelector(`#${CSS.escape(id)}`);
+          return (target?.textContent ?? '').replace(/\s+/g, ' ').trim();
+        })
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    })();
+    const accessibleName =
+      ariaLabel?.trim() || labelledbyText || visibleText;
+
     return {
       tagName,
       role: node.getAttribute('role'),
       part: node.getAttribute('part'),
       text,
+      visibleText,
+      accessibleName,
       focusable,
       tabIndex,
-      ariaLabel: node.getAttribute('aria-label'),
-      labelledbyText: (() => {
-        const ids = (node.getAttribute('aria-labelledby') ?? '')
-          .split(/\s+/)
-          .filter((id) => id.length > 0);
-        return ids
-          .map((id) => {
-            const target = root.querySelector(`#${CSS.escape(id)}`);
-            return (target?.textContent ?? '').trim();
-          })
-          .join(' ')
-          .trim();
-      })(),
+      ariaLabel,
+      labelledbyText,
       ariaExpanded: node.getAttribute('aria-expanded'),
       ariaHaspopup: node.getAttribute('aria-haspopup'),
       ariaMultiselectable: node.getAttribute('aria-multiselectable'),
@@ -449,8 +469,8 @@ export function evaluateRoleA11y(
           'option-accessible-name',
           '可见 option 都有可访问名',
           visibleOptions.length > 0 &&
-            visibleOptions.every((node) => (node.ariaLabel ?? node.text).length > 0),
-          `empty=${visibleOptions.filter((node) => (node.ariaLabel ?? node.text).length === 0).length}`,
+            visibleOptions.every((node) => node.accessibleName.trim().length > 0),
+          `empty=${visibleOptions.filter((node) => node.accessibleName.trim().length === 0).length}`,
         );
       }
       break;
@@ -502,8 +522,8 @@ export function evaluateRoleA11y(
         push(
           'date-grid-accessible-name',
           'grid 有可访问名',
-          grid?.ariaLabel !== null && (grid?.ariaLabel ?? '').trim().length > 0,
-          `aria-label=${JSON.stringify(grid?.ariaLabel)}`,
+          grid !== undefined && grid.accessibleName.trim().length > 0,
+          `accessibleName=${JSON.stringify(grid?.accessibleName)}`,
         );
         const cells = withRole('gridcell');
         push(
@@ -544,11 +564,17 @@ export function evaluateRoleA11y(
         dropzone?.focusable === true,
         `focusable=${String(dropzone?.focusable)} tabindex=${dropzone?.tabIndex ?? 'missing'}`,
       );
+      const visibleTriggerText = dropzone?.visibleText ?? '';
       push(
         'upload-dropzone-name',
-        '触发区有可访问名',
-        dropzone?.ariaLabel !== null && (dropzone?.ariaLabel ?? '').trim().length > 0,
-        `aria-label=${JSON.stringify(dropzone?.ariaLabel)}`,
+        '触发区有包含可见文案的可访问名',
+        visibleTriggerText.length > 0 &&
+          dropzone !== undefined &&
+          dropzone.accessibleName.trim().length > 0 &&
+          dropzone.accessibleName.includes(visibleTriggerText),
+        `visibleText=${JSON.stringify(visibleTriggerText)} accessibleName=${JSON.stringify(
+          dropzone?.accessibleName,
+        )}`,
       );
       break;
     }
@@ -615,10 +641,8 @@ export function evaluateRoleA11y(
       push(
         'group-accessible-name',
         '选项组有可访问名',
-        group !== undefined &&
-          ((group.ariaLabel ?? group.labelledbyText ?? '').trim().length > 0 ||
-            group.text.length > 0),
-        `aria-label=${JSON.stringify(group?.ariaLabel)} text=${JSON.stringify(group?.text.slice(0, 40))}`,
+        group !== undefined && group.accessibleName.trim().length > 0,
+        `accessibleName=${JSON.stringify(group?.accessibleName.slice(0, 40))}`,
       );
       push(
         'group-required',

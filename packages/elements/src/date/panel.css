@@ -238,7 +238,18 @@
 }
 
 .day.day-outside {
-  color: var(--an-date-muted-fg, var(--an-color-gray-8, #9ca3af));
+  color: var(
+    --an-date-muted-fg,
+    color-mix(in srgb, var(--an-color-fg-1, #626262) 68%, var(--an-color-bg-1, #626262))
+  );
+}
+
+/* Range hosts map muted-fg to gray-9, which is too faint for active day text. */
+:host(an-date-range) .day.day-outside:not(:disabled):not(.day-selected) {
+  color: var(
+    --an-date-range-muted-fg,
+    color-mix(in srgb, var(--an-color-fg-1, #626262) 68%, var(--an-color-bg-1, #626262))
+  );
 }
 
 .day.day-selected {
@@ -290,6 +301,25 @@
 
 .footer-btn:hover:not(:disabled) {
   background: var(--an-color-gray-2, #f3f4f6);
+}
+
+/* Semantic tokens carry the theme through shadow hosts such as <an-field>. */
+@container style(--an-color-bg-1: var(--an-color-gray-12)) {
+  .footer-btn:not(:disabled) {
+    color: color-mix(
+      in srgb,
+      var(--an-color-accent-9, #2563eb) 72%,
+      var(--an-date-panel-fg, var(--an-color-fg-1, #f9fafb))
+    );
+  }
+
+  .footer-btn:hover:not(:disabled) {
+    background: color-mix(
+      in srgb,
+      var(--an-date-panel-bg, var(--an-color-bg-1, #111827)) 88%,
+      var(--an-date-panel-fg, var(--an-color-fg-1, #f9fafb))
+    );
+  }
 }
 
 .footer-btn:focus-visible {

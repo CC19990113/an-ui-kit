@@ -151,6 +151,67 @@
   object-fit: cover;
 }
 
+/* list-type="picture": a thumbnail grid; non-image files show their extension. */
+.list-picture {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--an-upload-picture-column-width, 7rem), 1fr)
+  );
+}
+
+.list-picture .item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--an-space-2, 0.5rem);
+  padding: var(--an-space-2, 0.5rem);
+}
+
+.list-picture .item-head {
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.item-thumb {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--an-upload-thumb-height, 5rem);
+  overflow: hidden;
+  border-radius: var(--an-upload-thumb-radius, var(--an-radius-sm, 0.25rem));
+  background-color: var(--an-upload-thumb-bg, var(--an-color-border-1, #d4d4d8));
+}
+
+.item-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-ext {
+  color: var(--an-upload-ext-color, var(--an-color-fg-1, #18181b));
+  font-size: var(--an-upload-ext-font-size, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* sortable: the dragged row is lifted out of the stack while the pointer moves. */
+.item[draggable='true'] {
+  cursor: grab;
+}
+
+.item[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.item[data-dragging] {
+  opacity: 0.6;
+  outline: 2px dashed var(--an-upload-dragging-outline, var(--an-color-accent-9, #2563eb));
+  outline-offset: 2px;
+}
+
 .item-body {
   display: flex;
   flex: 1 1 auto;
@@ -276,5 +337,32 @@
   .dropzone,
   .item-progress > .bar {
     transition: none;
+  }
+}
+
+/* Windows high-contrast: keep borders and focus visible with the system palette. */
+@media (forced-colors: active) {
+  .dropzone,
+  .item {
+    border-color: CanvasText;
+    background-color: Canvas;
+    color: CanvasText;
+  }
+
+  .dropzone:focus-visible,
+  .item-remove:focus-visible,
+  .item-cancel:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .item-preview,
+  .item-thumb {
+    border: 1px solid CanvasText;
+    background-color: Canvas;
+  }
+
+  .item[data-dragging] {
+    opacity: 1;
+    outline-color: Highlight;
   }
 }

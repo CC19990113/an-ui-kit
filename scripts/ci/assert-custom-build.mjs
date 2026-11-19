@@ -13,9 +13,11 @@
  *        - 含 `an-button` 与类名 `AnButton`；
  *        - 含 `customElements.define`（裁剪产物同样负责注册元素，不能只导出类）；
  *        - 不含 `an-input`、不含 `AnInput`（没点名的组件不得混进来）；
- *   4. 打印裁剪产物的 raw / gzip，并与全量 `dist/index.js` 对比，作为
+ *   4. 全量产物导出回归：`createXhrUploader` 必须出现在 runtime ESM 文本中；
+ *      这能防止全量虚拟入口漏掉 src/index.ts 的公开 helper。
+ *   5. 打印裁剪产物的 raw / gzip，并与全量 `dist/index.js` 对比，作为
  *      「按需生成确实更小」的证据；
- *   5. finally 里删临时目录。
+ *   6. finally 里删临时目录。
  *
  * 等价的配置驱动用法（人工/未来给用户在自己项目里生成时）：
  *   an-ui-kit.config.json → { "components": ["an-button"] }
@@ -99,6 +101,61 @@ try {
           `[ci:custom-build] 全量产物 ${relativeToRoot(FULL_BUNDLE)} 不存在，跳过体积对比（先跑 elements build）`,
         );
       }
+    }
+  }
+
+  // Import the actual all-mode ESM bundle in an isolated Node child. The small
+  // platform stubs are enough for module evaluation: constructors are declared
+  // but no custom element instance is created. This tests runtime exports rather
+  // than matching a symbol in a method body or comment.
+  if (!existsSync(FULL_BUNDLE)) {
+    failures.push(`全量运行时产物不存在：${relativeToRoot(FULL_BUNDLE)}（CI 应先构建 elements）`);
+  } else {
+    const runtimeProbe = String.raw`
+import assert from 'node:assert/strict';
+import { pathToFileURL } from 'node:url';
+
+const registrations = new Map();
+globalThis.HTMLElement = class HTMLElement {};
+globalThis.customElements = {
+  get(name) { return registrations.get(name); },
+  define(name, constructor) {
+    assert.equal(registrations.has(name), false, 'duplicate custom element: ' + name);
+    registrations.set(name, constructor);
+  },
+};
+
+const api = await import(pathToFileURL(process.argv[1]).href);
+assert.equal(typeof api.createXhrUploader, 'function', 'createXhrUploader must be a runtime ESM export');
+assert.equal(typeof api.AnUpload, 'function', 'AnUpload must be a runtime ESM export');
+assert.equal(registrations.size, 17, 'the full entry must register all 17 custom elements');
+for (const [child, parent] of [
+  ['an-option', 'an-select'],
+  ['an-option-group', 'an-select'],
+  ['an-radio', 'an-radio-group'],
+  ['an-checkbox', 'an-checkbox-group'],
+]) {
+  assert.ok(registrations.has(child), 'missing registration: ' + child);
+  assert.ok(registrations.has(parent), 'missing registration: ' + parent);
+  assert.ok(
+    [...registrations.keys()].indexOf(child) < [...registrations.keys()].indexOf(parent),
+    child + ' must register before ' + parent,
+  );
+}
+console.log('runtime ESM exports createXhrUploader and registers all 17 elements in child-first order');
+`;
+    const runtime = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', runtimeProbe, FULL_BUNDLE],
+      { cwd: ROOT, encoding: 'utf8' },
+    );
+    if (runtime.error) {
+      failures.push(`无法导入全量 ESM 产物：${runtime.error.message}`);
+    } else if (runtime.status !== 0) {
+      failures.push(`全量 ESM runtime 导出/注册回归失败：${(runtime.stderr || '').trim()}`);
+    } else {
+      if (runtime.stdout.trim() !== '') console.log(`[ci:custom-build] ${runtime.stdout.trim()}`);
+      console.log('[ci:custom-build] 全量 ESM runtime export ✓');
     }
   }
 } finally {

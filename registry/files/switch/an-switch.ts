@@ -103,6 +103,11 @@ export class AnSwitch extends AnElement {
     this.checked = this.#initialChecked;
   }
 
+  protected override formEntries(): Array<[string, string]> {
+    if (!this.checked || this.disabled || this.#formDisabled || !this.name) return [];
+    return [[this.name, this.value]];
+  }
+
   /** Mirrors a platform-level disable (e.g. ancestor `<fieldset disabled>`). */
   protected override onFormDisabled(disabled: boolean): void {
     this.#formDisabled = disabled;

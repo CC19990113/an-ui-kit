@@ -10,7 +10,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -32,6 +32,8 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 -
 | `field-name` | `string` | `""` | multipart 字段名；空时回退 `name` |
 | `auto-upload` | `boolean` | `true` | 添加文件后立即上传；**默认 true**，用 `auto-upload="false"` 关闭 |
 | `size` | `'sm' \| 'md' \| 'lg'` | `md` | 控件尺寸 |
+| `list-type` | `'text' \| 'picture'` | `text` | 队列展示形态：`text` 行列表，`picture` 缩略图网格（非图片文件显示带扩展名的文件图标） |
+| `sortable` | `boolean` | `false` | 允许拖动队列行重排；新顺序决定 `files` 与 `FormData` |
 
 补充：
 

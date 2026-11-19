@@ -10,7 +10,7 @@
 ## 导入与注册
 
 ```js
-import '@an-ui-kit/elements';            // 注册全部 16 个组件
+import '@an-ui-kit/elements';            // 注册全部 17 个组件
 import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 --an-color-*）
 ```
 
@@ -28,6 +28,7 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 -
 | `orientation` | `'vertical' \| 'horizontal'` | `vertical` | 选项排列方向 |
 | `min` | `number` | `0` | 最少选中数；`0` 关闭检查 |
 | `max` | `number` | `0` | 最多选中数；`0` 表示不限 |
+| `select-all` | `boolean` | `false` | 渲染“全选”复选框；只统计、切换启用项，禁用项不参与 |
 
 补充：
 
@@ -63,6 +64,9 @@ import '@an-ui-kit/tokens/tokens.css';   // 主题/配色（颜色全部来自 -
 | `base` | label 与选项的外层容器 |
 | `label` | 可见组标签，`label` 为空时不渲染 |
 | `group` | `role="group"` 的选项容器 |
+| `select-all-label` | 可选全选复选框的 label 外壳 |
+| `select-all` | 可选全选原生 checkbox；`select-all` 未开启时不渲染 |
+| `select-all-text` | 全选复选框旁的可见文案 |
 
 ## CSS 自定义属性
 
@@ -94,7 +98,7 @@ group.value = ['news', 'life'];      // 受控写回（property）
 
 - 读值只读 `.value`（数组），**不要** `attribute.split(',')`。
 - 值里含逗号时必须走 property：`group.value = ['a,b', 'c']`；写成 `value="a,b,c"` 会被解析成三个值。
-- 每个选中值单独进 `FormData`：`formData.getAll('topics')` 才是完整值。
+- 每个选中值单独进 `FormData`：原生 `<form>` 和 `<an-form>` 都以同一 `name` 追加多条记录；`formData.getAll('topics')` 才是完整值。子 `<an-checkbox>` 不需重复设置 `name`。
 
 ### `min` / `max` / `required`
 

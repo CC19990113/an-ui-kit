@@ -142,6 +142,9 @@ describe('an-date — structure and a11y', () => {
     expect(field.getAttribute('role')).toBe('combobox');
     expect(field.getAttribute('aria-expanded')).toBe('false');
     expect(field.getAttribute('aria-haspopup')).toBe('dialog');
+    const dialog = element.shadowRoot!.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.id).not.toBe('');
+    expect(field.getAttribute('aria-controls')).toBe(dialog.id);
     expect(panel(element).hidden).toBe(true);
     expect(panel(element).getAttribute('role')).toBe('dialog');
     expect(element.shadowRoot!.querySelector('[part~="grid"]')!.getAttribute('role')).toBe('grid');
@@ -162,7 +165,10 @@ describe('an-date — structure and a11y', () => {
       day(element, '2026-03-16')!.closest('[role="gridcell"]')!.getAttribute('aria-selected'),
     ).toBe('false');
     expect(selected.classList.contains('day-selected')).toBe(true);
-    expect(element.shadowRoot!.querySelector('[part~="day-outside"]')).not.toBeNull();
+    const outside = element.shadowRoot!.querySelector('[part~="day-outside"]')!;
+    expect(outside).not.toBeNull();
+    expect(outside.classList.contains('day-outside')).toBe(true);
+    expect(AnDate.styles).toMatch(/\.day\.day-outside\s*\{[^}]*--an-date-muted-fg/);
     expect(element.shadowRoot!.querySelector('[part~="day-today"]')).toBeNull();
 
     const withToday = mount();

@@ -6,7 +6,7 @@
 
 AN UI Kit 只提供原生语义与可验证契约，不接管业务状态、数据流与页面架构。
 
-**具体体现**：整个仓库由 tokens（设计变量）、elements（组件）、mcp（AI 查询）、cli（裁剪）四个包组成，组件基于原生 Custom Elements 与 `open` 模式的 Shadow DOM，通过标准浏览器接口与宿主协作。
+**具体体现**：整个仓库由 tokens（设计变量）、elements（组件）、mcp（AI 查询）、cli（裁剪）四个包组成，组件基于原生 Custom Elements，通过标准浏览器接口与宿主协作。交互控件使用 `open` 模式的 Shadow DOM，`<an-form>` 则直接聚合 light DOM 控件。
 
 **我们不做什么**：不扮演前端应用框架，不替业务决定状态管理、路由或数据请求方式。
 
@@ -15,9 +15,9 @@ AN UI Kit 只提供原生语义与可验证契约，不接管业务状态、数�
 使用者能改任何东西，组件只负责自身内部表现，不把外部宿主绑死在特定框架或样式体系上。
 
 **具体体现**：
-- 组件采用 `attachShadow({ mode: 'open' })`，对外保留五条明确出口：attribute、property、`bubbles: true, composed: true` 事件、CSS 变量与 `::part()`。
+- 使用 Shadow DOM 的组件采用 `attachShadow({ mode: 'open' })`，保留五条对外出口：attribute、property、`bubbles: true, composed: true` 事件、CSS 变量与 `::part()`。
 - `@an-ui-kit/tokens` 提供明暗双主题入口（显式 `data-theme="dark"` / `data-theme="light"` 与系统 `prefers-color-scheme`），组件内部 CSS 变量均带 fallback，不强绑外部样式表。
-- 已在原生 HTML、React 19 与 Vue 3 中通过验证，同一份构建产物可直接跨环境运行。
+- 同一份构建产物可在原生 HTML、React 19 与 Vue 3 中运行。CI 在 Chromium、WebKit 与 Firefox 中检验同一套交互、主题及无障碍用例，并为单测设置覆盖率门槛。
 
 **我们不做什么**：不锁定内部样式，不使用 `closed` Shadow DOM 阻止外部通过 CSS 变量与 `::part()` 覆盖外观。
 
@@ -36,7 +36,7 @@ AN UI Kit 只提供原生语义与可验证契约，不接管业务状态、数�
 机器能发现、能校验、能生成、能裁剪，不需要靠猜 API 写界面代码。
 
 **具体体现**：
-- 根目录 `custom-elements-manifest.json`（CEM，schema 2.1.0，当前包含 10 个 modules）是唯一真相源，CI 会校验源码扫描结果与该文件无 diff。
+- 根目录 `custom-elements-manifest.json`（CEM，schema 2.1.0，当前记录 17 个自定义元素及内部基类）是唯一真相源，CI 会校验源码扫描结果与该文件无 diff。
 - 由 CEM 单一真相源派生三样产物：`registry/`（供代码生成的组件 JSON）、`@an-ui-kit/mcp`（基于 stdio 的只读 MCP Server，供 AI agent 查询组件契约）与 `skills/an-ui-kit/`（给 AI agent 的使用说明）。
 - `@an-ui-kit/cli` 支持按 JSON 配置裁剪，只产出业务实际用到的组件。
 
@@ -48,7 +48,7 @@ AN UI Kit 只提供原生语义与可验证契约，不接管业务状态、数�
 
 **具体体现**：
 - `packages/*/dependencies` 恒为空对象 `{}`，由 CI 脚本强制断言；构建产物不引入任何第三方运行时库。
-- 体积受硬预算约束：每个组件设 2048B gzip 预算；当前 9 个组件实测总计 9653B gzip，总预算为 18432B。
+- 全量产物以 gzip 计算，保留 4096B 共享基线，再按每组件 2560B 计入预算，17 个组件的预算为 47616B。运行 `node scripts/ci/assert-bundle-size.mjs` 可查当前产物的实测体积与余量。
 - 通过 `@an-ui-kit/cli` 可按配置生成仅包含所选组件的单文件 ESM 产物，进一步压低最终加载体积。
 
 **我们不做什么**：不引入运行时依赖包，不在模块顶层维护隐式全局状态池或暗中挂载全局单例。
@@ -59,7 +59,7 @@ AN UI Kit 只提供原生语义与可验证契约，不接管业务状态、数�
 
 **具体体现**：
 - 在支持 ES 模块的原生 HTML 页面中引入脚本后即可直接使用 `<an-button>` 等标签，无需额外编译链。
-- 表单控件实现为 form-associated custom elements，`FormData` 收集、`required` 校验、`reset()` 重置与 `fieldset disabled` 禁用均走平台原生语义，不向 DOM 中塞入隐藏 `<input>`。
+- 值控件作为 form-associated custom elements 与原生 `<form>` 协作。用 `FormData` 收集值、用 `required` 约束提交、用 `reset()` 恢复初值，整组可通过 `<fieldset disabled>` 禁用。`<an-button>` 承接提交或重置动作，`<an-form>` 提供可选的规则校验与数据聚合。
 
 **我们不做什么**：不强迫使用者为了渲染基础控件而接入特定的构建工具或表单包装层。
 

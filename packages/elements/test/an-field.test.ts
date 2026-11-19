@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { AnField } from '../src/field/an-field';
+import { AnInput } from '../src/input/an-input';
+import { AnSelect } from '../src/select/an-select';
 import fieldCssSource from '../src/field/an-field.css?inline';
 import { componentSuite } from './helpers/harness';
 
@@ -18,15 +20,21 @@ const CSS_VARS = [
  * once the barrel entry lands.
  */
 if (!customElements.get('an-field')) customElements.define('an-field', AnField);
+if (!customElements.get('an-input')) customElements.define('an-input', AnInput);
+if (!customElements.get('an-select')) customElements.define('an-select', AnSelect);
 
 /**
- * The smallest thing `<an-field>` can wrap: a control that only exposes the
- * validation surface the field reads. No form participation, no shadow DOM —
- * the point is that the field never depends on one particular component.
+ * Minimal form-associated control exposing the validation surface the field
+ * reads. No shadow DOM — the field never depends on one particular component.
  */
 class FakeControl extends HTMLElement {
+  static formAssociated = true;
   validationMessage = '';
 }
+
+class FakeContainer extends HTMLElement {}
+
+if (!customElements.get('fake-container')) customElements.define('fake-container', FakeContainer);
 
 if (!customElements.get('fake-control')) customElements.define('fake-control', FakeControl);
 
@@ -210,48 +218,46 @@ describe('an-field', () => {
     expect(errorText(element)).toBe('外部消息');
   });
 
-  it('links the slotted control to the label by id and by text', () => {
+  it('names the slotted control with label text without a shadow IDREF', () => {
     const control = new FakeControl();
-    const element = mount({ label: '邮箱' }, control);
-    const label = part(element, 'label');
+    mount({ label: '邮箱' }, control);
 
-    expect(label.id).not.toBe('');
-    expect(control.getAttribute('aria-labelledby')).toBe(label.id);
-    // IDREFs cannot cross a shadow boundary; `aria-label` keeps the control
-    // named where that resolution is not honoured.
     expect(control.getAttribute('aria-label')).toBe('邮箱');
+    expect(control.hasAttribute('aria-labelledby')).toBe(false);
   });
 
   it('keeps the label id stable across re-renders', () => {
     const control = new FakeControl();
     const element = mount({ label: '邮箱' }, control);
     const id = part(element, 'label').id;
+    expect(id).not.toBe('');
 
     element.setAttribute('error', 'boom');
 
     expect(part(element, 'label').id).toBe(id);
-    expect(control.getAttribute('aria-labelledby')).toBe(id);
+    expect(control.getAttribute('aria-label')).toBe('邮箱');
+    expect(control.hasAttribute('aria-labelledby')).toBe(false);
   });
 
-  it('describes the control with the hint and the shown error only', () => {
+  it('describes the control with hint and error text without shadow IDREFs', () => {
     const control = new FakeControl();
-    const element = mount({ label: '邮箱', hint: '我们不会公开' }, control);
+    mount({ label: '邮箱', hint: '我们不会公开' }, control);
 
-    expect(control.getAttribute('aria-describedby')).toBe(part(element, 'hint').id);
     expect(control.getAttribute('aria-description')).toBe('我们不会公开');
+    expect(control.hasAttribute('aria-describedby')).toBe(false);
 
     fail(control, '请输入邮箱');
 
-    const ids = control.getAttribute('aria-describedby')!.split(' ');
-    expect(ids).toHaveLength(2);
-    expect(ids[0]).toBe(part(element, 'hint').id);
-    expect(ids[1]).toBe(part(element, 'error').id);
     expect(control.getAttribute('aria-description')).toBe('我们不会公开 请输入邮箱');
+    expect(control.hasAttribute('aria-describedby')).toBe(false);
   });
 
-  it('drops the described-by link when neither hint nor error shows', () => {
+  it('clears the description when neither hint nor error shows', () => {
     const control = new FakeControl();
-    mount({ label: '邮箱' }, control);
+    const element = mount({ label: '邮箱', hint: '提示' }, control);
+
+    expect(control.getAttribute('aria-description')).toBe('提示');
+    element.removeAttribute('hint');
 
     expect(control.hasAttribute('aria-describedby')).toBe(false);
     expect(control.hasAttribute('aria-description')).toBe(false);
@@ -286,7 +292,24 @@ describe('an-field', () => {
     expect(control.hasAttribute('aria-labelledby')).toBe(false);
   });
 
-  it('removes the links it wrote when the label is cleared', () => {
+  it('preserves author-provided aria-labelledby and aria-describedby', () => {
+    const control = new FakeControl();
+    control.setAttribute('aria-labelledby', 'author-label');
+    control.setAttribute('aria-describedby', 'author-description');
+    const element = mount({ label: '字段 label', hint: '字段提示' }, control);
+
+    expect(control.getAttribute('aria-labelledby')).toBe('author-label');
+    expect(control.getAttribute('aria-describedby')).toBe('author-description');
+    expect(control.hasAttribute('aria-label')).toBe(false);
+
+    element.removeAttribute('label');
+    element.removeAttribute('hint');
+
+    expect(control.getAttribute('aria-labelledby')).toBe('author-label');
+    expect(control.getAttribute('aria-describedby')).toBe('author-description');
+  });
+
+  it('removes the accessible name it wrote when the label is cleared', () => {
     const control = new FakeControl();
     const element = mount({ label: '邮箱' }, control);
 
@@ -296,14 +319,73 @@ describe('an-field', () => {
     expect(control.hasAttribute('aria-labelledby')).toBe(false);
   });
 
-  it('links every direct child, not just the first one', () => {
+  it.each(['div', 'span', 'section', 'fake-container', 'unregistered-control'])(
+    'does not write ARIA attributes to a direct child %s, even with a name',
+    (tag) => {
+      const container = document.createElement(tag);
+      container.className = 'row';
+      container.setAttribute('name', 'layout');
+      const nested = document.createElement('input');
+      container.append(nested);
+      const element = mount({ label: '邮箱', hint: '提示', error: '错误', required: '' }, container);
+
+      element.setAttribute('label', '更新的标签');
+      element.setAttribute('hint', '更新的提示');
+
+      for (const child of [container, nested]) {
+        for (const name of ['aria-labelledby', 'aria-describedby', 'aria-required', 'aria-invalid', 'aria-label', 'aria-description']) {
+          expect(child.hasAttribute(name)).toBe(false);
+        }
+      }
+    },
+  );
+
+  it.each(['input', 'textarea', 'select', 'button', 'an-input', 'an-select'])(
+    'links a direct child %s control and passes required',
+    async (tag) => {
+      const control = document.createElement(tag);
+      const element = mount({ label: '邮箱', required: '' }, control);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(control.getAttribute('aria-label')).toBe('邮箱');
+      expect(control.hasAttribute('aria-labelledby')).toBe(false);
+      expect(control.getAttribute('aria-required')).toBe('true');
+
+      element.removeAttribute('required');
+      expect(control.hasAttribute('aria-required')).toBe(false);
+    },
+  );
+
+  it('gives the an-select trigger the field label without a shadow IDREF', async () => {
+    const control = document.createElement('an-select');
+    mount({ label: '邮箱' }, control);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const trigger = control.shadowRoot!.querySelector('[part="trigger"]')!;
+    expect(trigger.getAttribute('aria-label')).toBe('邮箱');
+    expect(trigger.hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it.each(['input', 'an-input', 'an-select'])('preserves an explicit author aria-label on %s', async (tag) => {
+    const control = document.createElement(tag);
+    control.setAttribute('aria-label', '外部名称');
+    const element = mount({ label: '字段 label', required: '' }, control);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    element.setAttribute('label', '更新的标签');
+    element.removeAttribute('label');
+
+    expect(control.getAttribute('aria-label')).toBe('外部名称');
+    expect(control.hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('links every direct child control, not just the first one', () => {
     const first = new FakeControl();
     const second = new FakeControl();
-    const element = mount({ label: '邮箱' }, first, second);
+    mount({ label: '邮箱' }, first, second);
 
     for (const control of [first, second]) {
       expect(control.getAttribute('aria-label')).toBe('邮箱');
-      expect(control.getAttribute('aria-labelledby')).toBe(part(element, 'label').id);
+      expect(control.hasAttribute('aria-labelledby')).toBe(false);
     }
   });
 
@@ -327,7 +409,7 @@ describe('an-field', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(control.getAttribute('aria-label')).toBe('邮箱');
-    expect(control.getAttribute('aria-labelledby')).toBe(part(element, 'label').id);
+    expect(control.hasAttribute('aria-labelledby')).toBe(false);
   });
 
   it('moves aria-invalid when another control reports the same message', () => {
@@ -360,7 +442,8 @@ describe('an-field', () => {
 
     change(innerControl);
     expect(isHidden(outer, 'error')).toBe(true);
-    expect(innerControl.getAttribute('aria-labelledby')).toBe(part(inner, 'label').id);
+    expect(innerControl.getAttribute('aria-label')).toBe('内层');
+    expect(innerControl.hasAttribute('aria-labelledby')).toBe(false);
   });
 
   it('keeps the slotted control across re-renders', () => {
