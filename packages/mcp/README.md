@@ -92,8 +92,8 @@ packages/mcp/
 
 1. **`data-theme` 不在 CEM attributes 里**：`:host([data-theme='dark'])` 是库级主题入口（CONTRACT §6），不是组件 `@attr`，所以 MCP 的 `get_component` 查不到它。主题用法见 `skills/an-ui-kit`。
 2. **manifest 来源是根 CEM 拷贝**：`packages/mcp/manifest.json` 由构建步骤从仓库根 `custom-elements-manifest.json` 复制，本包不 `x-cem scan`。根 CEM 更新后必须重新 `pnpm --filter @an-ui-kit/mcp build`，否则本包仍是旧副本。
-3. **类级 description 缺失（待 x-cem 0.1.2）**：x-cem 0.1.1 不输出 class `description`；`list_components` 的 `description` 会退化为按 manifest 现场拼的事实摘要（属性名、事件名），不复制手写文档。scanner 支持后自动改用真 description。
-4. **默认值位置（待 x-cem 0.1.2）**：0.1.1 把 `Default: "md"` 写在属性 description 里。服务端优先读结构化 `attribute.default`（0.1.2 起），读不到时用正则从 description 还原；无默认值的布尔属性为 `null`。
+
+> 事实说明：当前 CEM 已直接提供类级 `description` 与结构化 `attribute.default`，服务端优先用结构化字段；旧格式的 `Default: "..."` description 文本只作为兼容兜底保留。
 
 ## 发布
 

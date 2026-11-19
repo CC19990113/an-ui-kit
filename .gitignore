@@ -10,6 +10,9 @@ dist/
 target/
 *.tsbuildinfo
 
+# 本地 codegraph 索引缓存
+.codegraph/
+
 # 测试
 coverage/
 playwright-report/
