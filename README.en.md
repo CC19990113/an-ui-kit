@@ -31,9 +31,10 @@ A single build works directly in **Native HTML**, **React 19**, and **Vue 3** (*
 
 | Package | Version | Description | Docs |
 |---------|---------|-------------|------|
-| `@an-ui-kit/tokens` | `0.1.1` | OKLCH design tokens (CSS variables, JS/TS, and JSON outputs) | [packages/tokens/README.md](packages/tokens/README.md) |
-| `@an-ui-kit/elements` | `0.1.0` | Native Custom Elements and zero-runtime framework types (`./react`, `./vue`) | [packages/elements/README.md](packages/elements/README.md) |
-| `@an-ui-kit/mcp` | `0.1.0` | Read-only stdio MCP server exposing component contracts from CEM | [packages/mcp/README.md](packages/mcp/README.md) |
+| `@an-ui-kit/tokens` | `0.1.1` (Published) | OKLCH design tokens (CSS variables, JS/TS, and JSON outputs) | [packages/tokens/README.md](packages/tokens/README.md) |
+| `@an-ui-kit/elements` | `0.2.0` (Pending release) | Native Custom Elements and zero-runtime framework types (`./react`, `./vue`) | [packages/elements/README.md](packages/elements/README.md) |
+| `@an-ui-kit/mcp` | `0.2.0` (Pending release) | Read-only stdio MCP server exposing component contracts from CEM | [packages/mcp/README.md](packages/mcp/README.md) |
+| `@an-ui-kit/cli` | `0.1.0` (First release pending) | Bundles selected components into a single ESM file based on configuration | [packages/cli/README.md](packages/cli/README.md) |
 
 ## Framework Support & Verification Scope
 

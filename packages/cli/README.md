@@ -15,7 +15,7 @@ npm i -D @an-ui-kit/cli @an-ui-kit/elements
 # 或 pnpm add -D @an-ui-kit/cli @an-ui-kit/elements / yarn add -D ...
 ```
 
-`@an-ui-kit/elements` 必须 **>= 0.1.0**（从这一版起 npm 包才带 `src` 组件源码，裁剪靠它）。
+`@an-ui-kit/elements` 必须 **>= 0.2.0**（裁剪需要 npm 包内的 `src` 组件源码）。
 
 也可以不安装、直接用 npx：优先用项目里装的 `@an-ui-kit/elements`（版本由你掌握），
 项目里没有时回落到 CLI 自带的那一份。
@@ -61,7 +61,7 @@ import { AnButton, AnElement } from './an-ui-kit.bundle.js';
 （多版本共存时，这条路径能解释「为什么组件清单和我以为的不一样」）。
 
 ```text
-[an-ui-kit] @an-ui-kit/elements@0.1.0
+[an-ui-kit] @an-ui-kit/elements@0.2.0
 [an-ui-kit] 包路径：/path/to/node_modules/@an-ui-kit/elements
 [an-ui-kit] 源码：/path/to/node_modules/@an-ui-kit/elements/src
 [an-ui-kit] 组件（2）：an-button, an-input
@@ -101,7 +101,7 @@ raw 与 gzip 大小。
 | `--no-minify` | 关 | 不压缩，便于读产物调试 |
 
 ```text
-[an-ui-kit] @an-ui-kit/elements@0.1.0（/path/to/node_modules/@an-ui-kit/elements）
+[an-ui-kit] @an-ui-kit/elements@0.2.0（/path/to/node_modules/@an-ui-kit/elements）
 [an-ui-kit] 配置来源：/path/to/an-ui-kit.config.json
 [an-ui-kit] 模式：custom
 [an-ui-kit] 组件（1）：an-button
@@ -139,7 +139,7 @@ raw 与 gzip 大小。
 ## 常见错误
 
 **`已安装的 @an-ui-kit/elements@x.y.z 没有随包发布组件源码（缺少 .../src），无法按配置裁剪。`**
-装到的版本太旧（`files` 里还没有 `src`）。升级：`npm i -D @an-ui-kit/elements@latest`（要求 >= 0.1.0）。
+装到的版本太旧（`files` 里还没有 `src`）。升级：`npm i -D @an-ui-kit/elements@latest`（要求 >= 0.2.0）。
 
 **`未知组件：an-xxx` + 可用组件清单**
 组件名拼错，或你装的 elements 版本里还没有这个组件。先 `an-ui-kit list` 看清单。

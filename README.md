@@ -31,9 +31,10 @@
 
 | 包名 | 版本 | 说明 | 文档 |
 |------|------|------|------|
-| `@an-ui-kit/tokens` | `0.1.1` | OKLCH design tokens（CSS 变量、JS/TS 与 JSON 产物） | [packages/tokens/README.md](packages/tokens/README.md) |
-| `@an-ui-kit/elements` | `0.1.0` | 原生 Custom Elements 组件与零运行时框架类型（`./react`、`./vue`） | [packages/elements/README.md](packages/elements/README.md) |
-| `@an-ui-kit/mcp` | `0.1.0` | stdio 只读 MCP Server，向 AI agent 暴露 CEM 组件契约 | [packages/mcp/README.md](packages/mcp/README.md) |
+| `@an-ui-kit/tokens` | `0.1.1`（已发布） | OKLCH design tokens（CSS 变量、JS/TS 与 JSON 产物） | [packages/tokens/README.md](packages/tokens/README.md) |
+| `@an-ui-kit/elements` | `0.2.0`（待发布） | 原生 Custom Elements 组件与零运行时框架类型（`./react`、`./vue`） | [packages/elements/README.md](packages/elements/README.md) |
+| `@an-ui-kit/mcp` | `0.2.0`（待发布） | stdio 只读 MCP Server，向 AI agent 暴露 CEM 组件契约 | [packages/mcp/README.md](packages/mcp/README.md) |
+| `@an-ui-kit/cli` | `0.1.0`（尚未首次发布） | 按配置将选中的组件裁剪为单文件 ESM | [packages/cli/README.md](packages/cli/README.md) |
 
 ## 框架支持与验证范围
 
