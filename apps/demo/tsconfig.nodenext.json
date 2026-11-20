@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "skipLibCheck": false,
+    "types": ["react"],
+    // The workspace-linked elements declarations resolve Vue from demo, as in tsconfig.json.
+    "paths": {
+      "vue": ["./node_modules/vue/dist/vue.d.mts"]
+    }
+  },
+  "files": ["consumer-nodenext.type-test.tsx"]
+}

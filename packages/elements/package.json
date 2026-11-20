@@ -42,12 +42,13 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
-    "build": "node ../../scripts/build-elements.mjs --mode all && tsc -p tsconfig.build.json",
+    "build": "node ../../scripts/build-elements.mjs --mode all && tsc -p tsconfig.build.json && node scripts/fix-declaration-specifiers.mjs",
     "build:custom": "node ../../scripts/build-elements.mjs --mode custom",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config test/vitest.config.ts",
     "test:coverage": "vitest run --config test/vitest.config.ts --coverage",
-    "test:watch": "vitest --config test/vitest.config.ts"
+    "test:watch": "vitest --config test/vitest.config.ts",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {},
   "devDependencies": {
